@@ -224,6 +224,27 @@ const EstudiosScreen = ({ navigation }) => {
   );
 };
 
+const loadData = async () => {
+  try {
+    if (activeTab === 'pendientes') {
+      // CAMBIA /studies/pending a /pending
+      const response = await api.get('/pending');
+      setPendingExams(response.data);
+    } else {
+      // CAMBIA /studies/completed a /completed
+      const response = await api.get('/completed');
+      setCompletedExams(response.data);
+    }
+    
+    // CAMBIA /studies/counts a /counts
+    const countsResponse = await api.get('/counts');
+    setCounts(countsResponse.data);
+    
+  } catch (error) {
+    console.error('Error loading studies:', error);
+  }
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,

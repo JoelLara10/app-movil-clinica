@@ -1,3 +1,5 @@
+// src/screens/dashboard/DashboardScreen.js - Versión corregida
+
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -18,10 +20,14 @@ moment.locale('es');
 
 const DashboardScreen = ({ navigation }) => {
   const { user, logout } = useAuth();
-  const [stats, setStats] = useState(null);
-  const [pendingStudies, setPendingStudies] = useState({ lab: 0, gab: 0, total: 0 });
+  const [stats, setStats] = useState({
+    active_patients: { total: 0, by_area: {} },
+    bed_occupancy: { total: 0, occupied: 0, available: 0, percentage: 0 },
+    pending_exams: 0,
+    today_attentions: 0
+  });
+  const [pendingStudies, setPendingStudies] = useState({ laboratorio: 0, gabinete: 0, total: 0 });
   const [refreshing, setRefreshing] = useState(false);
-  const [date, setDate] = useState(moment());
 
   useEffect(() => {
     loadDashboardData();
@@ -29,12 +35,24 @@ const DashboardScreen = ({ navigation }) => {
 
   const loadDashboardData = async () => {
     try {
-      const [statsRes, studiesRes] = await Promise.all([
-        api.get('/analytics/dashboard'),
-        api.get('/studies/counts'),
-      ]);
-      setStats(statsRes.data);
-      setPendingStudies(studiesRes.data);
+      // Intentar cargar dashboard stats
+      try {
+        const statsRes = await api.get('/analytics/dashboard');
+        setStats(statsRes.data);
+      } catch (error) {
+        console.log('Dashboard stats endpoint not available yet');
+        // Usar datos por defecto
+      }
+      
+      // Intentar cargar estudios counts
+      try {
+        const studiesRes = await api.get('/studies/counts');
+        setPendingStudies(studiesRes.data);
+      } catch (error) {
+        console.log('Studies counts endpoint not available yet');
+        // Usar datos por defecto
+      }
+      
     } catch (error) {
       console.error('Error loading dashboard:', error);
     }
@@ -78,12 +96,11 @@ const DashboardScreen = ({ navigation }) => {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      {/* Header */}
       <LinearGradient colors={['#667eea', '#764ba2']} style={styles.header}>
         <View style={styles.headerContent}>
           <View>
             <Text style={styles.greeting}>¡Hola, {user?.username}!</Text>
-            <Text style={styles.date}>{date.format('dddd, D [de] MMMM [de] YYYY')}</Text>
+            <Text style={styles.date}>{moment().format('dddd, D [de] MMMM [de] YYYY')}</Text>
           </View>
           <TouchableOpacity onPress={logout} style={styles.logoutButton}>
             <Ionicons name="log-out-outline" size={24} color="#fff" />
@@ -92,27 +109,24 @@ const DashboardScreen = ({ navigation }) => {
       </LinearGradient>
 
       {/* Stats Cards */}
-      {stats && (
-        <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <Ionicons name="people-outline" size={32} color="#667eea" />
-            <Text style={styles.statNumber}>{stats.active_patients?.total || 0}</Text>
-            <Text style={styles.statLabel}>Pacientes Activos</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Ionicons name="bed-outline" size={32} color="#48bb78" />
-            <Text style={styles.statNumber}>{stats.bed_occupancy?.occupied || 0}</Text>
-            <Text style={styles.statLabel}>Camas Ocupadas</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Ionicons name="flask-outline" size={32} color="#ed8936" />
-            <Text style={styles.statNumber}>{pendingStudies.total}</Text>
-            <Text style={styles.statLabel}>Estudios Pendientes</Text>
-          </View>
+      <View style={styles.statsContainer}>
+        <View style={styles.statCard}>
+          <Ionicons name="people-outline" size={32} color="#667eea" />
+          <Text style={styles.statNumber}>{stats.active_patients?.total || 0}</Text>
+          <Text style={styles.statLabel}>Pacientes Activos</Text>
         </View>
-      )}
+        <View style={styles.statCard}>
+          <Ionicons name="bed-outline" size={32} color="#48bb78" />
+          <Text style={styles.statNumber}>{stats.bed_occupancy?.occupied || 0}</Text>
+          <Text style={styles.statLabel}>Camas Ocupadas</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Ionicons name="flask-outline" size={32} color="#ed8936" />
+          <Text style={styles.statNumber}>{pendingStudies.total || 0}</Text>
+          <Text style={styles.statLabel}>Estudios Pendientes</Text>
+        </View>
+      </View>
 
-      {/* Menu Options */}
       <View style={styles.menuContainer}>
         <Text style={styles.menuTitle}>Módulos del Sistema</Text>
         <View style={styles.menuGrid}>
@@ -140,11 +154,23 @@ const DashboardScreen = ({ navigation }) => {
   );
 };
 
+const loadDashboardData = async () => {
+  try {
+    // CAMBIA /analytics/dashboard a /dashboard
+    const statsRes = await api.get('/dashboard');
+    setStats(statsRes.data);
+    
+    // CAMBIA /studies/counts a /counts
+    const studiesRes = await api.get('/counts');
+    setPendingStudies(studiesRes.data);
+    
+  } catch (error) {
+    console.error('Error loading dashboard:', error);
+  }
+};
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f7fafc',
-  },
+  container: { flex: 1, backgroundColor: '#f7fafc' },
   header: {
     paddingTop: 60,
     paddingBottom: 30,
@@ -157,19 +183,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  greeting: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  date: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
-    marginTop: 4,
-  },
-  logoutButton: {
-    padding: 8,
-  },
+  greeting: { fontSize: 24, fontWeight: 'bold', color: '#fff' },
+  date: { fontSize: 14, color: 'rgba(255,255,255,0.8)', marginTop: 4 },
+  logoutButton: { padding: 8 },
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -189,26 +205,10 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#2d3748',
-    marginTop: 8,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#718096',
-    marginTop: 4,
-  },
-  menuContainer: {
-    padding: 20,
-  },
-  menuTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2d3748',
-    marginBottom: 16,
-  },
+  statNumber: { fontSize: 24, fontWeight: 'bold', color: '#2d3748', marginTop: 8 },
+  statLabel: { fontSize: 12, color: '#718096', marginTop: 4 },
+  menuContainer: { padding: 20 },
+  menuTitle: { fontSize: 18, fontWeight: '600', color: '#2d3748', marginBottom: 16 },
   menuGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -236,17 +236,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  menuName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2d3748',
-    marginBottom: 4,
-  },
-  menuDescription: {
-    fontSize: 12,
-    color: '#718096',
-    textAlign: 'center',
-  },
+  menuName: { fontSize: 16, fontWeight: '600', color: '#2d3748', marginBottom: 4 },
+  menuDescription: { fontSize: 12, color: '#718096', textAlign: 'center' },
   badge: {
     position: 'absolute',
     top: -8,
@@ -259,11 +250,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 6,
   },
-  badgeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
+  badgeText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
 });
 
 export default DashboardScreen;

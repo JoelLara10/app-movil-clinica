@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+// src/screens/medico/MedicoScreen.js
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,363 +7,376 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useAuth } from '../../context/AuthContext';
-import api from '../../services/api';
-import moment from 'moment';
+  Alert,
+  ActivityIndicator,
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
+import { useAuth } from "../../context/AuthContext";
+import api from "../../services/api";
+import moment from "moment";
+import "moment/locale/es";
+
+moment.locale("es");
 
 const MedicoScreen = ({ navigation }) => {
   const { user } = useAuth();
-  const [appointments, setAppointments] = useState([]);
+  const [consulta, setConsulta] = useState([]);
+  const [urgencias, setUrgencias] = useState([]);
+  const [hospitalizados, setHospitalizados] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadAppointments();
+    loadData();
   }, []);
 
-  const loadAppointments = async () => {
+  const loadData = async () => {
     try {
-      const response = await api.get('/medical/appointments');
-      setAppointments(response.data);
+      setLoading(true);
+      
+      const response = await api.get("/medico");
+
+      console.log("Datos recibidos:", response.data);
+
+      setConsulta(response.data.beds_consulta || []);
+      setUrgencias(response.data.beds_preparacion || []);
+      setHospitalizados(response.data.beds_recuperacion || []);
     } catch (error) {
-      console.error('Error loading appointments:', error);
+      console.error("Error:", error);
+      Alert.alert("Error", "No se pudieron cargar los pacientes");
+    } finally {
+      setLoading(false);
     }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadAppointments();
+    await loadData();
     setRefreshing(false);
   };
 
-  const getAreaEmoji = (area) => {
-    if (area === 'Urgencias') return '🚨';
-    if (area === 'Hospitalizado') return '🛏️';
-    if (area === 'Ambulatorio') return '🚶';
-    return '🏥';
+  const getPatientName = (item) => {
+    if (item.nom_pac && item.papell) {
+      return `${item.papell} ${item.nom_pac}`;
+    }
+    if (item.nom_pac) return item.nom_pac;
+    return "Paciente";
   };
 
-  const getAreaColor = (area) => {
-    if (area === 'Urgencias') return '#f56565';
-    if (area === 'Hospitalizado') return '#ed8936';
-    return '#48bb78';
+  const renderPatientCard = (item, index, area, areaColor) => {
+    const isOccupied = item.estatus === "OCUPADA" && item.tiene_atencion;
+
+    return (
+      <TouchableOpacity
+        key={item.id_atencion || item.id_cama || index}
+        style={styles.bedCard}
+        onPress={() => {
+          if (isOccupied && item.id_atencion && item.Id_exp) {
+            navigation.navigate("PatientDetail", {
+              id_atencion: item.id_atencion,
+              Id_exp: item.Id_exp
+            });
+          } else {
+            Alert.alert("Información", "Cama disponible");
+          }
+        }}
+      >
+        <View style={[styles.bedIcon, { backgroundColor: areaColor + "20" }]}>
+          <Ionicons
+            name={isOccupied ? "person-outline" : "bed-outline"}
+            size={32}
+            color={areaColor}
+          />
+        </View>
+        <Text style={styles.bedNumber}>{item.num_cama}</Text>
+        {isOccupied ? (
+          <>
+            <Text style={styles.patientName}>{getPatientName(item)}</Text>
+            <View style={[styles.statusBadge, { backgroundColor: areaColor }]}>
+              <Text style={styles.statusText}>OCUPADO</Text>
+            </View>
+          </>
+        ) : (
+          <>
+            <Text style={styles.patientName}>—</Text>
+            <View style={[styles.statusBadge, { backgroundColor: "#a0aec0" }]}>
+              <Text style={styles.statusText}>DISPONIBLE</Text>
+            </View>
+          </>
+        )}
+      </TouchableOpacity>
+    );
   };
 
-  const renderAppointmentCard = (item, index) => (
-    <TouchableOpacity
-      key={index}
-      style={styles.card}
-      onPress={() => navigation.navigate('PatientDetail', { 
-        id_atencion: item.id_atencion,
-        Id_exp: item.Id_exp 
-      })}
-    >
-      <View style={styles.cardHeader}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {item.paciente?.nombre?.charAt(0) || 'P'}
-          </Text>
-        </View>
-        <View style={styles.cardInfo}>
-          <Text style={styles.patientName}>{item.paciente?.nombre || 'Paciente'}</Text>
-          <Text style={styles.patientDetail}>📋 Expediente: {item.Id_exp}</Text>
-        </View>
-        <View style={[styles.statusBadge, { backgroundColor: getAreaColor(item.area) }]}>
-          <Text style={styles.statusText}>{getAreaEmoji(item.area)} {item.area}</Text>
-        </View>
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#667eea" />
+        <Text style={styles.loadingText}>Cargando pacientes...</Text>
       </View>
-      
-      <View style={styles.cardBody}>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoIcon}>📅</Text>
-          <Text style={styles.infoText}>
-            Ingreso: {moment(item.fecha_ing).format('DD/MM/YYYY HH:mm')}
-          </Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoIcon}>🛏️</Text>
-          <Text style={styles.infoText}>Cama: {item.num_cama || 'Sin asignar'}</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoIcon}>❤️</Text>
-          <Text style={styles.infoText}>Motivo: {item.motivo || 'No especificado'}</Text>
-        </View>
-      </View>
-      
-      <View style={styles.cardFooter}>
-        <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={() => navigation.navigate('VitalSigns', { id_atencion: item.id_atencion })}
-        >
-          <Text style={styles.actionEmoji}>❤️</Text>
-          <Text style={styles.actionText}>Signos</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={() => navigation.navigate('MedicalNote', { id_atencion: item.id_atencion })}
-        >
-          <Text style={styles.actionEmoji}>📝</Text>
-          <Text style={styles.actionText}>Nota</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={() => navigation.navigate('Diagnosis', { id_atencion: item.id_atencion })}
-        >
-          <Text style={styles.actionEmoji}>🔬</Text>
-          <Text style={styles.actionText}>Diagnóstico</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={() => navigation.navigate('Prescription', { id_atencion: item.id_atencion })}
-        >
-          <Text style={styles.actionEmoji}>💊</Text>
-          <Text style={styles.actionText}>Receta</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={() => navigation.navigate('Exams', { id_atencion: item.id_atencion })}
-        >
-          <Text style={styles.actionEmoji}>🔬</Text>
-          <Text style={styles.actionText}>Estudios</Text>
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
-  );
+    );
+  }
 
   return (
     <ScrollView
       style={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
     >
-      <LinearGradient colors={['#667eea', '#764ba2']} style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backText}>←</Text>
+      <LinearGradient colors={["#667eea", "#764ba2"]} style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>👨‍⚕️ Módulo Médico</Text>
+        <Text style={styles.headerTitle}>
+          <Ionicons name="medkit-outline" size={20} color="#fff" /> Módulo
+          Médico
+        </Text>
         <View style={{ width: 40 }} />
       </LinearGradient>
 
-      <View style={styles.content}>
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statEmoji}>👥</Text>
-            <Text style={styles.statNumber}>{appointments.length}</Text>
-            <Text style={styles.statLabel}>Pacientes Activos</Text>
+      <View style={styles.welcomeCard}>
+        <View>
+          <Text style={styles.welcomeTitle}>¡Hola, Dr. {user?.username}!</Text>
+          <Text style={styles.welcomeSubtitle}>
+            {moment().format("dddd, D [de] MMMM [de] YYYY")}
+          </Text>
+        </View>
+        <View style={styles.statsPill}>
+          <Text style={styles.statsPillText}>
+            Total: {consulta.length + urgencias.length + hospitalizados.length}
+          </Text>
+        </View>
+      </View>
+
+      {/* CONSULTA EXTERNA */}
+      <View style={styles.sectionContainer}>
+        <View style={[styles.sectionTitle, styles.titleConsulta]}>
+          <View style={styles.sectionTitleLeft}>
+            <Ionicons name="people-outline" size={22} color="#4299e1" />
+            <Text style={styles.sectionTitleText}>PACIENTES EN CONSULTA</Text>
           </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statEmoji}>🏥</Text>
-            <Text style={styles.statNumber}>
-              {appointments.filter(a => a.area === 'Urgencias').length}
-            </Text>
-            <Text style={styles.statLabel}>Urgencias</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statEmoji}>🛏️</Text>
-            <Text style={styles.statNumber}>
-              {appointments.filter(a => a.area === 'Hospitalizado').length}
-            </Text>
-            <Text style={styles.statLabel}>Hospitalizados</Text>
+          <View style={styles.badgeCount}>
+            <Text style={styles.badgeCountText}>{consulta.length}</Text>
           </View>
         </View>
+        <View style={styles.patientGrid}>
+          {consulta.length > 0 ? (
+            consulta.map((item, idx) =>
+              renderPatientCard(item, idx, "Consulta", "#4299e1"),
+            )
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyEmoji}>🏥</Text>
+              <Text style={styles.emptyText}>No hay pacientes en consulta</Text>
+            </View>
+          )}
+        </View>
+      </View>
 
-        <Text style={styles.sectionTitle}>📋 Pacientes Asignados</Text>
-        
-        {appointments.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>😴</Text>
-            <Text style={styles.emptyText}>No hay pacientes asignados</Text>
-            <Text style={styles.emptySubtext}>Esperando asignación de pacientes</Text>
+      {/* URGENCIAS */}
+      <View style={styles.sectionContainer}>
+        <View style={[styles.sectionTitle, styles.titleUrgencias]}>
+          <View style={styles.sectionTitleLeft}>
+            <Ionicons name="alert-circle-outline" size={22} color="#f56565" />
+            <Text style={styles.sectionTitleText}>PACIENTES EN URGENCIAS</Text>
           </View>
-        ) : (
-          appointments.map((item, index) => renderAppointmentCard(item, index))
-        )}
+          <View style={[styles.badgeCount, styles.badgeUrgencias]}>
+            <Text style={styles.badgeCountText}>{urgencias.length}</Text>
+          </View>
+        </View>
+        <View style={styles.patientGrid}>
+          {urgencias.length > 0 ? (
+            urgencias.map((item, idx) =>
+              renderPatientCard(item, idx, "Urgencias", "#f56565"),
+            )
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyEmoji}>🚨</Text>
+              <Text style={styles.emptyText}>
+                No hay pacientes en urgencias
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      {/* HOSPITALIZADOS */}
+      <View style={styles.sectionContainer}>
+        <View style={[styles.sectionTitle, styles.titleHospitalizado]}>
+          <View style={styles.sectionTitleLeft}>
+            <Ionicons name="bed-outline" size={22} color="#48bb78" />
+            <Text style={styles.sectionTitleText}>
+              PACIENTES HOSPITALIZADOS
+            </Text>
+          </View>
+          <View style={[styles.badgeCount, styles.badgeHospitalizado]}>
+            <Text style={styles.badgeCountText}>{hospitalizados.length}</Text>
+          </View>
+        </View>
+        <View style={styles.patientGrid}>
+          {hospitalizados.length > 0 ? (
+            hospitalizados.map((item, idx) =>
+              renderPatientCard(item, idx, "Hospitalizado", "#48bb78"),
+            )
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyEmoji}>🛏️</Text>
+              <Text style={styles.emptyText}>
+                No hay pacientes hospitalizados
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>
+          <Ionicons
+            name="shield-checkmark-outline"
+            size={12}
+            color="rgba(0,0,0,0.4)"
+          />{" "}
+          INEO v2.0 - Sistema de Gestión Hospitalaria
+        </Text>
       </View>
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  container: { flex: 1, backgroundColor: "#f7fafc" },
+  loadingContainer: {
     flex: 1,
-    backgroundColor: '#f7fafc',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f7fafc",
   },
+  loadingText: { marginTop: 12, fontSize: 14, color: "#718096" },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingTop: 60,
     paddingBottom: 20,
     paddingHorizontal: 20,
   },
-  backButton: {
-    padding: 8,
-  },
-  backText: {
-    fontSize: 24,
-    color: '#fff',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  content: {
+  backButton: { padding: 8 },
+  headerTitle: { fontSize: 18, fontWeight: "bold", color: "#fff" },
+  welcomeCard: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    marginHorizontal: 16,
+    marginTop: 16,
     padding: 16,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-    gap: 8,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
+    borderRadius: 16,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
-  statEmoji: {
-    fontSize: 28,
-    marginBottom: 8,
+  welcomeTitle: { fontSize: 16, fontWeight: "bold", color: "#2d3748" },
+  welcomeSubtitle: { fontSize: 12, color: "#718096", marginTop: 4 },
+  statsPill: {
+    backgroundColor: "#667eea20",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
   },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#2d3748',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#718096',
-    marginTop: 4,
-  },
+  statsPillText: { fontSize: 12, fontWeight: "600", color: "#667eea" },
+  sectionContainer: { marginTop: 20, paddingHorizontal: 16 },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2d3748',
-    marginBottom: 16,
-  },
-  card: {
-    backgroundColor: '#fff',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderRadius: 12,
     marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  sectionTitleLeft: { flexDirection: "row", alignItems: "center" },
+  sectionTitleText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#2d3748",
+    marginLeft: 8,
+  },
+  titleConsulta: { borderLeftWidth: 4, borderLeftColor: "#4299e1" },
+  titleUrgencias: { borderLeftWidth: 4, borderLeftColor: "#f56565" },
+  titleHospitalizado: { borderLeftWidth: 4, borderLeftColor: "#48bb78" },
+  badgeCount: {
+    backgroundColor: "#4299e1",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  badgeUrgencias: { backgroundColor: "#f56565" },
+  badgeHospitalizado: { backgroundColor: "#48bb78" },
+  badgeCountText: { fontSize: 12, fontWeight: "bold", color: "#fff" },
+  patientGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  bedCard: {
+    width: "48%",
+    backgroundColor: "#fff",
+    borderRadius: 16,
     padding: 16,
-    shadowColor: '#000',
+    marginBottom: 12,
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  bedIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 12,
   },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#667eea',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  cardInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  patientName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2d3748',
-  },
-  patientDetail: {
-    fontSize: 12,
-    color: '#718096',
-    marginTop: 2,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  statusText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  cardBody: {
-    borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
-    paddingTop: 12,
-    marginBottom: 12,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  infoIcon: {
+  bedNumber: {
     fontSize: 14,
-    marginRight: 8,
-    width: 30,
-  },
-  infoText: {
-    fontSize: 13,
-    color: '#4a5568',
-    flex: 1,
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
-    paddingTop: 12,
-  },
-  actionButton: {
-    alignItems: 'center',
-  },
-  actionEmoji: {
-    fontSize: 20,
+    fontWeight: "bold",
+    color: "#2d3748",
     marginBottom: 4,
   },
-  actionText: {
-    fontSize: 11,
-    color: '#667eea',
-    fontWeight: '500',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  emptyEmoji: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#a0aec0',
-    marginTop: 12,
-  },
-  emptySubtext: {
+  patientName: {
     fontSize: 12,
-    color: '#cbd5e0',
-    marginTop: 4,
+    color: "#718096",
+    textAlign: "center",
+    marginBottom: 8,
   },
+  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  statusText: { fontSize: 10, fontWeight: "bold", color: "#fff" },
+  emptyState: {
+    width: "100%",
+    alignItems: "center",
+    paddingVertical: 40,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+  },
+  emptyEmoji: { fontSize: 48, marginBottom: 12 },
+  emptyText: { fontSize: 14, color: "#a0aec0" },
+  footer: { marginTop: 30, marginBottom: 20, alignItems: "center" },
+  footerText: { fontSize: 11, color: "rgba(0,0,0,0.4)" },
 });
 
 export default MedicoScreen;

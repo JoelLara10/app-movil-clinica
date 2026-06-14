@@ -11,6 +11,7 @@ import AdminScreen from '../screens/admin/AdminScreen';
 import MedicoScreen from '../screens/medico/MedicoScreen';
 import EstudiosScreen from '../screens/estudios/EstudiosScreen';
 import ConfigScreen from '../screens/config/ConfigScreen';
+import PatientDetailScreen from '../screens/medico/PatientDetailScreen';
 
 const Drawer = createDrawerNavigator();
 const Stack = createStackNavigator();
@@ -39,7 +40,10 @@ function MainStack() {
       )}
       
       {(role === 'admin' || role === 'medico') && (
-        <Stack.Screen name="Medico" component={MedicoScreen} />
+        <>
+          <Stack.Screen name="Medico" component={MedicoScreen} />
+          <Stack.Screen name="PatientDetail" component={PatientDetailScreen} />
+        </>
       )}
       
       {(role === 'admin' || role === 'medico' || role === 'estudios') && (
