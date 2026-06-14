@@ -1,24 +1,21 @@
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
+import MedicoDrawer from './MedicoDrawer';
+import AdminDrawer from './AdminDrawer';
+import EstudiosDrawer from './EstudiosDrawer';
 import { useAuth } from '../context/AuthContext';
-import AuthNavigator from './AuthNavigator';
-import MainNavigator from './MainNavigator';
 
-const Stack = createStackNavigator();
+export default function AppNavigator() {
+  const { user } = useAuth();
 
-const AppNavigator = () => {
-  const { isAuthenticated, loading } = useAuth();
+  if (!user) return <AuthNavigator />;
 
-  if (loading) {
-    return null; // O mostrar splash screen
+  switch (user.role) {
+    case 'medico':
+      return <MedicoDrawer />;
+    case 'admin':
+      return <AdminDrawer />;
+    case 'estudios':
+      return <EstudiosDrawer />;
+    default:
+      return <AuthNavigator />;
   }
-
-  return (
-    <NavigationContainer>
-      {isAuthenticated ? <MainNavigator /> : <AuthNavigator />}
-    </NavigationContainer>
-  );
-};
-
-export default AppNavigator;
+}
