@@ -1,29 +1,38 @@
 {
   "expo": {
-    "name": "ineo-mobile",
-    "slug": "ineo-mobile",
+    "name": "INEO Hospital",
+    "slug": "ineo-hospital",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#667eea"
     },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ineo.hospital"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#667eea"
       },
-      "edgeToEdgeEnabled": true
+      "package": "com.ineo.hospital"
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "API_URL": "http://192.168.1.67:5001/api/v1"
+    },
+    "plugins": [
+      "expo-font"
+    ]
   }
 }
