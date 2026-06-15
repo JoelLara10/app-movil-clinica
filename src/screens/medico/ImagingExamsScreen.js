@@ -9,29 +9,61 @@ import {
   Alert,
   ActivityIndicator,
   TextInput,
+  FlatList,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
+import moment from 'moment';
+import 'moment/locale/es';
+
+moment.locale('es');
 
 const ImagingExamsScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params;
   const [loading, setLoading] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+  const [showHistory, setShowHistory] = useState(false);
   const [exams, setExams] = useState([]);
   const [selectedExams, setSelectedExams] = useState([]);
   const [observations, setObservations] = useState('');
+  const [requestedExams, setRequestedExams] = useState([]);
 
   useEffect(() => {
     loadExams();
+    loadRequestedExams();
   }, []);
 
   const loadExams = async () => {
     try {
+      console.log('Cargando exámenes de gabinete...');
       const response = await api.get('/exams/catalog?type=GABINETE');
-      setExams(response.data);
+      console.log('Exámenes recibidos:', response.data);
+      
+      if (response.data && Array.isArray(response.data)) {
+        setExams(response.data);
+      } else {
+        console.error('Formato de respuesta inválido:', response.data);
+        setExams([]);
+      }
     } catch (error) {
       console.error('Error loading exams:', error);
-      Alert.alert('Error', 'No se pudieron cargar los exámenes de gabinete');
+      Alert.alert('Error', 'No se pudieron cargar los exámenes de gabinete: ' + (error.response?.data?.error || error.message));
+      setExams([]);
+    }
+  };
+
+  const loadRequestedExams = async () => {
+    try {
+      setLoadingHistory(true);
+      console.log('Cargando solicitudes previas...');
+      const response = await api.get(`/exams/requested/${id_atencion}?type=GABINETE`);
+      console.log('Solicitudes recibidas:', response.data);
+      setRequestedExams(response.data || []);
+    } catch (error) {
+      console.error('Error loading requested exams:', error);
+    } finally {
+      setLoadingHistory(false);
     }
   };
 
@@ -59,15 +91,61 @@ const ImagingExamsScreen = ({ navigation, route }) => {
       });
       if (response.data) {
         Alert.alert('Éxito', 'Exámenes de gabinete solicitados correctamente');
-        navigation.goBack();
+        setSelectedExams([]);
+        setObservations('');
+        loadRequestedExams();
       }
     } catch (error) {
       console.error('Error saving exams:', error);
-      Alert.alert('Error', 'No se pudieron guardar los exámenes');
+      Alert.alert('Error', error.response?.data?.error || 'No se pudieron guardar los exámenes');
     } finally {
       setLoading(false);
     }
   };
+
+  const renderHistoryItem = ({ item }) => (
+    <View style={styles.historyItem}>
+      <View style={styles.historyHeader}>
+        <View style={styles.historyBadge}>
+          <Text style={styles.historyBadgeText}>
+            {moment(item.fecha).format('DD/MM')}
+          </Text>
+        </View>
+        <View style={styles.historyInfo}>
+          <Text style={styles.historyDate}>
+            {moment(item.fecha).format('dddd, D [de] MMMM [de] YYYY [a las] HH:mm')}
+          </Text>
+          <Text style={styles.historyDoctor}>
+            <Ionicons name="medkit-outline" size={12} color="#718096" /> Dr. {item.medico || 'No especificado'}
+          </Text>
+        </View>
+        <View style={[
+          styles.statusBadge, 
+          { backgroundColor: item.estado === 'REALIZADO' ? '#48bb78' : '#ed8936' }
+        ]}>
+          <Text style={styles.statusText}>
+            {item.estado === 'REALIZADO' ? 'REALIZADO' : 'PENDIENTE'}
+          </Text>
+        </View>
+      </View>
+      
+      <View style={styles.historyContent}>
+        <Text style={styles.historyExamsLabel}>Exámenes solicitados:</Text>
+        {item.examenes && item.examenes.map((exam, idx) => (
+          <View key={idx} style={styles.historyExam}>
+            <Ionicons name="scan-outline" size={12} color="#ed8936" />
+            <Text style={styles.historyExamName}>{exam}</Text>
+          </View>
+        ))}
+        {item.observaciones && (
+          <>
+            <Text style={styles.historyObsLabel}>Observaciones:</Text>
+            <Text style={styles.historyObsText}>{item.observaciones}</Text>
+          </>
+        )}
+      </View>
+    </View>
+  );
 
   return (
     <ScrollView style={styles.container}>
@@ -99,7 +177,7 @@ const ImagingExamsScreen = ({ navigation, route }) => {
         </View>
       </View>
 
-      {/* Tarjeta principal */}
+      {/* Tarjeta principal - Nueva solicitud */}
       <View style={styles.mainCard}>
         <LinearGradient 
           colors={['#ed8936', '#dd6b20']} 
@@ -108,8 +186,8 @@ const ImagingExamsScreen = ({ navigation, route }) => {
           end={{ x: 1, y: 0 }}
         >
           <View style={styles.cardHeaderContent}>
-            <Ionicons name="scan-outline" size={22} color="#fff" />
-            <Text style={styles.cardHeaderTitle}>Selección de Exámenes de Gabinete</Text>
+            <Ionicons name="add-circle-outline" size={22} color="#fff" />
+            <Text style={styles.cardHeaderTitle}>Nueva Solicitud de Exámenes</Text>
           </View>
         </LinearGradient>
 
@@ -127,38 +205,45 @@ const ImagingExamsScreen = ({ navigation, route }) => {
             </View>
 
             <View style={styles.examsGrid}>
-              {exams.map((exam) => (
-                <TouchableOpacity
-                  key={exam.id_catalogo}
-                  style={[
-                    styles.examItem,
-                    selectedExams.includes(exam.id_catalogo) && styles.examItemSelected
-                  ]}
-                  onPress={() => toggleExam(exam.id_catalogo)}
-                >
-                  <View style={styles.examIcon}>
-                    <Ionicons 
-                      name="scan-outline" 
-                      size={20} 
-                      color={selectedExams.includes(exam.id_catalogo) ? "#ed8936" : "#a0aec0"} 
-                    />
-                  </View>
-                  <Text style={[
-                    styles.examName,
-                    selectedExams.includes(exam.id_catalogo) && styles.examNameSelected
-                  ]}>
-                    {exam.nombre}
-                  </Text>
-                  <View style={[
-                    styles.examCheck,
-                    selectedExams.includes(exam.id_catalogo) && styles.examCheckSelected
-                  ]}>
-                    {selectedExams.includes(exam.id_catalogo) && (
-                      <Ionicons name="checkmark" size={12} color="#fff" />
-                    )}
-                  </View>
-                </TouchableOpacity>
-              ))}
+              {exams.length === 0 ? (
+                <View style={styles.emptyExams}>
+                  <Ionicons name="alert-circle-outline" size={40} color="#a0aec0" />
+                  <Text style={styles.emptyExamsText}>No hay exámenes disponibles</Text>
+                </View>
+              ) : (
+                exams.map((exam) => (
+                  <TouchableOpacity
+                    key={exam.id_catalogo}
+                    style={[
+                      styles.examItem,
+                      selectedExams.includes(exam.id_catalogo) && styles.examItemSelected
+                    ]}
+                    onPress={() => toggleExam(exam.id_catalogo)}
+                  >
+                    <View style={styles.examIcon}>
+                      <Ionicons 
+                        name="scan-outline" 
+                        size={20} 
+                        color={selectedExams.includes(exam.id_catalogo) ? "#ed8936" : "#a0aec0"} 
+                      />
+                    </View>
+                    <Text style={[
+                      styles.examName,
+                      selectedExams.includes(exam.id_catalogo) && styles.examNameSelected
+                    ]}>
+                      {exam.nombre}
+                    </Text>
+                    <View style={[
+                      styles.examCheck,
+                      selectedExams.includes(exam.id_catalogo) && styles.examCheckSelected
+                    ]}>
+                      {selectedExams.includes(exam.id_catalogo) && (
+                        <Ionicons name="checkmark" size={12} color="#fff" />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                ))
+              )}
             </View>
           </View>
 
@@ -186,7 +271,6 @@ const ImagingExamsScreen = ({ navigation, route }) => {
           </View>
         </View>
 
-        {/* Botones */}
         <View style={styles.cardFooter}>
           <TouchableOpacity
             style={styles.cancelButton}
@@ -206,11 +290,57 @@ const ImagingExamsScreen = ({ navigation, route }) => {
             ) : (
               <>
                 <Ionicons name="save-outline" size={18} color="#fff" />
-                <Text style={styles.saveButtonText}>Guardar Exámenes</Text>
+                <Text style={styles.saveButtonText}>Solicitar Exámenes</Text>
               </>
             )}
           </TouchableOpacity>
         </View>
+      </View>
+
+      {/* Historial de Solicitudes */}
+      <View style={styles.historyCard}>
+        <TouchableOpacity 
+          style={styles.historyHeaderGradient}
+          onPress={() => setShowHistory(!showHistory)}
+          activeOpacity={0.8}
+        >
+          <LinearGradient 
+            colors={['#ed8936', '#dd6b20']} 
+            style={styles.historyHeaderInner}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            <View style={styles.historyHeaderContent}>
+              <Ionicons name="time-outline" size={20} color="#fff" />
+              <Text style={styles.historyTitle}>Historial de Solicitudes</Text>
+              <Ionicons 
+                name={showHistory ? "chevron-up-outline" : "chevron-down-outline"} 
+                size={20} 
+                color="#fff" 
+              />
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
+
+        {showHistory && (
+          <View style={styles.historyBody}>
+            {loadingHistory ? (
+              <ActivityIndicator style={styles.historyLoader} size="large" color="#ed8936" />
+            ) : requestedExams.length === 0 ? (
+              <View style={styles.emptyHistory}>
+                <Ionicons name="document-text-outline" size={48} color="#cbd5e0" />
+                <Text style={styles.emptyHistoryText}>No hay solicitudes previas</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={requestedExams}
+                renderItem={renderHistoryItem}
+                keyExtractor={(item, index) => item.id_examen?.toString() || index.toString()}
+                scrollEnabled={false}
+              />
+            )}
+          </View>
+        )}
       </View>
     </ScrollView>
   );
@@ -286,7 +416,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     marginHorizontal: 16,
     marginTop: 16,
-    marginBottom: 30,
     borderRadius: 25,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -402,6 +531,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#ed8936',
     borderColor: '#ed8936',
   },
+  emptyExams: {
+    width: '100%',
+    alignItems: 'center',
+    padding: 30,
+  },
+  emptyExamsText: {
+    marginTop: 10,
+    fontSize: 14,
+    color: '#a0aec0',
+  },
   observacionesTextArea: {
     borderWidth: 1,
     borderColor: '#e2e8f0',
@@ -459,6 +598,134 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.7,
+  },
+  historyCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 30,
+    borderRadius: 25,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  historyHeaderGradient: {
+    overflow: 'hidden',
+  },
+  historyHeaderInner: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+  },
+  historyHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  historyTitle: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    marginLeft: 8,
+  },
+  historyBody: {
+    padding: 16,
+  },
+  historyLoader: {
+    padding: 40,
+  },
+  emptyHistory: {
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyHistoryText: {
+    fontSize: 14,
+    color: '#a0aec0',
+    marginTop: 12,
+  },
+  historyItem: {
+    backgroundColor: '#f7fafc',
+    borderRadius: 15,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#edf2f7',
+  },
+  historyBadge: {
+    width: 45,
+    height: 45,
+    borderRadius: 12,
+    backgroundColor: '#ed8936',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  historyBadgeText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  historyInfo: {
+    flex: 1,
+  },
+  historyDate: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#2d3748',
+  },
+  historyDoctor: {
+    fontSize: 11,
+    color: '#718096',
+    marginTop: 2,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  historyContent: {
+    padding: 12,
+  },
+  historyExamsLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#4a5568',
+    marginBottom: 6,
+  },
+  historyExam: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+    marginLeft: 8,
+  },
+  historyExamName: {
+    fontSize: 12,
+    color: '#2d3748',
+    marginLeft: 6,
+  },
+  historyObsLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#ed8936',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  historyObsText: {
+    fontSize: 12,
+    color: '#718096',
+    marginLeft: 8,
   },
 });
 

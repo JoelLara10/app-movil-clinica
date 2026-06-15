@@ -1,5 +1,5 @@
 // src/screens/medico/VitalSignsScreen.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,14 +9,18 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  FlatList,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
+import moment from 'moment';
 
 const VitalSignsScreen = ({ navigation, route }) => {
-  const { id_atencion } = route.params;
+  const { id_atencion, Id_exp } = route.params;
   const [loading, setLoading] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+  const [history, setHistory] = useState([]);
   const [formData, setFormData] = useState({
     ta: '',
     fc: '',
@@ -27,8 +31,32 @@ const VitalSignsScreen = ({ navigation, route }) => {
     talla: '',
   });
 
+  // Cargar historial de signos vitales
+  useEffect(() => {
+    loadVitalSignsHistory();
+  }, []);
+
+  const loadVitalSignsHistory = async () => {
+    try {
+      setLoadingHistory(true);
+      const response = await api.get(`/appointments/${id_atencion}/vital-signs`);
+      setHistory(response.data);
+    } catch (error) {
+      console.error('Error loading vital signs history:', error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
   const handleChange = (field, value) => {
     setFormData({ ...formData, [field]: value });
+  };
+
+  // Función para convertir valores numéricos
+  const parseNumericValue = (value) => {
+    if (!value || value === '') return null;
+    const parsed = parseFloat(value);
+    return isNaN(parsed) ? null : parsed;
   };
 
   const handleSubmit = async () => {
@@ -39,20 +67,106 @@ const VitalSignsScreen = ({ navigation, route }) => {
       return;
     }
 
+    // Preparar datos con tipos correctos
+    const dataToSend = {
+      ta: formData.ta || '',  // TA es string (formato "120/80")
+      fc: parseNumericValue(formData.fc),
+      fr: parseNumericValue(formData.fr),
+      temp: parseNumericValue(formData.temp),
+      spo2: parseNumericValue(formData.spo2),
+      peso: parseNumericValue(formData.peso),
+      talla: parseNumericValue(formData.talla),
+    };
+
+    // Remover campos nulos
+    Object.keys(dataToSend).forEach(key => {
+      if (dataToSend[key] === null) {
+        delete dataToSend[key];
+      }
+    });
+
+    console.log('Enviando datos:', dataToSend);
+
     setLoading(true);
     try {
-      const response = await api.post(`/appointments/${id_atencion}/vital-signs`, formData);
+      const response = await api.post(`/appointments/${id_atencion}/vital-signs`, dataToSend);
       if (response.data) {
         Alert.alert('Éxito', 'Signos vitales guardados correctamente');
-        navigation.goBack();
+        // Limpiar formulario
+        setFormData({
+          ta: '',
+          fc: '',
+          fr: '',
+          temp: '',
+          spo2: '',
+          peso: '',
+          talla: '',
+        });
+        // Recargar historial
+        loadVitalSignsHistory();
       }
     } catch (error) {
       console.error('Error saving vital signs:', error);
-      Alert.alert('Error', 'No se pudieron guardar los signos vitales');
+      Alert.alert('Error', error.response?.data?.error || 'No se pudieron guardar los signos vitales');
     } finally {
       setLoading(false);
     }
   };
+
+  const renderHistoryItem = ({ item }) => (
+    <View style={styles.historyItem}>
+      <View style={styles.historyHeader}>
+        <Ionicons name="calendar-outline" size={14} color="#718096" />
+        <Text style={styles.historyDate}>
+          {moment(item.fecha_registro).format('DD/MM/YYYY HH:mm')}
+        </Text>
+      </View>
+      <View style={styles.historyGrid}>
+        {item.ta && (
+          <View style={styles.historyField}>
+            <Text style={styles.historyLabel}>TA</Text>
+            <Text style={styles.historyValue}>{item.ta}</Text>
+          </View>
+        )}
+        {item.fc !== undefined && item.fc !== null && (
+          <View style={styles.historyField}>
+            <Text style={styles.historyLabel}>FC</Text>
+            <Text style={styles.historyValue}>{item.fc}</Text>
+          </View>
+        )}
+        {item.fr !== undefined && item.fr !== null && (
+          <View style={styles.historyField}>
+            <Text style={styles.historyLabel}>FR</Text>
+            <Text style={styles.historyValue}>{item.fr}</Text>
+          </View>
+        )}
+        {item.temp !== undefined && item.temp !== null && (
+          <View style={styles.historyField}>
+            <Text style={styles.historyLabel}>Temp</Text>
+            <Text style={styles.historyValue}>{item.temp}°C</Text>
+          </View>
+        )}
+        {item.spo2 !== undefined && item.spo2 !== null && (
+          <View style={styles.historyField}>
+            <Text style={styles.historyLabel}>SpO₂</Text>
+            <Text style={styles.historyValue}>{item.spo2}%</Text>
+          </View>
+        )}
+        {item.peso !== undefined && item.peso !== null && (
+          <View style={styles.historyField}>
+            <Text style={styles.historyLabel}>Peso</Text>
+            <Text style={styles.historyValue}>{item.peso}kg</Text>
+          </View>
+        )}
+        {item.talla !== undefined && item.talla !== null && (
+          <View style={styles.historyField}>
+            <Text style={styles.historyLabel}>Talla</Text>
+            <Text style={styles.historyValue}>{item.talla}m</Text>
+          </View>
+        )}
+      </View>
+    </View>
+  );
 
   return (
     <ScrollView style={styles.container}>
@@ -77,7 +191,7 @@ const VitalSignsScreen = ({ navigation, route }) => {
             <Text style={styles.patientName}>Paciente</Text>
             <View style={styles.patientMeta}>
               <Text style={styles.patientMetaItem}>
-                <Ionicons name="card-outline" size={12} /> Exp: {route.params.Id_exp || 'N/A'}
+                <Ionicons name="card-outline" size={12} /> Exp: {Id_exp || 'N/A'}
               </Text>
             </View>
           </View>
@@ -93,135 +207,126 @@ const VitalSignsScreen = ({ navigation, route }) => {
           end={{ x: 1, y: 0 }}
         >
           <View style={styles.cardHeaderContent}>
-            <Ionicons name="heartbeat-outline" size={22} color="#fff" />
-            <Text style={styles.cardHeaderTitle}>Registro de Signos Vitales</Text>
+            <Ionicons name="heart-outline" size={22} color="#fff" />
+            <Text style={styles.cardHeaderTitle}>Nuevo Registro de Signos Vitales</Text>
           </View>
         </LinearGradient>
 
         <View style={styles.cardBody}>
-          {/* Sección: Parámetros Clínicos */}
-          <View style={styles.section}>
-            <View style={styles.sectionTitle}>
-              <Ionicons name="analytics-outline" size={22} color="#f56565" />
-              <Text style={styles.sectionTitleText}>Parámetros Clínicos</Text>
+          <View style={styles.formGrid}>
+            {/* Presión arterial - STRING */}
+            <View style={styles.formGroup}>
+              <View style={styles.formLabel}>
+                <Ionicons name="heart-outline" size={16} color="#f56565" />
+                <Text style={styles.formLabelText}>Presión arterial (TA)</Text>
+              </View>
+              <TextInput
+                style={styles.formInput}
+                placeholder="120/80"
+                placeholderTextColor="#a0aec0"
+                value={formData.ta}
+                onChangeText={(text) => handleChange('ta', text)}
+              />
             </View>
 
-            <View style={styles.formGrid}>
-              {/* Presión arterial */}
-              <View style={styles.formGroup}>
-                <View style={styles.formLabel}>
-                  <Ionicons name="heartbeat-outline" size={16} color="#f56565" />
-                  <Text style={styles.formLabelText}>Presión arterial (TA)</Text>
-                </View>
-                <TextInput
-                  style={styles.formInput}
-                  placeholder="120/80"
-                  placeholderTextColor="#a0aec0"
-                  value={formData.ta}
-                  onChangeText={(text) => handleChange('ta', text)}
-                />
+            {/* Frecuencia cardíaca - NUMBER */}
+            <View style={styles.formGroup}>
+              <View style={styles.formLabel}>
+                <Ionicons name="heart-outline" size={16} color="#f56565" />
+                <Text style={styles.formLabelText}>Frecuencia cardíaca (FC)</Text>
               </View>
+              <TextInput
+                style={styles.formInput}
+                placeholder="lpm"
+                placeholderTextColor="#a0aec0"
+                keyboardType="numeric"
+                value={formData.fc}
+                onChangeText={(text) => handleChange('fc', text)}
+              />
+            </View>
 
-              {/* Frecuencia cardíaca */}
-              <View style={styles.formGroup}>
-                <View style={styles.formLabel}>
-                  <Ionicons name="heart-outline" size={16} color="#f56565" />
-                  <Text style={styles.formLabelText}>Frecuencia cardíaca (FC)</Text>
-                </View>
-                <TextInput
-                  style={styles.formInput}
-                  placeholder="lpm"
-                  placeholderTextColor="#a0aec0"
-                  keyboardType="numeric"
-                  value={formData.fc}
-                  onChangeText={(text) => handleChange('fc', text)}
-                />
+            {/* Frecuencia respiratoria - NUMBER */}
+            <View style={styles.formGroup}>
+              <View style={styles.formLabel}>
+                <Ionicons name="pulse-outline" size={16} color="#f56565" />
+                <Text style={styles.formLabelText}>Frecuencia respiratoria (FR)</Text>
               </View>
+              <TextInput
+                style={styles.formInput}
+                placeholder="rpm"
+                placeholderTextColor="#a0aec0"
+                keyboardType="numeric"
+                value={formData.fr}
+                onChangeText={(text) => handleChange('fr', text)}
+              />
+            </View>
 
-              {/* Frecuencia respiratoria */}
-              <View style={styles.formGroup}>
-                <View style={styles.formLabel}>
-                  <Ionicons name="lungs-outline" size={16} color="#f56565" />
-                  <Text style={styles.formLabelText}>Frecuencia respiratoria (FR)</Text>
-                </View>
-                <TextInput
-                  style={styles.formInput}
-                  placeholder="rpm"
-                  placeholderTextColor="#a0aec0"
-                  keyboardType="numeric"
-                  value={formData.fr}
-                  onChangeText={(text) => handleChange('fr', text)}
-                />
+            {/* Temperatura - NUMBER (Double) */}
+            <View style={styles.formGroup}>
+              <View style={styles.formLabel}>
+                <Ionicons name="thermometer-outline" size={16} color="#f56565" />
+                <Text style={styles.formLabelText}>Temperatura (°C)</Text>
               </View>
+              <TextInput
+                style={styles.formInput}
+                placeholder="36.5"
+                placeholderTextColor="#a0aec0"
+                keyboardType="numeric"
+                value={formData.temp}
+                onChangeText={(text) => handleChange('temp', text)}
+              />
+            </View>
 
-              {/* Temperatura */}
-              <View style={styles.formGroup}>
-                <View style={styles.formLabel}>
-                  <Ionicons name="thermometer-outline" size={16} color="#f56565" />
-                  <Text style={styles.formLabelText}>Temperatura (°C)</Text>
-                </View>
-                <TextInput
-                  style={styles.formInput}
-                  placeholder="36.5"
-                  placeholderTextColor="#a0aec0"
-                  keyboardType="numeric"
-                  value={formData.temp}
-                  onChangeText={(text) => handleChange('temp', text)}
-                />
+            {/* SpO₂ - NUMBER */}
+            <View style={styles.formGroup}>
+              <View style={styles.formLabel}>
+                <Ionicons name="water-outline" size={16} color="#f56565" />
+                <Text style={styles.formLabelText}>SpO₂ (%)</Text>
               </View>
+              <TextInput
+                style={styles.formInput}
+                placeholder="98"
+                placeholderTextColor="#a0aec0"
+                keyboardType="numeric"
+                value={formData.spo2}
+                onChangeText={(text) => handleChange('spo2', text)}
+              />
+            </View>
 
-              {/* SpO₂ */}
-              <View style={styles.formGroup}>
-                <View style={styles.formLabel}>
-                  <Ionicons name="water-outline" size={16} color="#f56565" />
-                  <Text style={styles.formLabelText}>SpO₂ (%)</Text>
-                </View>
-                <TextInput
-                  style={styles.formInput}
-                  placeholder="98"
-                  placeholderTextColor="#a0aec0"
-                  keyboardType="numeric"
-                  value={formData.spo2}
-                  onChangeText={(text) => handleChange('spo2', text)}
-                />
+            {/* Peso - NUMBER (Double) */}
+            <View style={styles.formGroup}>
+              <View style={styles.formLabel}>
+                <Ionicons name="scale-outline" size={16} color="#f56565" />
+                <Text style={styles.formLabelText}>Peso (kg)</Text>
               </View>
+              <TextInput
+                style={styles.formInput}
+                placeholder="70"
+                placeholderTextColor="#a0aec0"
+                keyboardType="numeric"
+                value={formData.peso}
+                onChangeText={(text) => handleChange('peso', text)}
+              />
+            </View>
 
-              {/* Peso */}
-              <View style={styles.formGroup}>
-                <View style={styles.formLabel}>
-                  <Ionicons name="scale-outline" size={16} color="#f56565" />
-                  <Text style={styles.formLabelText}>Peso (kg)</Text>
-                </View>
-                <TextInput
-                  style={styles.formInput}
-                  placeholder="70"
-                  placeholderTextColor="#a0aec0"
-                  keyboardType="numeric"
-                  value={formData.peso}
-                  onChangeText={(text) => handleChange('peso', text)}
-                />
+            {/* Talla - NUMBER (Double) */}
+            <View style={styles.formGroup}>
+              <View style={styles.formLabel}>
+                <Ionicons name="resize-outline" size={16} color="#f56565" />
+                <Text style={styles.formLabelText}>Talla (m)</Text>
               </View>
-
-              {/* Talla */}
-              <View style={styles.formGroup}>
-                <View style={styles.formLabel}>
-                  <Ionicons name="resize-outline" size={16} color="#f56565" />
-                  <Text style={styles.formLabelText}>Talla (m)</Text>
-                </View>
-                <TextInput
-                  style={styles.formInput}
-                  placeholder="1.70"
-                  placeholderTextColor="#a0aec0"
-                  keyboardType="numeric"
-                  value={formData.talla}
-                  onChangeText={(text) => handleChange('talla', text)}
-                />
-              </View>
+              <TextInput
+                style={styles.formInput}
+                placeholder="1.70"
+                placeholderTextColor="#a0aec0"
+                keyboardType="numeric"
+                value={formData.talla}
+                onChangeText={(text) => handleChange('talla', text)}
+              />
             </View>
           </View>
         </View>
 
-        {/* Botones */}
         <View style={styles.cardFooter}>
           <TouchableOpacity
             style={styles.cancelButton}
@@ -246,6 +351,37 @@ const VitalSignsScreen = ({ navigation, route }) => {
             )}
           </TouchableOpacity>
         </View>
+      </View>
+
+      {/* Historial de Signos Vitales */}
+      <View style={styles.historyCard}>
+        <LinearGradient 
+          colors={['#4299e1', '#3182ce']} 
+          style={styles.historyHeaderGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+        >
+          <View style={styles.historyHeaderContent}>
+            <Ionicons name="time-outline" size={20} color="#fff" />
+            <Text style={styles.historyTitle}>Historial de Signos Vitales</Text>
+          </View>
+        </LinearGradient>
+
+        {loadingHistory ? (
+          <ActivityIndicator style={styles.historyLoader} size="large" color="#4299e1" />
+        ) : history.length === 0 ? (
+          <View style={styles.emptyHistory}>
+            <Ionicons name="document-text-outline" size={48} color="#cbd5e0" />
+            <Text style={styles.emptyHistoryText}>No hay registros previos</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={history}
+            renderItem={renderHistoryItem}
+            keyExtractor={(item, index) => item.id_signos?.toString() || index.toString()}
+            scrollEnabled={false}
+          />
+        )}
       </View>
     </ScrollView>
   );
@@ -272,7 +408,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
   },
-  // Tarjeta de información del paciente
   patientInfoCard: {
     backgroundColor: '#fff',
     marginHorizontal: 16,
@@ -318,12 +453,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#718096',
   },
-  // Tarjeta principal
   mainCard: {
     backgroundColor: '#fff',
     marginHorizontal: 16,
     marginTop: 16,
-    marginBottom: 30,
     borderRadius: 25,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -348,23 +481,6 @@ const styles = StyleSheet.create({
   },
   cardBody: {
     padding: 20,
-  },
-  section: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-    paddingBottom: 10,
-    borderBottomWidth: 2,
-    borderBottomColor: '#f56565',
-  },
-  sectionTitleText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#f56565',
-    marginLeft: 8,
   },
   formGrid: {
     flexDirection: 'row',
@@ -437,6 +553,77 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.7,
+  },
+  historyCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 30,
+    borderRadius: 25,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  historyHeaderGradient: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+  },
+  historyHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  historyTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    marginLeft: 8,
+  },
+  historyLoader: {
+    padding: 40,
+  },
+  emptyHistory: {
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyHistoryText: {
+    fontSize: 14,
+    color: '#a0aec0',
+    marginTop: 12,
+  },
+  historyItem: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  historyDate: {
+    fontSize: 12,
+    color: '#718096',
+    marginLeft: 6,
+  },
+  historyGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  historyField: {
+    width: '33%',
+    marginBottom: 8,
+  },
+  historyLabel: {
+    fontSize: 10,
+    color: '#a0aec0',
+  },
+  historyValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2d3748',
   },
 });
 

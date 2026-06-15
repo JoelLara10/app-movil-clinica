@@ -1,5 +1,5 @@
 // src/screens/medico/DiagnosisScreen.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,19 +9,66 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  FlatList,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
+import moment from 'moment';
+import 'moment/locale/es';
+
+moment.locale('es');
 
 const DiagnosisScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params;
   const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+  const [showHistory, setShowHistory] = useState(false);
+  const [currentDiagnosis, setCurrentDiagnosis] = useState(null);
+  const [history, setHistory] = useState([]);
   const [formData, setFormData] = useState({
     diagnostico_principal: '',
     diagnosticos_secundarios: '',
     observaciones: '',
   });
+
+  // Cargar diagnóstico actual e historial
+  useEffect(() => {
+    loadCurrentDiagnosis();
+    loadDiagnosisHistory();
+  }, []);
+
+  const loadCurrentDiagnosis = async () => {
+    try {
+      setLoadingData(true);
+      const response = await api.get(`/appointments/${id_atencion}/diagnosis`);
+      if (response.data && Object.keys(response.data).length > 0) {
+        setCurrentDiagnosis(response.data);
+        setFormData({
+          diagnostico_principal: response.data.diagnostico_principal || '',
+          diagnosticos_secundarios: response.data.diagnosticos_secundarios || '',
+          observaciones: response.data.observaciones || '',
+        });
+      }
+    } catch (error) {
+      console.error('Error loading current diagnosis:', error);
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  const loadDiagnosisHistory = async () => {
+    try {
+      setLoadingHistory(true);
+      const response = await api.get(`/appointments/${id_atencion}/diagnosis/history`);
+      setHistory(response.data || []);
+    } catch (error) {
+      console.error('Error loading diagnosis history:', error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
 
   const handleChange = (field, value) => {
     setFormData({ ...formData, [field]: value });
@@ -38,15 +85,65 @@ const DiagnosisScreen = ({ navigation, route }) => {
       const response = await api.post(`/appointments/${id_atencion}/diagnosis`, formData);
       if (response.data) {
         Alert.alert('Éxito', 'Diagnóstico guardado correctamente');
-        navigation.goBack();
+        // Recargar diagnóstico actual e historial
+        await loadCurrentDiagnosis();
+        await loadDiagnosisHistory();
       }
     } catch (error) {
       console.error('Error saving diagnosis:', error);
-      Alert.alert('Error', 'No se pudo guardar el diagnóstico');
+      Alert.alert('Error', error.response?.data?.error || 'No se pudo guardar el diagnóstico');
     } finally {
       setLoading(false);
     }
   };
+
+  const renderHistoryItem = ({ item }) => (
+    <View style={styles.historyItem}>
+      <View style={styles.historyHeader}>
+        <View style={styles.historyBadge}>
+          <Text style={styles.historyBadgeText}>
+            {moment(item.fecha_registro).format('DD/MM')}
+          </Text>
+        </View>
+        <View style={styles.historyInfo}>
+          <Text style={styles.historyDate}>
+            {moment(item.fecha_registro).format('dddd, D [de] MMMM [de] YYYY [a las] HH:mm')}
+          </Text>
+          <Text style={styles.historyDoctor}>
+            <Ionicons name="medkit-outline" size={12} color="#718096" /> Dr. {item.medico_nombre || 'No especificado'}
+          </Text>
+        </View>
+      </View>
+      
+      <View style={styles.historyContent}>
+        <Text style={styles.historyPrincipalLabel}>Diagnóstico principal:</Text>
+        <Text style={styles.historyPrincipalValue}>{item.diagnostico_principal}</Text>
+        
+        {item.diagnosticos_secundarios && (
+          <>
+            <Text style={styles.historySecondaryLabel}>Diagnósticos secundarios:</Text>
+            <Text style={styles.historySecondaryValue}>{item.diagnosticos_secundarios}</Text>
+          </>
+        )}
+        
+        {item.observaciones && (
+          <>
+            <Text style={styles.historyObservacionesLabel}>Observaciones:</Text>
+            <Text style={styles.historyObservacionesValue}>{item.observaciones}</Text>
+          </>
+        )}
+      </View>
+    </View>
+  );
+
+  if (loadingData) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#667eea" />
+        <Text style={styles.loadingText}>Cargando diagnóstico...</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -78,7 +175,20 @@ const DiagnosisScreen = ({ navigation, route }) => {
         </View>
       </View>
 
-      {/* Tarjeta principal */}
+      {/* Estado del diagnóstico actual */}
+      {currentDiagnosis && (
+        <View style={styles.statusCard}>
+          <View style={styles.statusHeader}>
+            <Ionicons name="checkmark-circle" size={20} color="#48bb78" />
+            <Text style={styles.statusTitle}>Diagnóstico Actual</Text>
+          </View>
+          <Text style={styles.statusDate}>
+            Última actualización: {moment(currentDiagnosis.fecha_registro).format('DD/MM/YYYY HH:mm')}
+          </Text>
+        </View>
+      )}
+
+      {/* Tarjeta principal - Formulario */}
       <View style={styles.mainCard}>
         <LinearGradient 
           colors={['#667eea', '#764ba2']} 
@@ -87,8 +197,10 @@ const DiagnosisScreen = ({ navigation, route }) => {
           end={{ x: 1, y: 0 }}
         >
           <View style={styles.cardHeaderContent}>
-            <Ionicons name="clipboard-outline" size={22} color="#fff" />
-            <Text style={styles.cardHeaderTitle}>Registro de Diagnóstico</Text>
+            <Ionicons name={currentDiagnosis ? "create-outline" : "add-circle-outline"} size={22} color="#fff" />
+            <Text style={styles.cardHeaderTitle}>
+              {currentDiagnosis ? 'Editar Diagnóstico' : 'Nuevo Diagnóstico'}
+            </Text>
           </View>
         </LinearGradient>
 
@@ -99,7 +211,7 @@ const DiagnosisScreen = ({ navigation, route }) => {
               <View style={styles.sectionBadge}>
                 <Text style={styles.badgeText}>1</Text>
               </View>
-              <Text style={styles.sectionTitle}>Diagnóstico principal</Text>
+              <Text style={styles.sectionTitle}>Diagnóstico principal *</Text>
             </View>
             <TextInput
               style={styles.input}
@@ -151,7 +263,6 @@ const DiagnosisScreen = ({ navigation, route }) => {
           </View>
         </View>
 
-        {/* Botones */}
         <View style={styles.cardFooter}>
           <TouchableOpacity
             style={styles.cancelButton}
@@ -171,11 +282,59 @@ const DiagnosisScreen = ({ navigation, route }) => {
             ) : (
               <>
                 <Ionicons name="save-outline" size={18} color="#fff" />
-                <Text style={styles.saveButtonText}>Guardar Diagnóstico</Text>
+                <Text style={styles.saveButtonText}>
+                  {currentDiagnosis ? 'Actualizar Diagnóstico' : 'Guardar Diagnóstico'}
+                </Text>
               </>
             )}
           </TouchableOpacity>
         </View>
+      </View>
+
+      {/* Historial de Diagnósticos */}
+      <View style={styles.historyCard}>
+        <TouchableOpacity 
+          style={styles.historyHeaderGradient}
+          onPress={() => setShowHistory(!showHistory)}
+          activeOpacity={0.8}
+        >
+          <LinearGradient 
+            colors={['#667eea', '#764ba2']} 
+            style={styles.historyHeaderInner}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            <View style={styles.historyHeaderContent}>
+              <Ionicons name="time-outline" size={20} color="#fff" />
+              <Text style={styles.historyTitle}>Historial de Diagnósticos</Text>
+              <Ionicons 
+                name={showHistory ? "chevron-up-outline" : "chevron-down-outline"} 
+                size={20} 
+                color="#fff" 
+              />
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
+
+        {showHistory && (
+          <View style={styles.historyBody}>
+            {loadingHistory ? (
+              <ActivityIndicator style={styles.historyLoader} size="large" color="#667eea" />
+            ) : history.length === 0 ? (
+              <View style={styles.emptyHistory}>
+                <Ionicons name="document-text-outline" size={48} color="#cbd5e0" />
+                <Text style={styles.emptyHistoryText}>No hay diagnósticos previos</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={history}
+                renderItem={renderHistoryItem}
+                keyExtractor={(item, index) => item.id_diagnostico?.toString() || index.toString()}
+                scrollEnabled={false}
+              />
+            )}
+          </View>
+        )}
       </View>
     </ScrollView>
   );
@@ -185,6 +344,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f7fafc',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f7fafc',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#718096',
   },
   header: {
     flexDirection: 'row',
@@ -202,7 +372,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
   },
-  // Tarjeta de información del paciente
   patientInfoCard: {
     backgroundColor: '#fff',
     marginHorizontal: 16,
@@ -248,12 +417,40 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#718096',
   },
-  // Tarjeta principal
+  statusCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#48bb78',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  statusHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2d3748',
+    marginLeft: 6,
+  },
+  statusDate: {
+    fontSize: 11,
+    color: '#a0aec0',
+    marginTop: 4,
+    marginLeft: 26,
+  },
   mainCard: {
     backgroundColor: '#fff',
     marginHorizontal: 16,
     marginTop: 16,
-    marginBottom: 30,
     borderRadius: 25,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -364,6 +561,127 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.7,
+  },
+  historyCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 30,
+    borderRadius: 25,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  historyHeaderGradient: {
+    overflow: 'hidden',
+  },
+  historyHeaderInner: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+  },
+  historyHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  historyTitle: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    marginLeft: 8,
+  },
+  historyBody: {
+    padding: 16,
+  },
+  historyLoader: {
+    padding: 40,
+  },
+  emptyHistory: {
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyHistoryText: {
+    fontSize: 14,
+    color: '#a0aec0',
+    marginTop: 12,
+  },
+  historyItem: {
+    backgroundColor: '#f7fafc',
+    borderRadius: 15,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#edf2f7',
+  },
+  historyBadge: {
+    width: 45,
+    height: 45,
+    borderRadius: 12,
+    backgroundColor: '#667eea',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  historyBadgeText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  historyInfo: {
+    flex: 1,
+  },
+  historyDate: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#2d3748',
+  },
+  historyDoctor: {
+    fontSize: 11,
+    color: '#718096',
+    marginTop: 2,
+  },
+  historyContent: {
+    padding: 12,
+  },
+  historyPrincipalLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#667eea',
+    marginTop: 4,
+  },
+  historyPrincipalValue: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#2d3748',
+    marginBottom: 8,
+  },
+  historySecondaryLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#ed8936',
+    marginTop: 4,
+  },
+  historySecondaryValue: {
+    fontSize: 13,
+    color: '#4a5568',
+    marginBottom: 8,
+  },
+  historyObservacionesLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#718096',
+    marginTop: 4,
+  },
+  historyObservacionesValue: {
+    fontSize: 13,
+    color: '#4a5568',
   },
 });
 

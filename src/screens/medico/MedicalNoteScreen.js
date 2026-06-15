@@ -1,5 +1,5 @@
 // src/screens/medico/MedicalNoteScreen.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,20 +9,42 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  FlatList,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
+import moment from 'moment';
 
 const MedicalNoteScreen = ({ navigation, route }) => {
-  const { id_atencion } = route.params;
+  const { id_atencion, Id_exp } = route.params;
   const [loading, setLoading] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+  const [history, setHistory] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
   const [formData, setFormData] = useState({
     subjetivo: '',
     objetivo: '',
     analisis: '',
     plan: '',
   });
+
+  // Cargar historial de notas médicas
+  useEffect(() => {
+    loadMedicalNotesHistory();
+  }, []);
+
+  const loadMedicalNotesHistory = async () => {
+    try {
+      setLoadingHistory(true);
+      const response = await api.get(`/appointments/${id_atencion}/medical-notes`);
+      setHistory(response.data);
+    } catch (error) {
+      console.error('Error loading medical notes history:', error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
 
   const handleChange = (field, value) => {
     setFormData({ ...formData, [field]: value });
@@ -40,15 +62,89 @@ const MedicalNoteScreen = ({ navigation, route }) => {
       const response = await api.post(`/appointments/${id_atencion}/medical-notes`, formData);
       if (response.data) {
         Alert.alert('Éxito', 'Nota médica guardada correctamente');
-        navigation.goBack();
+        // Limpiar formulario
+        setFormData({
+          subjetivo: '',
+          objetivo: '',
+          analisis: '',
+          plan: '',
+        });
+        // Recargar historial
+        loadMedicalNotesHistory();
       }
     } catch (error) {
       console.error('Error saving medical note:', error);
-      Alert.alert('Error', 'No se pudo guardar la nota médica');
+      Alert.alert('Error', error.response?.data?.error || 'No se pudo guardar la nota médica');
     } finally {
       setLoading(false);
     }
   };
+
+  const renderHistoryItem = ({ item }) => (
+    <View style={styles.historyItem}>
+      <View style={styles.historyHeader}>
+        <View style={styles.historyBadge}>
+          <Text style={styles.historyBadgeText}>
+            {moment(item.fecha_registro).format('DD/MM')}
+          </Text>
+        </View>
+        <View style={styles.historyInfo}>
+          <Text style={styles.historyDate}>
+            {moment(item.fecha_registro).format('dddd, D [de] MMMM [de] YYYY [a las] HH:mm')}
+          </Text>
+          <Text style={styles.historyDoctor}>
+            <Ionicons name="medkit-outline" size={12} color="#718096" /> Dr. {item.id_medico || 'No especificado'}
+          </Text>
+        </View>
+      </View>
+      
+      <View style={styles.historyContent}>
+        <View style={styles.historyField}>
+          <View style={[styles.historyFieldBadge, { backgroundColor: '#4299e1' }]}>
+            <Text style={styles.historyFieldBadgeText}>S</Text>
+          </View>
+          <Text style={styles.historyFieldLabel}>Subjetivo</Text>
+        </View>
+        <Text style={styles.historyFieldValue}>{item.subjetivo || 'No especificado'}</Text>
+        
+        {item.objetivo && (
+          <>
+            <View style={styles.historyField}>
+              <View style={[styles.historyFieldBadge, { backgroundColor: '#48bb78' }]}>
+                <Text style={styles.historyFieldBadgeText}>O</Text>
+              </View>
+              <Text style={styles.historyFieldLabel}>Objetivo</Text>
+            </View>
+            <Text style={styles.historyFieldValue}>{item.objetivo}</Text>
+          </>
+        )}
+        
+        {item.analisis && (
+          <>
+            <View style={styles.historyField}>
+              <View style={[styles.historyFieldBadge, { backgroundColor: '#ed8936' }]}>
+                <Text style={styles.historyFieldBadgeText}>A</Text>
+              </View>
+              <Text style={styles.historyFieldLabel}>Análisis</Text>
+            </View>
+            <Text style={styles.historyFieldValue}>{item.analisis}</Text>
+          </>
+        )}
+        
+        {item.plan && (
+          <>
+            <View style={styles.historyField}>
+              <View style={[styles.historyFieldBadge, { backgroundColor: '#9f7aea' }]}>
+                <Text style={styles.historyFieldBadgeText}>P</Text>
+              </View>
+              <Text style={styles.historyFieldLabel}>Plan</Text>
+            </View>
+            <Text style={styles.historyFieldValue}>{item.plan}</Text>
+          </>
+        )}
+      </View>
+    </View>
+  );
 
   return (
     <ScrollView style={styles.container}>
@@ -63,7 +159,7 @@ const MedicalNoteScreen = ({ navigation, route }) => {
         <View style={{ width: 40 }} />
       </LinearGradient>
 
-      {/* Información del paciente - Versión simplificada */}
+      {/* Información del paciente */}
       <View style={styles.patientInfoCard}>
         <View style={styles.patientInfoContent}>
           <View style={[styles.patientAvatar, { backgroundColor: '#4299e1' }]}>
@@ -73,14 +169,14 @@ const MedicalNoteScreen = ({ navigation, route }) => {
             <Text style={styles.patientName}>Paciente</Text>
             <View style={styles.patientMeta}>
               <Text style={styles.patientMetaItem}>
-                <Ionicons name="card-outline" size={12} /> Exp: {route.params.Id_exp || 'N/A'}
+                <Ionicons name="card-outline" size={12} /> Exp: {Id_exp || 'N/A'}
               </Text>
             </View>
           </View>
         </View>
       </View>
 
-      {/* Tarjeta principal */}
+      {/* Tarjeta principal - Nuevo registro */}
       <View style={styles.mainCard}>
         <LinearGradient 
           colors={['#4299e1', '#3182ce']} 
@@ -89,8 +185,8 @@ const MedicalNoteScreen = ({ navigation, route }) => {
           end={{ x: 1, y: 0 }}
         >
           <View style={styles.cardHeaderContent}>
-            <Ionicons name="document-text-outline" size={22} color="#fff" />
-            <Text style={styles.cardHeaderTitle}>Nota Médica SOAP</Text>
+            <Ionicons name="add-circle-outline" size={22} color="#fff" />
+            <Text style={styles.cardHeaderTitle}>Nueva Nota Médica</Text>
           </View>
         </LinearGradient>
 
@@ -176,7 +272,6 @@ const MedicalNoteScreen = ({ navigation, route }) => {
           </View>
         </View>
 
-        {/* Botón guardar */}
         <View style={styles.cardFooter}>
           <TouchableOpacity
             style={[styles.saveButton, loading && styles.disabledButton]}
@@ -193,6 +288,52 @@ const MedicalNoteScreen = ({ navigation, route }) => {
             )}
           </TouchableOpacity>
         </View>
+      </View>
+
+      {/* Historial de Notas Médicas */}
+      <View style={styles.historyCard}>
+        <TouchableOpacity 
+          style={styles.historyHeaderGradient}
+          onPress={() => setShowHistory(!showHistory)}
+          activeOpacity={0.8}
+        >
+          <LinearGradient 
+            colors={['#4299e1', '#3182ce']} 
+            style={styles.historyHeaderInner}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            <View style={styles.historyHeaderContent}>
+              <Ionicons name="time-outline" size={20} color="#fff" />
+              <Text style={styles.historyTitle}>Historial de Notas Médicas</Text>
+              <Ionicons 
+                name={showHistory ? "chevron-up-outline" : "chevron-down-outline"} 
+                size={20} 
+                color="#fff" 
+              />
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
+
+        {showHistory && (
+          <View style={styles.historyBody}>
+            {loadingHistory ? (
+              <ActivityIndicator style={styles.historyLoader} size="large" color="#4299e1" />
+            ) : history.length === 0 ? (
+              <View style={styles.emptyHistory}>
+                <Ionicons name="document-text-outline" size={48} color="#cbd5e0" />
+                <Text style={styles.emptyHistoryText}>No hay notas médicas previas</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={history}
+                renderItem={renderHistoryItem}
+                keyExtractor={(item, index) => item.id_nota?.toString() || index.toString()}
+                scrollEnabled={false}
+              />
+            )}
+          </View>
+        )}
       </View>
     </ScrollView>
   );
@@ -219,7 +360,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
   },
-  // Tarjeta de información del paciente
   patientInfoCard: {
     backgroundColor: '#fff',
     marginHorizontal: 16,
@@ -264,12 +404,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#718096',
   },
-  // Tarjeta principal
   mainCard: {
     backgroundColor: '#fff',
     marginHorizontal: 16,
     marginTop: 16,
-    marginBottom: 30,
     borderRadius: 25,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -295,7 +433,6 @@ const styles = StyleSheet.create({
   cardBody: {
     padding: 20,
   },
-  // Secciones SOAP
   soapSection: {
     marginBottom: 24,
     padding: 16,
@@ -371,6 +508,124 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.7,
+  },
+  historyCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 30,
+    borderRadius: 25,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  historyHeaderGradient: {
+    overflow: 'hidden',
+  },
+  historyHeaderInner: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+  },
+  historyHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  historyTitle: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    marginLeft: 8,
+  },
+  historyBody: {
+    padding: 16,
+  },
+  historyLoader: {
+    padding: 40,
+  },
+  emptyHistory: {
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyHistoryText: {
+    fontSize: 14,
+    color: '#a0aec0',
+    marginTop: 12,
+  },
+  historyItem: {
+    backgroundColor: '#f7fafc',
+    borderRadius: 15,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#edf2f7',
+  },
+  historyBadge: {
+    width: 45,
+    height: 45,
+    borderRadius: 12,
+    backgroundColor: '#4299e1',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  historyBadgeText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  historyInfo: {
+    flex: 1,
+  },
+  historyDate: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#2d3748',
+  },
+  historyDoctor: {
+    fontSize: 11,
+    color: '#718096',
+    marginTop: 2,
+  },
+  historyContent: {
+    padding: 12,
+  },
+  historyField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  historyFieldBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  historyFieldBadgeText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  historyFieldLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#4a5568',
+  },
+  historyFieldValue: {
+    fontSize: 13,
+    color: '#2d3748',
+    marginLeft: 30,
+    marginBottom: 8,
   },
 });
 

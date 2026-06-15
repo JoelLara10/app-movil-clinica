@@ -1,5 +1,5 @@
 // src/screens/medico/PrescriptionScreen.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,17 +9,42 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  FlatList,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
+import moment from 'moment';
+import 'moment/locale/es';
+
+moment.locale('es');
 
 const PrescriptionScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params;
   const [loading, setLoading] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+  const [showHistory, setShowHistory] = useState(false);
+  const [prescriptions, setPrescriptions] = useState([]);
   const [medications, setMedications] = useState([
     { id: 0, medicamento: '', dosis: '', frecuencia: '', duracion: '', indicaciones: '' }
   ]);
+
+  // Cargar historial de recetas
+  useEffect(() => {
+    loadPrescriptionsHistory();
+  }, []);
+
+  const loadPrescriptionsHistory = async () => {
+    try {
+      setLoadingHistory(true);
+      const response = await api.get(`/appointments/${id_atencion}/prescriptions`);
+      setPrescriptions(response.data);
+    } catch (error) {
+      console.error('Error loading prescriptions history:', error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
 
   const addMedication = () => {
     const newId = medications.length;
@@ -58,15 +83,77 @@ const PrescriptionScreen = ({ navigation, route }) => {
       });
       if (response.data) {
         Alert.alert('Éxito', 'Receta médica guardada correctamente');
-        navigation.goBack();
+        // Limpiar formulario
+        setMedications([
+          { id: 0, medicamento: '', dosis: '', frecuencia: '', duracion: '', indicaciones: '' }
+        ]);
+        // Recargar historial
+        loadPrescriptionsHistory();
       }
     } catch (error) {
       console.error('Error saving prescription:', error);
-      Alert.alert('Error', 'No se pudo guardar la receta');
+      Alert.alert('Error', error.response?.data?.error || 'No se pudo guardar la receta');
     } finally {
       setLoading(false);
     }
   };
+
+  const renderHistoryItem = ({ item }) => (
+    <View style={styles.historyItem}>
+      <View style={styles.historyHeader}>
+        <View style={styles.historyBadge}>
+          <Text style={styles.historyBadgeText}>
+            {moment(item.fecha_registro).format('DD/MM')}
+          </Text>
+        </View>
+        <View style={styles.historyInfo}>
+          <Text style={styles.historyDate}>
+            {moment(item.fecha_registro).format('dddd, D [de] MMMM [de] YYYY [a las] HH:mm')}
+          </Text>
+          <Text style={styles.historyDoctor}>
+            <Ionicons name="medkit-outline" size={12} color="#718096" /> Dr. {item.medico_nombre || 'No especificado'}
+          </Text>
+        </View>
+      </View>
+      
+      <View style={styles.historyContent}>
+        {item.medicamentos && item.medicamentos.map((med, idx) => (
+          <View key={idx} style={styles.historyMedication}>
+            <View style={styles.historyMedHeader}>
+              <Ionicons name="medkit-outline" size={14} color="#48bb78" />
+              <Text style={styles.historyMedName}>{med.medicamento}</Text>
+            </View>
+            <View style={styles.historyMedDetails}>
+              {med.dosis && (
+                <View style={styles.historyMedDetail}>
+                  <Ionicons name="scale-outline" size={10} color="#a0aec0" />
+                  <Text style={styles.historyMedDetailText}>Dosis: {med.dosis}</Text>
+                </View>
+              )}
+              {med.frecuencia && (
+                <View style={styles.historyMedDetail}>
+                  <Ionicons name="time-outline" size={10} color="#a0aec0" />
+                  <Text style={styles.historyMedDetailText}>Frecuencia: {med.frecuencia}</Text>
+                </View>
+              )}
+              {med.duracion && (
+                <View style={styles.historyMedDetail}>
+                  <Ionicons name="calendar-outline" size={10} color="#a0aec0" />
+                  <Text style={styles.historyMedDetailText}>Duración: {med.duracion}</Text>
+                </View>
+              )}
+              {med.indicaciones && (
+                <View style={styles.historyMedDetail}>
+                  <Ionicons name="document-text-outline" size={10} color="#a0aec0" />
+                  <Text style={styles.historyMedDetailText}>Indicaciones: {med.indicaciones}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
 
   return (
     <ScrollView style={styles.container}>
@@ -98,7 +185,7 @@ const PrescriptionScreen = ({ navigation, route }) => {
         </View>
       </View>
 
-      {/* Tarjeta principal */}
+      {/* Tarjeta principal - Nueva receta */}
       <View style={styles.mainCard}>
         <LinearGradient 
           colors={['#48bb78', '#38a169']} 
@@ -107,8 +194,8 @@ const PrescriptionScreen = ({ navigation, route }) => {
           end={{ x: 1, y: 0 }}
         >
           <View style={styles.cardHeaderContent}>
-            <Ionicons name="medkit-outline" size={22} color="#fff" />
-            <Text style={styles.cardHeaderTitle}>Registro de Receta Médica</Text>
+            <Ionicons name="add-circle-outline" size={22} color="#fff" />
+            <Text style={styles.cardHeaderTitle}>Nueva Receta Médica</Text>
           </View>
         </LinearGradient>
 
@@ -117,7 +204,7 @@ const PrescriptionScreen = ({ navigation, route }) => {
             <View key={med.id} style={styles.medicationCard}>
               <View style={styles.medicationHeader}>
                 <Text style={styles.medicationTitle}>
-                  <Ionicons name="pills-outline" size={16} /> Medicamento #{index + 1}
+                  <Ionicons name="medkit-outline" size={16} /> Medicamento #{index + 1}
                 </Text>
                 {medications.length > 1 && (
                   <TouchableOpacity 
@@ -134,8 +221,8 @@ const PrescriptionScreen = ({ navigation, route }) => {
                 {/* Medicamento */}
                 <View style={styles.fieldGroup}>
                   <View style={styles.fieldLabel}>
-                    <Ionicons name="capsules-outline" size={16} color="#48bb78" />
-                    <Text style={styles.fieldLabelText}>Medicamento</Text>
+                    <Ionicons name="eyedrop-outline" size={16} color="#48bb78" />
+                    <Text style={styles.fieldLabelText}>Medicamento *</Text>
                   </View>
                   <TextInput
                     style={styles.fieldInput}
@@ -215,7 +302,6 @@ const PrescriptionScreen = ({ navigation, route }) => {
           </TouchableOpacity>
         </View>
 
-        {/* Botón guardar */}
         <View style={styles.cardFooter}>
           <TouchableOpacity
             style={[styles.saveButton, loading && styles.disabledButton]}
@@ -232,6 +318,52 @@ const PrescriptionScreen = ({ navigation, route }) => {
             )}
           </TouchableOpacity>
         </View>
+      </View>
+
+      {/* Historial de Recetas */}
+      <View style={styles.historyCard}>
+        <TouchableOpacity 
+          style={styles.historyHeaderGradient}
+          onPress={() => setShowHistory(!showHistory)}
+          activeOpacity={0.8}
+        >
+          <LinearGradient 
+            colors={['#48bb78', '#38a169']} 
+            style={styles.historyHeaderInner}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            <View style={styles.historyHeaderContent}>
+              <Ionicons name="time-outline" size={20} color="#fff" />
+              <Text style={styles.historyTitle}>Historial de Recetas</Text>
+              <Ionicons 
+                name={showHistory ? "chevron-up-outline" : "chevron-down-outline"} 
+                size={20} 
+                color="#fff" 
+              />
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
+
+        {showHistory && (
+          <View style={styles.historyBody}>
+            {loadingHistory ? (
+              <ActivityIndicator style={styles.historyLoader} size="large" color="#48bb78" />
+            ) : prescriptions.length === 0 ? (
+              <View style={styles.emptyHistory}>
+                <Ionicons name="document-text-outline" size={48} color="#cbd5e0" />
+                <Text style={styles.emptyHistoryText}>No hay recetas previas</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={prescriptions}
+                renderItem={renderHistoryItem}
+                keyExtractor={(item, index) => item.id_receta?.toString() || index.toString()}
+                scrollEnabled={false}
+              />
+            )}
+          </View>
+        )}
       </View>
     </ScrollView>
   );
@@ -307,7 +439,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     marginHorizontal: 16,
     marginTop: 16,
-    marginBottom: 30,
     borderRadius: 25,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -440,6 +571,124 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.7,
+  },
+  historyCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 30,
+    borderRadius: 25,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  historyHeaderGradient: {
+    overflow: 'hidden',
+  },
+  historyHeaderInner: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+  },
+  historyHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  historyTitle: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    marginLeft: 8,
+  },
+  historyBody: {
+    padding: 16,
+  },
+  historyLoader: {
+    padding: 40,
+  },
+  emptyHistory: {
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyHistoryText: {
+    fontSize: 14,
+    color: '#a0aec0',
+    marginTop: 12,
+  },
+  historyItem: {
+    backgroundColor: '#f7fafc',
+    borderRadius: 15,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#edf2f7',
+  },
+  historyBadge: {
+    width: 45,
+    height: 45,
+    borderRadius: 12,
+    backgroundColor: '#48bb78',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  historyBadgeText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  historyInfo: {
+    flex: 1,
+  },
+  historyDate: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#2d3748',
+  },
+  historyDoctor: {
+    fontSize: 11,
+    color: '#718096',
+    marginTop: 2,
+  },
+  historyContent: {
+    padding: 12,
+  },
+  historyMedication: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 8,
+  },
+  historyMedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  historyMedName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#2d3748',
+    marginLeft: 6,
+  },
+  historyMedDetails: {
+    marginLeft: 20,
+  },
+  historyMedDetail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  historyMedDetailText: {
+    fontSize: 11,
+    color: '#718096',
+    marginLeft: 4,
   },
 });
 

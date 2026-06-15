@@ -1,5 +1,5 @@
 // src/screens/medico/HistoriaClinicaScreen.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import api from '../../services/api';
 const HistoriaClinicaScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params;
   const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
   const [formData, setFormData] = useState({
     motivo_consulta: '',
     sintomatologia: [],
@@ -36,6 +37,40 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
   const sintomasOptions = ['Dolor', 'Ojo rojo', 'Lagrimeo', 'Visión borrosa', 'Fotofobia', 'Prurito', 'Cuerpo extraño'];
   const heredoOptions = ['Diabetes', 'Hipertensión', 'Cáncer', 'Glaucoma', 'Catarata'];
   const nopatOptions = ['Tabaquismo', 'Alcohol', 'Sedentarismo', 'Vacunación COVID'];
+
+  // Cargar datos existentes al iniciar
+  useEffect(() => {
+    loadExistingData();
+  }, []);
+
+  const loadExistingData = async () => {
+    try {
+      setLoadingData(true);
+      const response = await api.get(`/historia-clinica/${id_atencion}/${Id_exp}`);
+      
+      if (response.data && Object.keys(response.data).length > 0) {
+        const data = response.data;
+        setFormData({
+          motivo_consulta: data.motivo_consulta || '',
+          sintomatologia: data.sintomatologia ? data.sintomatologia.split(',') : [],
+          sintomatologia_otros: data.sintomatologia_otros || '',
+          heredo: data.heredo ? data.heredo.split(',') : [],
+          heredo_otros: data.heredo_otros || '',
+          nopat: data.nopat ? data.nopat.split(',') : [],
+          nopat_otros: data.nopat_otros || '',
+          pat_enfermedades: data.pat_enfermedades || '',
+          pat_medicamentos: data.pat_medicamentos || '',
+          pat_alergias: data.pat_alergias || '',
+          pat_oculares: data.pat_oculares || '',
+          pat_cirugias: data.pat_cirugias || '',
+        });
+      }
+    } catch (error) {
+      console.error('Error loading historia clinica:', error);
+    } finally {
+      setLoadingData(false);
+    }
+  };
 
   const toggleCheckbox = (field, value) => {
     const current = [...formData[field]];
@@ -73,7 +108,7 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
       }
     } catch (error) {
       console.error('Error saving historia clinica:', error);
-      Alert.alert('Error', 'No se pudo guardar la historia clínica');
+      Alert.alert('Error', error.response?.data?.error || 'No se pudo guardar la historia clínica');
     } finally {
       setLoading(false);
     }
@@ -116,9 +151,17 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
     </View>
   );
 
+  if (loadingData) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#667eea" />
+        <Text style={styles.loadingText}>Cargando historia clínica...</Text>
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.container}>
-      {/* Header */}
       <LinearGradient colors={['#667eea', '#764ba2']} style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
@@ -129,7 +172,6 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
         <View style={{ width: 40 }} />
       </LinearGradient>
 
-      {/* Tarjeta principal */}
       <View style={styles.mainCard}>
         <LinearGradient 
           colors={['#667eea', '#764ba2']} 
@@ -222,7 +264,6 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
           </View>
         </View>
 
-        {/* Botones */}
         <View style={styles.cardFooter}>
           <TouchableOpacity
             style={styles.cancelButton}
@@ -256,6 +297,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f7fafc',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f7fafc',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#718096',
   },
   header: {
     flexDirection: 'row',
