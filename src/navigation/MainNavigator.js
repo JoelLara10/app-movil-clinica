@@ -11,10 +11,16 @@ import DashboardScreen from '../screens/dashboard/DashboardScreen';
 
 // Importar screens
 import AdminScreen from '../screens/admin/AdminScreen';
+import CamasScreen from '../screens/admin/CamasScreen';
 import MedicoScreen from '../screens/medico/MedicoScreen';
 import EstudiosScreen from '../screens/estudios/EstudiosScreen';
 import ConfigScreen from '../screens/config/ConfigScreen';
 import PatientDetailScreen from '../screens/medico/PatientDetailScreen';
+import CensoScreen from '../screens/administrativo/CensoScreen';
+import CorteCajaScreen from '../screens/administrativo/CorteCajaScreen';
+import NuevoPacienteScreen from '../screens/administrativo/NuevoPacienteScreen';
+import PacienteDetailScreen from '../screens/administrativo/PacienteDetailScreen';
+import PacientesScreen from '../screens/administrativo/PacientesScreen';
 
 //Screens Estudios
 import SubirResultadoScreen from '../screens/estudios/SubirResultadoScreen';
@@ -329,6 +335,24 @@ function MainStack() {
       
       {(role === 'admin' || role === 'administrativo') && (
         <Stack.Screen name="Admin" component={AdminScreen} />
+      )}
+      {(role === 'admin' || role === 'administrativo') && (
+        <Stack.Screen name="Pacientes" component={PacientesScreen} />
+      )}
+      {(role === 'admin' || role === 'administrativo') && (
+        <Stack.Screen name="PacienteDetail" component={PacienteDetailScreen} />
+      )}
+      {(role === 'admin' || role === 'administrativo') && (
+        <Stack.Screen name="NuevoPaciente" component={NuevoPacienteScreen} />
+      )}
+      {(role === 'admin' || role === 'administrativo') && (
+        <Stack.Screen name="Censo" component={CensoScreen} />
+      )}
+      {(role === 'admin' || role === 'administrativo') && (
+        <Stack.Screen name="CorteCaja" component={CorteCajaScreen} />
+      )}
+      {(role === 'admin' || role === 'administrativo') && (
+        <Stack.Screen name="Camas" component={CamasScreen} />
       )}
       
       {(role === 'admin' || role === 'medico') && (
