@@ -1,5 +1,3 @@
-// src/screens/dashboard/DashboardScreen.js - Versión corregida
-
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -26,7 +24,11 @@ const DashboardScreen = ({ navigation }) => {
     pending_exams: 0,
     today_attentions: 0
   });
-  const [pendingStudies, setPendingStudies] = useState({ laboratorio: 0, gabinete: 0, total: 0 });
+  const [pendingStudies, setPendingStudies] = useState({ 
+    laboratorio: 0, 
+    gabinete: 0, 
+    total: 0 
+  });
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -35,7 +37,7 @@ const DashboardScreen = ({ navigation }) => {
 
   const loadDashboardData = async () => {
     try {
-      // Intentar cargar dashboard stats
+      // Cargar estadísticas del dashboard
       try {
         const statsRes = await api.get('/analytics/dashboard');
         setStats(statsRes.data);
@@ -44,9 +46,9 @@ const DashboardScreen = ({ navigation }) => {
         // Usar datos por defecto
       }
       
-      // Intentar cargar estudios counts
+      // Cargar conteo de estudios pendientes
       try {
-        const studiesRes = await api.get('/studies/counts');
+        const studiesRes = await api.get('/exams/counts');
         setPendingStudies(studiesRes.data);
       } catch (error) {
         console.log('Studies counts endpoint not available yet');
@@ -70,19 +72,64 @@ const DashboardScreen = ({ navigation }) => {
 
     if (role === 'admin' || role === 'administrativo') {
       options.push(
-        { name: 'Administrativo', icon: 'business-outline', screen: 'Admin', color: '#667eea', description: 'Gestión de pacientes y cuentas' },
-        { name: 'Médico', icon: 'medkit-outline', screen: 'Medico', color: '#48bb78', description: 'Atención médica y recetas' },
-        { name: 'Estudios', icon: 'flask-outline', screen: 'Estudios', color: '#ed8936', description: 'Gestión de exámenes', badge: pendingStudies.total },
-        { name: 'Configuración', icon: 'settings-outline', screen: 'Config', color: '#718096', description: 'Configuración del sistema' }
+        { 
+          name: 'Administrativo', 
+          icon: 'business-outline', 
+          screen: 'Admin', 
+          color: '#667eea', 
+          description: 'Gestión de pacientes y cuentas' 
+        },
+        { 
+          name: 'Médico', 
+          icon: 'medkit-outline', 
+          screen: 'Medico', 
+          color: '#48bb78', 
+          description: 'Atención médica y recetas' 
+        },
+        { 
+          name: 'Estudios', 
+          icon: 'flask-outline', 
+          screen: 'Estudios', 
+          color: '#ed8936', 
+          description: 'Gestión de exámenes', 
+          badge: pendingStudies.total 
+        },
+        { 
+          name: 'Configuración', 
+          icon: 'settings-outline', 
+          screen: 'Config', 
+          color: '#718096', 
+          description: 'Configuración del sistema' 
+        }
       );
     } else if (role === 'medico') {
       options.push(
-        { name: 'Médico', icon: 'medkit-outline', screen: 'Medico', color: '#48bb78', description: 'Atención médica' },
-        { name: 'Estudios', icon: 'flask-outline', screen: 'Estudios', color: '#ed8936', description: 'Resultados de estudios', badge: pendingStudies.total }
+        { 
+          name: 'Médico', 
+          icon: 'medkit-outline', 
+          screen: 'Medico', 
+          color: '#48bb78', 
+          description: 'Atención médica' 
+        },
+        { 
+          name: 'Estudios', 
+          icon: 'flask-outline', 
+          screen: 'Estudios', 
+          color: '#ed8936', 
+          description: 'Resultados de estudios', 
+          badge: pendingStudies.total 
+        }
       );
     } else if (role === 'estudios') {
       options.push(
-        { name: 'Estudios', icon: 'flask-outline', screen: 'Estudios', color: '#ed8936', description: 'Gestión de exámenes', badge: pendingStudies.total }
+        { 
+          name: 'Estudios', 
+          icon: 'flask-outline', 
+          screen: 'Estudios', 
+          color: '#ed8936', 
+          description: 'Gestión de exámenes', 
+          badge: pendingStudies.total 
+        }
       );
     }
 
@@ -154,26 +201,15 @@ const DashboardScreen = ({ navigation }) => {
   );
 };
 
-const loadDashboardData = async () => {
-  try {
-    // CAMBIA /analytics/dashboard a /dashboard
-    const statsRes = await api.get('/dashboard');
-    setStats(statsRes.data);
-    
-    // CAMBIA /studies/counts a /counts
-    const studiesRes = await api.get('/counts');
-    setPendingStudies(studiesRes.data);
-    
-  } catch (error) {
-    console.error('Error loading dashboard:', error);
-  }
-};
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f7fafc' },
+  container: { 
+    flex: 1, 
+    backgroundColor: '#f7fafc' 
+  },
   header: {
     paddingTop: 60,
     paddingBottom: 30,
+    marginBottom: 50,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
@@ -183,9 +219,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  greeting: { fontSize: 24, fontWeight: 'bold', color: '#fff' },
-  date: { fontSize: 14, color: 'rgba(255,255,255,0.8)', marginTop: 4 },
-  logoutButton: { padding: 8 },
+  greeting: { 
+    fontSize: 24, 
+    fontWeight: 'bold', 
+    color: '#fff' 
+  },
+  date: { 
+    fontSize: 14, 
+    color: 'rgba(255,255,255,0.8)', 
+    marginTop: 4 
+  },
+  logoutButton: { 
+    padding: 8 
+  },
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -205,10 +251,26 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  statNumber: { fontSize: 24, fontWeight: 'bold', color: '#2d3748', marginTop: 8 },
-  statLabel: { fontSize: 12, color: '#718096', marginTop: 4 },
-  menuContainer: { padding: 20 },
-  menuTitle: { fontSize: 18, fontWeight: '600', color: '#2d3748', marginBottom: 16 },
+  statNumber: { 
+    fontSize: 24, 
+    fontWeight: 'bold', 
+    color: '#2d3748', 
+    marginTop: 8 
+  },
+  statLabel: { 
+    fontSize: 12, 
+    color: '#718096', 
+    marginTop: 4 
+  },
+  menuContainer: { 
+    padding: 20 
+  },
+  menuTitle: { 
+    fontSize: 18, 
+    fontWeight: '600', 
+    color: '#2d3748', 
+    marginBottom: 16 
+  },
   menuGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -236,8 +298,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  menuName: { fontSize: 16, fontWeight: '600', color: '#2d3748', marginBottom: 4 },
-  menuDescription: { fontSize: 12, color: '#718096', textAlign: 'center' },
+  menuName: { 
+    fontSize: 16, 
+    fontWeight: '600', 
+    color: '#2d3748', 
+    marginBottom: 4 
+  },
+  menuDescription: { 
+    fontSize: 12, 
+    color: '#718096', 
+    textAlign: 'center' 
+  },
   badge: {
     position: 'absolute',
     top: -8,
@@ -250,7 +321,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 6,
   },
-  badgeText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
+  badgeText: { 
+    color: '#fff', 
+    fontSize: 12, 
+    fontWeight: 'bold' 
+  },
 });
 
 export default DashboardScreen;

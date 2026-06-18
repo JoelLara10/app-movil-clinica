@@ -16,6 +16,13 @@ import EstudiosScreen from '../screens/estudios/EstudiosScreen';
 import ConfigScreen from '../screens/config/ConfigScreen';
 import PatientDetailScreen from '../screens/medico/PatientDetailScreen';
 
+//Screens Estudios
+import SubirResultadoScreen from '../screens/estudios/SubirResultadoScreen';
+import VerResultadoLabScreen from '../screens/estudios/VerResultadoLabScreen';
+import VerResultadoGabScreen from '../screens/estudios/VerResultadoGabScreen';
+import EditarResultadoLabScreen from '../screens/estudios/EditarResultadoLabScreen';
+import EditarResultadoGabScreen from '../screens/estudios/EditarResultadoGabScreen';
+
 // Screens médicas
 import HistoriaClinicaScreen from '../screens/medico/HistoriaClinicaScreen';
 import VitalSignsScreen from '../screens/medico/VitalSignsScreen';
@@ -297,6 +304,20 @@ function MedicoStack() {
   );
 }
 
+// Stack para el módulo de estudios
+function EstudiosStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="EstudiosList" component={EstudiosScreen} />
+      <Stack.Screen name="SubirResultado" component={SubirResultadoScreen} />
+      <Stack.Screen name="VerResultadoLab" component={VerResultadoLabScreen} />
+      <Stack.Screen name="VerResultadoGab" component={VerResultadoGabScreen} />
+      <Stack.Screen name="EditarResultadoLab" component={EditarResultadoLabScreen} />
+      <Stack.Screen name="EditarResultadoGab" component={EditarResultadoGabScreen} />
+    </Stack.Navigator>
+  );
+}
+
 // Stack principal
 function MainStack() {
   const { user } = useAuth();
@@ -315,7 +336,7 @@ function MainStack() {
       )}
       
       {(role === 'admin' || role === 'medico' || role === 'estudios') && (
-        <Stack.Screen name="Estudios" component={EstudiosScreen} />
+        <Stack.Screen name="Estudios" component={EstudiosStack} />
       )}
       
       {(role === 'admin') && (
