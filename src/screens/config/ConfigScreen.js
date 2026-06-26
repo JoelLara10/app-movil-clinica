@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../context/AuthContext';
@@ -14,11 +13,36 @@ const ConfigScreen = ({ navigation }) => {
   const { user, logout } = useAuth();
 
   const menuItems = [
-    { title: 'Usuarios del Sistema', emoji: '👥', color: '#667eea' },
-    { title: 'Configuración de Camas', emoji: '🛏️', color: '#48bb78' },
-    { title: 'Catálogo de Servicios', emoji: '📋', color: '#ed8936' },
-    { title: 'Copias de Seguridad', emoji: '💾', color: '#9f7aea' },
-    { title: 'Mi Perfil', emoji: '👤', color: '#38b2ac' },
+    {
+      title: 'Usuarios del Sistema',
+      emoji: '👥',
+      color: '#667eea',
+      screen: 'UsuariosConfig',
+    },
+    {
+      title: 'Configuración de Camas',
+      emoji: '🛏️',
+      color: '#48bb78',
+      screen: 'CamasConfig',
+    },
+    {
+      title: 'Catálogo de Servicios',
+      emoji: '📋',
+      color: '#ed8936',
+      screen: 'ServiciosConfig',
+    },
+    {
+      title: 'Copias de Seguridad',
+      emoji: '💾',
+      color: '#9f7aea',
+      screen: 'BackupConfig',
+    },
+    {
+      title: 'Mi Perfil',
+      emoji: '👤',
+      color: '#38b2ac',
+      screen: 'ProfileConfig',
+    },
   ];
 
   return (
@@ -27,15 +51,20 @@ const ConfigScreen = ({ navigation }) => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
+
         <Text style={styles.headerTitle}>Configuración</Text>
         <View style={{ width: 40 }} />
       </LinearGradient>
 
       <View style={styles.profileSection}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{user?.username?.charAt(0).toUpperCase() || 'U'}</Text>
+          <Text style={styles.avatarText}>
+            {user?.username?.charAt(0).toUpperCase() || 'U'}
+          </Text>
         </View>
+
         <Text style={styles.userName}>{user?.username}</Text>
+
         <View style={styles.roleBadge}>
           <Text style={styles.roleText}>{user?.role?.toUpperCase()}</Text>
         </View>
@@ -46,11 +75,12 @@ const ConfigScreen = ({ navigation }) => {
           <TouchableOpacity
             key={index}
             style={styles.menuItem}
-            onPress={() => Alert.alert('Próximamente', item.title)}
+            onPress={() => navigation.navigate(item.screen)}
           >
             <View style={[styles.menuIcon, { backgroundColor: item.color + '20' }]}>
               <Text style={styles.menuEmoji}>{item.emoji}</Text>
             </View>
+
             <Text style={styles.menuTitle}>{item.title}</Text>
             <Text style={styles.menuArrow}>›</Text>
           </TouchableOpacity>
@@ -102,7 +132,12 @@ const styles = StyleSheet.create({
   },
   avatarText: { fontSize: 32, fontWeight: 'bold', color: '#fff' },
   userName: { fontSize: 18, fontWeight: '600', color: '#2d3748', marginBottom: 4 },
-  roleBadge: { backgroundColor: '#667eea20', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
+  roleBadge: {
+    backgroundColor: '#667eea20',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
   roleText: { fontSize: 12, color: '#667eea', fontWeight: '600' },
   menuSection: {
     backgroundColor: '#fff',
@@ -123,7 +158,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
   },
-  menuIcon: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  menuIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
   menuEmoji: { fontSize: 20 },
   menuTitle: { flex: 1, fontSize: 16, color: '#2d3748' },
   menuArrow: { fontSize: 20, color: '#cbd5e0' },

@@ -1,0 +1,30 @@
+import { StyleSheet } from 'react-native';
+
+export const configStyles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#f7fafc' },
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingTop: 58, paddingBottom: 18, paddingHorizontal: 18,
+  },
+  backButton: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.18)' },
+  backText: { fontSize: 24, color: '#fff', fontWeight: '700' },
+  headerTitle: { fontSize: 19, fontWeight: '800', color: '#fff', textAlign: 'center' },
+  content: { padding: 16, paddingBottom: 36 },
+  card: { backgroundColor: '#fff', borderRadius: 18, padding: 16, marginBottom: 14, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
+  cardTitle: { fontSize: 17, fontWeight: '800', color: '#2d3748', marginBottom: 4 },
+  cardSubtitle: { fontSize: 13, color: '#718096', lineHeight: 19 },
+  row: { flexDirection: 'row', alignItems: 'center' },
+  between: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sectionTitle: { fontSize: 18, fontWeight: '800', color: '#2d3748', marginBottom: 14 },
+  input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 10, color: '#2d3748' },
+  label: { fontSize: 13, fontWeight: '700', color: '#4a5568', marginBottom: 6 },
+  primaryButton: { backgroundColor: '#667eea', paddingVertical: 13, borderRadius: 12, alignItems: 'center', marginTop: 6 },
+  primaryText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  dangerButton: { backgroundColor: '#fff5f5', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: '#fed7d7' },
+  dangerText: { color: '#e53e3e', fontWeight: '800' },
+  smallButton: { backgroundColor: '#edf2f7', paddingVertical: 9, paddingHorizontal: 12, borderRadius: 10 },
+  smallText: { color: '#4a5568', fontWeight: '700' },
+  badge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, backgroundColor: '#667eea20' },
+  badgeText: { color: '#667eea', fontSize: 11, fontWeight: '800' },
+  emptyText: { color: '#718096', textAlign: 'center', paddingVertical: 20 },
+});

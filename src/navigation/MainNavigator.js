@@ -40,6 +40,15 @@ import ImagingExamsScreen from '../screens/medico/ImagingExamsScreen';
 import PrintDocsScreen from '../screens/medico/PrintDocsScreen';
 import StudyResultsScreen from '../screens/medico/StudyResultsScreen';
 
+//Screens Config
+import GeneralSettingsScreen from '../screens/config/GeneralSettingsScreen';
+import UsuariosConfigScreen from '../screens/config/UsuariosConfigScreen';
+import CamasConfigScreen from '../screens/config/CamasConfigScreen';
+import ServiciosConfigScreen from '../screens/config/ServiciosConfigScreen';
+import AutomationConfigScreen from '../screens/config/AutomationConfigScreen';
+import BackupConfigScreen from '../screens/config/BackupConfigScreen';
+import ProfileConfigScreen from '../screens/config/ProfileConfigScreen';
+
 const Drawer = createDrawerNavigator();
 const Stack = createStackNavigator();
 
@@ -336,21 +345,27 @@ function MainStack() {
       {(role === 'admin' || role === 'administrativo') && (
         <Stack.Screen name="Admin" component={AdminScreen} />
       )}
+
       {(role === 'admin' || role === 'administrativo') && (
         <Stack.Screen name="Pacientes" component={PacientesScreen} />
       )}
+
       {(role === 'admin' || role === 'administrativo') && (
         <Stack.Screen name="PacienteDetail" component={PacienteDetailScreen} />
       )}
+
       {(role === 'admin' || role === 'administrativo') && (
         <Stack.Screen name="NuevoPaciente" component={NuevoPacienteScreen} />
       )}
+
       {(role === 'admin' || role === 'administrativo') && (
         <Stack.Screen name="Censo" component={CensoScreen} />
       )}
+
       {(role === 'admin' || role === 'administrativo') && (
         <Stack.Screen name="CorteCaja" component={CorteCajaScreen} />
       )}
+
       {(role === 'admin' || role === 'administrativo') && (
         <Stack.Screen name="Camas" component={CamasScreen} />
       )}
@@ -363,8 +378,17 @@ function MainStack() {
         <Stack.Screen name="Estudios" component={EstudiosStack} />
       )}
       
-      {(role === 'admin') && (
-        <Stack.Screen name="Config" component={ConfigScreen} />
+      {role === 'admin' && (
+        <>
+          <Stack.Screen name="Config" component={ConfigScreen} />
+          <Stack.Screen name="GeneralSettings" component={GeneralSettingsScreen} />
+          <Stack.Screen name="UsuariosConfig" component={UsuariosConfigScreen} />
+          <Stack.Screen name="CamasConfig" component={CamasConfigScreen} />
+          <Stack.Screen name="ServiciosConfig" component={ServiciosConfigScreen} />
+          <Stack.Screen name="AutomationConfig" component={AutomationConfigScreen} />
+          <Stack.Screen name="BackupConfig" component={BackupConfigScreen} />
+          <Stack.Screen name="ProfileConfig" component={ProfileConfigScreen} />
+        </>
       )}
     </Stack.Navigator>
   );
