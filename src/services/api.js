@@ -1,11 +1,38 @@
 import axios from 'axios';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
-// Obtener URL de la API desde app.json extra
+// Base URL por plataforma
+const API_URL =
+  Platform.OS === 'web'
+    ? 'http://localhost:5001/api/v1'
+    : Constants.expoConfig?.extra?.API_URL ||
+      'http://192.168.1.67:5001/api/v1';
 
-const API_URL = Constants.expoConfig?.extra?.API_URL || 'http://192.168.100.5:5001/api/v1';
-
+// Storage compatible web + mobile
+const storage = {
+  async getItem(key) {
+    if (Platform.OS === 'web') {
+      return localStorage.getItem(key);
+    }
+    return AsyncStorage.getItem(key);
+  },
+  async setItem(key, value) {
+    if (Platform.OS === 'web') {
+      localStorage.setItem(key, value);
+      return;
+    }
+    return AsyncStorage.setItem(key, value);
+  },
+  async removeItem(key) {
+    if (Platform.OS === 'web') {
+      localStorage.removeItem(key);
+      return;
+    }
+    return AsyncStorage.removeItem(key);
+  },
+};
 
 const api = axios.create({
   baseURL: API_URL,
@@ -15,29 +42,25 @@ const api = axios.create({
   },
 });
 
-// Interceptor para agregar token
+// 🔐 Interceptor: agregar token
 api.interceptors.request.use(
   async (config) => {
-    const token = await AsyncStorage.getItem('@ineo_token');
+    const token = await storage.getItem('@ineo_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Interceptor para manejar errores de autenticación
+// 🚨 Interceptor: token inválido
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
-      // Token expirado o inválido
-      await AsyncStorage.removeItem('@ineo_token');
-      await AsyncStorage.removeItem('@ineo_user');
-      // Redirigir a login
+      await storage.removeItem('@ineo_token');
+      await storage.removeItem('@ineo_user');
     }
     return Promise.reject(error);
   }

@@ -27,7 +27,7 @@ export default function ViewResultForm({ navigation, route }) {
   const [error, setError] = useState('');
   const [downloading, setDownloading] = useState(false);
 
-  const baseUrl = api.defaults.baseURL?.replace('/api/v1', '') || 'http://192.168.1.78:5000';
+  const baseUrl = api.defaults.baseURL?.replace('/api/v1', '') || 'http://192.168.1.67:5000';
 
   useEffect(() => {
     const loadFiles = async () => {
