@@ -11,10 +11,23 @@ import DashboardScreen from '../screens/dashboard/DashboardScreen';
 
 // Importar screens
 import AdminScreen from '../screens/admin/AdminScreen';
+import CamasScreen from '../screens/admin/CamasScreen';
 import MedicoScreen from '../screens/medico/MedicoScreen';
 import EstudiosScreen from '../screens/estudios/EstudiosScreen';
 import ConfigScreen from '../screens/config/ConfigScreen';
 import PatientDetailScreen from '../screens/medico/PatientDetailScreen';
+import CensoScreen from '../screens/administrativo/CensoScreen';
+import CorteCajaScreen from '../screens/administrativo/CorteCajaScreen';
+import NuevoPacienteScreen from '../screens/administrativo/NuevoPacienteScreen';
+import PacienteDetailScreen from '../screens/administrativo/PacienteDetailScreen';
+import PacientesScreen from '../screens/administrativo/PacientesScreen';
+
+//Screens Estudios
+import SubirResultadoScreen from '../screens/estudios/SubirResultadoScreen';
+import VerResultadoLabScreen from '../screens/estudios/VerResultadoLabScreen';
+import VerResultadoGabScreen from '../screens/estudios/VerResultadoGabScreen';
+import EditarResultadoLabScreen from '../screens/estudios/EditarResultadoLabScreen';
+import EditarResultadoGabScreen from '../screens/estudios/EditarResultadoGabScreen';
 
 // Screens médicas
 import HistoriaClinicaScreen from '../screens/medico/HistoriaClinicaScreen';
@@ -297,6 +310,20 @@ function MedicoStack() {
   );
 }
 
+// Stack para el módulo de estudios
+function EstudiosStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="EstudiosList" component={EstudiosScreen} />
+      <Stack.Screen name="SubirResultado" component={SubirResultadoScreen} />
+      <Stack.Screen name="VerResultadoLab" component={VerResultadoLabScreen} />
+      <Stack.Screen name="VerResultadoGab" component={VerResultadoGabScreen} />
+      <Stack.Screen name="EditarResultadoLab" component={EditarResultadoLabScreen} />
+      <Stack.Screen name="EditarResultadoGab" component={EditarResultadoGabScreen} />
+    </Stack.Navigator>
+  );
+}
+
 // Stack principal
 function MainStack() {
   const { user } = useAuth();
@@ -309,13 +336,31 @@ function MainStack() {
       {(role === 'admin' || role === 'administrativo') && (
         <Stack.Screen name="Admin" component={AdminScreen} />
       )}
+      {(role === 'admin' || role === 'administrativo') && (
+        <Stack.Screen name="Pacientes" component={PacientesScreen} />
+      )}
+      {(role === 'admin' || role === 'administrativo') && (
+        <Stack.Screen name="PacienteDetail" component={PacienteDetailScreen} />
+      )}
+      {(role === 'admin' || role === 'administrativo') && (
+        <Stack.Screen name="NuevoPaciente" component={NuevoPacienteScreen} />
+      )}
+      {(role === 'admin' || role === 'administrativo') && (
+        <Stack.Screen name="Censo" component={CensoScreen} />
+      )}
+      {(role === 'admin' || role === 'administrativo') && (
+        <Stack.Screen name="CorteCaja" component={CorteCajaScreen} />
+      )}
+      {(role === 'admin' || role === 'administrativo') && (
+        <Stack.Screen name="Camas" component={CamasScreen} />
+      )}
       
       {(role === 'admin' || role === 'medico') && (
         <Stack.Screen name="Medico" component={MedicoStack} />
       )}
       
       {(role === 'admin' || role === 'medico' || role === 'estudios') && (
-        <Stack.Screen name="Estudios" component={EstudiosScreen} />
+        <Stack.Screen name="Estudios" component={EstudiosStack} />
       )}
       
       {(role === 'admin') && (

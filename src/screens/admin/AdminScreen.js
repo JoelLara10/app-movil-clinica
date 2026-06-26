@@ -1,47 +1,61 @@
 import React from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
   Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 
 const AdminScreen = ({ navigation }) => {
   const menuItems = [
-    { title: 'Gestión de Pacientes', emoji: '👥', screen: 'Pacientes', color: '#667eea' },
-    { title: 'Gestión de Camas', emoji: '🛏️', screen: 'Camas', color: '#48bb78' },
-    { title: 'Gestión de Usuarios', emoji: '👤', screen: 'Usuarios', color: '#ed8936' },
-    { title: 'Catálogo de Servicios', emoji: '📋', screen: 'Servicios', color: '#38b2ac' },
-    { title: 'Corte de Caja', emoji: '💰', screen: 'CorteCaja', color: '#ecc94b' },
-    { title: 'Copias de Seguridad', emoji: '💾', screen: 'Backup', color: '#9f7aea' },
+    { title: 'Gestion de Pacientes', icon: 'people-outline', screen: 'Pacientes', color: '#667eea' },
+    { title: 'Nuevo Paciente', icon: 'person-add-outline', screen: 'NuevoPaciente', color: '#48bb78' },
+    { title: 'Cuenta Paciente', icon: 'receipt-outline', screen: 'PacienteDetail', color: '#ed8936' },
+    { title: 'Censo de Pacientes', icon: 'stats-chart-outline', screen: 'Censo', color: '#38b2ac' },
+    { title: 'Corte de Caja', icon: 'cash-outline', screen: 'CorteCaja', color: '#ecc94b' },
+    { title: 'Camas', icon: 'bed-outline', screen: 'Camas', color: '#9f7aea' },
   ];
 
+  const handleOpen = (item) => {
+    if (item.pending) {
+      Alert.alert('Proximamente', `Modulo ${item.title}`);
+      return;
+    }
+    navigation.navigate(item.screen);
+  };
+
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      contentInsetAdjustmentBehavior="automatic"
+      contentContainerStyle={styles.contentContainer}
+    >
       <LinearGradient colors={['#667eea', '#764ba2']} style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backText}>←</Text>
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Administrativo</Text>
         <View style={{ width: 40 }} />
       </LinearGradient>
 
       <View style={styles.content}>
-        <Text style={styles.sectionTitle}>📋 Módulos Administrativos</Text>
+        <Text style={styles.sectionTitle}>Modulos Administrativos</Text>
         <View style={styles.grid}>
-          {menuItems.map((item, index) => (
+          {menuItems.map((item) => (
             <TouchableOpacity
-              key={index}
+              key={item.title}
               style={styles.card}
-              onPress={() => Alert.alert('Próximamente', `Módulo ${item.title}`)}
+              onPress={() => handleOpen(item)}
             >
-              <View style={[styles.iconContainer, { backgroundColor: item.color + '20' }]}>
-                <Text style={styles.cardEmoji}>{item.emoji}</Text>
+              <View style={[styles.iconContainer, { backgroundColor: `${item.color}20` }]}>
+                <Ionicons name={item.icon} size={32} color={item.color} />
               </View>
               <Text style={styles.cardTitle}>{item.title}</Text>
+              <Text style={styles.cardHint}>{item.pending ? 'Pendiente' : 'Abrir modulo'}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -52,6 +66,7 @@ const AdminScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f7fafc' },
+  contentContainer: { paddingBottom: 28 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -61,7 +76,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   backButton: { padding: 8 },
-  backText: { fontSize: 24, color: '#fff' },
   headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#fff' },
   content: { padding: 20 },
   sectionTitle: { fontSize: 18, fontWeight: '600', color: '#2d3748', marginBottom: 16 },
@@ -73,11 +87,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    boxShadow: '0 2px 8px rgba(45, 55, 72, 0.10)',
   },
   iconContainer: {
     width: 60,
@@ -87,8 +97,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  cardEmoji: { fontSize: 32 },
   cardTitle: { fontSize: 14, fontWeight: '600', color: '#2d3748', textAlign: 'center' },
+  cardHint: { fontSize: 11, color: '#718096', marginTop: 6, textAlign: 'center' },
 });
 
 export default AdminScreen;
