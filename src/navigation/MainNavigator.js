@@ -240,44 +240,6 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
     });
 
     menuSections.push({
-      title: "ESTUDIOS",
-      items: [
-        {
-          name: "Solicitudes Lab",
-          icon: "flask-outline",
-          screen: "Medico",
-          subScreen: "LabExams",
-          params: baseParams,
-          requiresPatient: true,
-        },
-        {
-          name: "Solicitudes Gabinete",
-          icon: "scan-outline",
-          screen: "Medico",
-          subScreen: "ImagingExams",
-          params: baseParams,
-          requiresPatient: true,
-        },
-        {
-          name: "Resultados Lab",
-          icon: "document-text-outline",
-          screen: "Estudios",
-          subScreen: "EstudiosList",
-          params: { initialSection: "resultados_lab" },
-          requiresPatient: false,
-        },
-        {
-          name: "Resultados Gabinete",
-          icon: "folder-open-outline",
-          screen: "Estudios",
-          subScreen: "EstudiosList",
-          params: { initialSection: "resultados_gab" },
-          requiresPatient: false,
-        },
-      ],
-    });
-
-    menuSections.push({
       title: "DOCUMENTOS",
       items: [
         {
