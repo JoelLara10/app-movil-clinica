@@ -47,7 +47,7 @@ const SECTION_CONFIG = {
 
 const PAGE_SIZE = 5;
 
-const EstudiosScreen = ({ navigation }) => {
+const EstudiosScreen = ({ navigation, route }) => {
   const { user } = useAuth();
   const [selectedSection, setSelectedSection] = useState('solicitudes_lab');
   const [items, setItems] = useState([]);
@@ -61,6 +61,13 @@ const EstudiosScreen = ({ navigation }) => {
 
   const initialLoadDone = useRef(false);
   const skipFocusRefresh = useRef(false);
+
+  useEffect(() => {
+    const initialSection = route?.params?.initialSection;
+    if (initialSection && SECTION_CONFIG[initialSection] && initialSection !== selectedSection) {
+      setSelectedSection(initialSection);
+    }
+  }, [route?.params?.initialSection, selectedSection]);
 
   const normalizeItem = (item = {}) => ({
     id_examen: item.id_examen ?? item._id ?? '',

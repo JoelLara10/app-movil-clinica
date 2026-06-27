@@ -14,7 +14,11 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
+import CacheService from '../../services/cacheService';
 import moment from 'moment';
+
+const CACHE_KEY_PREFIX = 'medical_notes_';
+const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
 
 const MedicalNoteScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params;
@@ -34,13 +38,40 @@ const MedicalNoteScreen = ({ navigation, route }) => {
     loadMedicalNotesHistory();
   }, []);
 
-  const loadMedicalNotesHistory = async () => {
+  const loadMedicalNotesHistory = async (forceRefresh = false) => {
     try {
       setLoadingHistory(true);
+      const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}`;
+
+      // Intentar obtener de caché primero (si no es forceRefresh)
+      if (!forceRefresh) {
+        const cachedData = await CacheService.get(cacheKey);
+        if (cachedData) {
+          console.log('📦 Notas médicas cargadas desde caché');
+          setHistory(cachedData);
+          setLoadingHistory(false);
+          return;
+        }
+      }
+
+      // Si no hay caché o es forceRefresh, cargar desde API
+      console.log('🌐 Cargando notas médicas desde API...');
       const response = await api.get(`/appointments/${id_atencion}/medical-notes`);
+      
+      // Guardar en caché
+      await CacheService.set(cacheKey, response.data, CACHE_TTL);
+      
       setHistory(response.data);
     } catch (error) {
       console.error('Error loading medical notes history:', error);
+      
+      // Si falla la API, intentar cargar desde caché aunque esté expirada
+      const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}`;
+      const cachedData = await CacheService.get(cacheKey);
+      if (cachedData) {
+        console.log('📦 Notas médicas cargadas desde caché (fallback)');
+        setHistory(cachedData);
+      }
     } finally {
       setLoadingHistory(false);
     }
@@ -69,8 +100,8 @@ const MedicalNoteScreen = ({ navigation, route }) => {
           analisis: '',
           plan: '',
         });
-        // Recargar historial
-        loadMedicalNotesHistory();
+        // Recargar historial con forceRefresh
+        await loadMedicalNotesHistory(true);
       }
     } catch (error) {
       console.error('Error saving medical note:', error);
@@ -306,6 +337,9 @@ const MedicalNoteScreen = ({ navigation, route }) => {
             <View style={styles.historyHeaderContent}>
               <Ionicons name="time-outline" size={20} color="#fff" />
               <Text style={styles.historyTitle}>Historial de Notas Médicas</Text>
+              <View style={styles.historyCount}>
+                <Text style={styles.historyCountText}>{history.length} registros</Text>
+              </View>
               <Ionicons 
                 name={showHistory ? "chevron-up-outline" : "chevron-down-outline"} 
                 size={20} 
@@ -330,6 +364,8 @@ const MedicalNoteScreen = ({ navigation, route }) => {
                 renderItem={renderHistoryItem}
                 keyExtractor={(item, index) => item.id_nota?.toString() || index.toString()}
                 scrollEnabled={false}
+                initialNumToRender={5}
+                maxToRenderPerBatch={5}
               />
             )}
           </View>
@@ -340,6 +376,19 @@ const MedicalNoteScreen = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
+  // ... (todos los estilos existentes se mantienen igual, solo se agregan los nuevos)
+  historyCount: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  historyCountText: {
+    fontSize: 11,
+    color: '#fff',
+    fontWeight: '500',
+  },
   container: {
     flex: 1,
     backgroundColor: '#f7fafc',

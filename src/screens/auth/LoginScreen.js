@@ -10,10 +10,14 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+
+const { width } = Dimensions.get('window');
 
 const LoginScreen = ({ navigation }) => {
   const [username, setUsername] = useState('');
@@ -21,6 +25,7 @@ const LoginScreen = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
+  const { width: screenWidth } = useWindowDimensions();
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
@@ -33,9 +38,12 @@ const LoginScreen = ({ navigation }) => {
     setLoading(false);
 
     if (!result.success) {
-      Alert.alert('Error de autenticación', result.error);
+      Alert.alert('Error de autenticación', result.error || 'Credenciales incorrectas');
     }
   };
+
+  // Ancho máximo del formulario (mejor en web y tablets)
+  const formWidth = screenWidth > 600 ? 420 : screenWidth * 0.9;
 
   return (
     <LinearGradient
@@ -46,18 +54,21 @@ const LoginScreen = ({ navigation }) => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <ScrollView contentContainerStyle={styles.scrollView}>
+        <ScrollView 
+          contentContainerStyle={styles.scrollView}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.brandContainer}>
             <View style={styles.iconContainer}>
-              <Ionicons name="medical-outline" size={60} color="#fff" />
+              <Ionicons name="medical-outline" size={70} color="#fff" />
             </View>
             <Text style={styles.brandTitle}>INEO</Text>
             <Text style={styles.brandSubtitle}>Sistema de Gestión Hospitalaria</Text>
           </View>
 
-          <View style={styles.formContainer}>
+          <View style={[styles.formContainer, { width: formWidth, alignSelf: 'center' }]}>
             <View style={styles.inputGroup}>
-              <Ionicons name="person-outline" size={20} color="#667eea" style={styles.inputIcon} />
+              <Ionicons name="person-outline" size={22} color="#667eea" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Usuario"
@@ -65,12 +76,14 @@ const LoginScreen = ({ navigation }) => {
                 value={username}
                 onChangeText={setUsername}
                 autoCapitalize="none"
+                autoCorrect={false}
                 editable={!loading}
+                returnKeyType="next"
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Ionicons name="lock-closed-outline" size={20} color="#667eea" style={styles.inputIcon} />
+              <Ionicons name="lock-closed-outline" size={22} color="#667eea" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Contraseña"
@@ -79,14 +92,17 @@ const LoginScreen = ({ navigation }) => {
                 value={password}
                 onChangeText={setPassword}
                 editable={!loading}
+                returnKeyType="done"
+                onSubmitEditing={handleLogin}
               />
               <TouchableOpacity
                 onPress={() => setShowPassword(!showPassword)}
                 style={styles.eyeIcon}
+                disabled={loading}
               >
                 <Ionicons
                   name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={20}
+                  size={22}
                   color="#a0aec0"
                 />
               </TouchableOpacity>
@@ -96,13 +112,14 @@ const LoginScreen = ({ navigation }) => {
               style={[styles.loginButton, loading && styles.loginButtonDisabled]}
               onPress={handleLogin}
               disabled={loading}
+              activeOpacity={0.8}
             >
               {loading ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color="#fff" size="small" />
               ) : (
                 <>
                   <Text style={styles.loginButtonText}>Iniciar Sesión</Text>
-                  <Ionicons name="arrow-forward-outline" size={20} color="#fff" />
+                  <Ionicons name="arrow-forward-outline" size={22} color="#fff" />
                 </>
               )}
             </TouchableOpacity>
@@ -129,90 +146,98 @@ const styles = StyleSheet.create({
   scrollView: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingVertical: 40,
   },
   brandContainer: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 50,
   },
   iconContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: 'rgba(255,255,255,0.25)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   brandTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
+    fontSize: 38,
+    fontWeight: '700',
     color: '#fff',
     marginBottom: 8,
+    letterSpacing: 1,
   },
   brandSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.85)',
     textAlign: 'center',
   },
   formContainer: {
     backgroundColor: '#fff',
     borderRadius: 24,
-    padding: 24,
+    padding: 28,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
   },
   inputGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#e2e8f0',
-    borderRadius: 12,
-    marginBottom: 16,
-    paddingHorizontal: 12,
-    backgroundColor: '#fff',
+    borderRadius: 14,
+    marginBottom: 18,
+    paddingHorizontal: 16,
+    backgroundColor: '#fafafa',
   },
   inputIcon: {
-    marginRight: 10,
+    marginRight: 12,
   },
   input: {
     flex: 1,
-    paddingVertical: 14,
-    fontSize: 16,
+    paddingVertical: 16,
+    fontSize: 16.5,
     color: '#2d3748',
   },
   eyeIcon: {
-    padding: 8,
+    padding: 6,
   },
   loginButton: {
     backgroundColor: '#667eea',
-    borderRadius: 12,
-    paddingVertical: 14,
+    borderRadius: 14,
+    paddingVertical: 16,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 12,
+    shadowColor: '#667eea',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   loginButtonDisabled: {
-    opacity: 0.7,
+    opacity: 0.75,
   },
   loginButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
-    marginRight: 8,
+    marginRight: 10,
   },
   footer: {
-    marginTop: 24,
+    marginTop: 40,
     alignItems: 'center',
   },
   footerText: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 12,
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 13,
   },
 });
 
