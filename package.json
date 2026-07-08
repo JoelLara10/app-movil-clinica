@@ -34,7 +34,7 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "API_URL": "http://192.168.1.73:5001/api/v1"
+      "API_URL": "http://192.168.100.4:5001/api/v1"
     }
   },
   "dependencies": {
