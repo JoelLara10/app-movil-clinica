@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
+import { getCache, setCache, CacheKeys, invalidateCachePrefix, removeCache } from '../../services/EstudiosCache';
 
 const SECTIONS = [
   { id: 'solicitudes_lab', label: 'Solicitudes Lab', icon: '🧪' },
@@ -86,15 +87,21 @@ const EstudiosScreen = ({ navigation, route }) => {
   });
 
   // ============================================================
-  //  loadData - AHORA ORDENA POR FECHA (más reciente primero)
+  //  loadData - CON CACHÉ
   // ============================================================
-  const loadData = useCallback(async (pageNum = 1, append = false) => {
+  const loadData = useCallback(async (pageNum = 1, append = false, force = false) => {
     const config = SECTION_CONFIG[selectedSection];
     if (!config) {
       setItems([]);
       setError('Sección inválida');
       return;
     }
+
+    const cacheKey = CacheKeys.estudiosList(
+      config.type,
+      config.isPending ? 'pending' : 'completed',
+      pageNum
+    );
 
     try {
       if (pageNum === 1) {
@@ -105,30 +112,41 @@ const EstudiosScreen = ({ navigation, route }) => {
       }
       setError('');
 
-      const response = await api.get(`/exams${config.endpoint}`, {
-        params: {
-          type: config.type,
-          page: pageNum,
-          limit: PAGE_SIZE,
-        },
-      });
+      let data = null;
+      if (!force) {
+        const cached = await getCache(cacheKey);
+        if (cached) {
+          data = cached;
+          console.log(`Carga desde caché: ${cacheKey}`);
+        }
+      }
 
-      const data = Array.isArray(response.data) ? response.data : [];
+      if (!data) {
+        const response = await api.get(`/exams${config.endpoint}`, {
+          params: {
+            type: config.type,
+            page: pageNum,
+            limit: PAGE_SIZE,
+          },
+        });
+        data = Array.isArray(response.data) ? response.data : [];
+        // Guardar en caché
+        await setCache(cacheKey, data);
+        console.log(`Guardado en caché: ${cacheKey}`);
+      }
+
       let normalized = data.map(normalizeItem);
-
-      // 🔥 ORDENAR POR FECHA (más reciente primero)
-      // Si no hay fecha, se coloca al final
+      // Ordenar por fecha (más reciente primero)
       normalized.sort((a, b) => {
         const dateA = a.fecha ? new Date(a.fecha).getTime() : 0;
         const dateB = b.fecha ? new Date(b.fecha).getTime() : 0;
-        return dateB - dateA; // descendente
+        return dateB - dateA;
       });
 
       if (append) {
         setItems(prev => {
           const existingIds = new Set(prev.map(item => item.id_examen));
           const newItems = normalized.filter(item => !existingIds.has(item.id_examen));
-          // También ordenamos el conjunto completo por si acaso
           const merged = [...prev, ...newItems];
           merged.sort((a, b) => {
             const dateA = a.fecha ? new Date(a.fecha).getTime() : 0;
@@ -154,16 +172,25 @@ const EstudiosScreen = ({ navigation, route }) => {
   }, [selectedSection]);
 
   // ============================================================
-  //  loadCounts
+  //  loadCounts - CON CACHÉ
   // ============================================================
-  const loadCounts = useCallback(async () => {
+  const loadCounts = useCallback(async (force = false) => {
     try {
+      if (!force) {
+        const cached = await getCache(CacheKeys.counts);
+        if (cached) {
+          setCounts(cached);
+          return;
+        }
+      }
       const response = await api.get('/exams/counts');
-      setCounts({
+      const counts = {
         laboratorio: response.data?.laboratorio ?? 0,
         gabinete: response.data?.gabinete ?? 0,
         total: response.data?.total ?? 0,
-      });
+      };
+      setCounts(counts);
+      await setCache(CacheKeys.counts, counts);
     } catch (error) {
       console.error('Error loading counts:', error);
     }
@@ -186,6 +213,7 @@ const EstudiosScreen = ({ navigation, route }) => {
         skipFocusRefresh.current = false;
         return;
       }
+      // Al enfocar, recarga desde caché (no forzado)
       loadData(1, false);
       loadCounts();
     }, [loadData, loadCounts])
@@ -197,7 +225,10 @@ const EstudiosScreen = ({ navigation, route }) => {
   const onRefresh = async () => {
     setRefreshing(true);
     skipFocusRefresh.current = true;
-    await Promise.all([loadData(1, false), loadCounts()]);
+    await Promise.all([
+      loadData(1, false, true), // forzado
+      loadCounts(true)
+    ]);
     setRefreshing(false);
     skipFocusRefresh.current = false;
   };
@@ -226,7 +257,7 @@ const EstudiosScreen = ({ navigation, route }) => {
     navigation.navigate(screen, { id_examen, tipo });
   };
 
-  // 🔥 ELIMINAR CON CONFIRMACIÓN
+  // ELIMINAR CON INVALIDACIÓN DE CACHÉ
   const handleDelete = (id_examen) => {
     const tipo = selectedSection.includes('lab') ? 'laboratorio' : 'gabinete';
     Alert.alert(
@@ -240,9 +271,12 @@ const EstudiosScreen = ({ navigation, route }) => {
           onPress: async () => {
             try {
               await api.delete(`/exams/${id_examen}/results?type=${tipo}`);
-              // Recargar datos después de eliminar
-              loadData(1, false);
-              loadCounts();
+              // Invalidar caché de listas y contadores
+              await invalidateCachePrefix('estudios_');
+              await removeCache(CacheKeys.counts);
+              // Recargar forzadamente
+              await loadData(1, false, true);
+              await loadCounts(true);
             } catch (error) {
               Alert.alert('Error', 'No se pudo eliminar el resultado. Intenta de nuevo.');
             }
@@ -253,7 +287,7 @@ const EstudiosScreen = ({ navigation, route }) => {
   };
 
   // ============================================================
-  //  RENDER
+  //  RENDER (sin cambios)
   // ============================================================
   const renderItem = ({ item }) => {
     const isPending = selectedSection.startsWith('solicitudes');

@@ -13,6 +13,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import * as DocumentPicker from 'expo-document-picker';
 import api from '../services/api';
+import { getCache, setCache, CacheKeys, invalidateCachePrefix, removeCache } from '../services/EstudiosCache';
 
 export default function UploadResultForm({ navigation, route }) {
   const { id_examen, tipo } = route.params;
@@ -23,12 +24,21 @@ export default function UploadResultForm({ navigation, route }) {
   const [archivos, setArchivos] = useState([]);
   const [error, setError] = useState('');
 
+  // ============================================================
+  //  CARGAR SOLICITUD CON CACHÉ
+  // ============================================================
   useEffect(() => {
     const loadSolicitud = async () => {
       try {
         setLoading(true);
-        const response = await api.get(`/exams/${id_examen}/info`);
-        setSolicitud(response.data);
+        const cacheKey = CacheKeys.examenInfo(id_examen);
+        let data = await getCache(cacheKey);
+        if (!data) {
+          const response = await api.get(`/exams/${id_examen}/info`);
+          data = response.data;
+          await setCache(cacheKey, data);
+        }
+        setSolicitud(data);
         setError('');
       } catch (err) {
         console.error('Error cargando solicitud:', err);
@@ -41,7 +51,7 @@ export default function UploadResultForm({ navigation, route }) {
   }, [id_examen]);
 
   // ============================================================
-  //  SELECCIÓN DE ARCHIVOS – VERSIÓN ROBUSTA
+  //  SELECCIÓN DE ARCHIVOS
   // ============================================================
   const pickDocuments = async () => {
     try {
@@ -58,11 +68,9 @@ export default function UploadResultForm({ navigation, route }) {
         return;
       }
 
-      // Normalizar la respuesta según la versión de expo-document-picker
       let selectedFiles = [];
 
       if (result.assets) {
-        // Versión >= 11
         selectedFiles = result.assets.map(asset => ({
           uri: asset.uri,
           name: asset.name || 'archivo',
@@ -70,7 +78,6 @@ export default function UploadResultForm({ navigation, route }) {
           size: asset.size || 0,
         }));
       } else if (result.output) {
-        // Versión anterior
         selectedFiles = result.output.map(file => ({
           uri: file.uri,
           name: file.name || 'archivo',
@@ -78,7 +85,6 @@ export default function UploadResultForm({ navigation, route }) {
           size: file.size || 0,
         }));
       } else if (result.uri) {
-        // Caso de un solo archivo (fallback)
         selectedFiles = [{
           uri: result.uri,
           name: result.name || 'archivo',
@@ -92,7 +98,6 @@ export default function UploadResultForm({ navigation, route }) {
         return;
       }
 
-      // Agregar archivos (evitar duplicados por URI)
       setArchivos(prev => {
         const existingUris = new Set(prev.map(f => f.uri));
         const newFiles = selectedFiles.filter(f => !existingUris.has(f.uri));
@@ -110,7 +115,7 @@ export default function UploadResultForm({ navigation, route }) {
   };
 
   // ============================================================
-  //  ENVÍO DEL FORMULARIO
+  //  ENVÍO DEL FORMULARIO CON INVALIDACIÓN DE CACHÉ
   // ============================================================
   const handleSubmit = async () => {
     if (archivos.length === 0) {
@@ -131,10 +136,7 @@ export default function UploadResultForm({ navigation, route }) {
     try {
       const formData = new FormData();
 
-      // Adjuntar cada archivo con el mismo nombre de campo ('archivos')
       archivos.forEach((file) => {
-        // En React Native, el objeto debe contener uri, name, type
-        // No es necesario agregar "file://" porque la librería lo maneja
         formData.append('archivos', {
           uri: file.uri,
           name: file.name,
@@ -147,13 +149,18 @@ export default function UploadResultForm({ navigation, route }) {
 
       console.log('Enviando archivos:', archivos.map(f => ({ name: f.name, uri: f.uri, type: f.type })));
 
-      const response = await api.post(`/exams/${id_examen}/results/upload`, formData, {
+      await api.post(`/exams/${id_examen}/results/upload`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           'Accept': 'application/json',
         },
         timeout: 60000,
       });
+
+      // Invalida caché de listas, contadores y detalle del examen
+      await invalidateCachePrefix('estudios_');
+      await removeCache(CacheKeys.counts);
+      await removeCache(CacheKeys.examenInfo(id_examen));
 
       Alert.alert('Éxito', 'Resultados subidos correctamente.', [
         { text: 'OK', onPress: () => navigation.goBack() }
@@ -173,7 +180,7 @@ export default function UploadResultForm({ navigation, route }) {
   };
 
   // ============================================================
-  //  RENDERIZADO
+  //  RENDER
   // ============================================================
   if (loading) {
     return (
@@ -276,7 +283,7 @@ export default function UploadResultForm({ navigation, route }) {
 }
 
 // ============================================================
-//  ESTILOS (sin cambios, mantenidos)
+//  ESTILOS 
 // ============================================================
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f7fafc' },

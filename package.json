@@ -29,12 +29,12 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "API_URL": "http://192.168.1.67:5001/api/v1"
+      "API_URL": "http://192.168.1.73:5001/api/v1"
     }
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
-    "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/drawer": "^7.12.2",
     "@react-navigation/native": "^7.3.3",
     "@react-navigation/stack": "^7.10.5",
