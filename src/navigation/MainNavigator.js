@@ -63,6 +63,9 @@ import EnfermeriaPatientDetail from "../screens/enfermeria/PatientDetailScreen";
 import EnfermeriaVitalSigns from "../screens/enfermeria/EnfermeriaVitalSignsScreen";
 import EnfermeriaNote from "../screens/enfermeria/EnfermeriaNoteScreen";
 import EnfermeriaMedications from "../screens/enfermeria/EnfermeriaMedicationsScreen";
+import EnfermeriaAssessment from "../screens/enfermeria/EnfermeriaAssessmentScreen";
+import EnfermeriaFluidBalance from "../screens/enfermeria/EnfermeriaFluidBalanceScreen";
+import EnfermeriaCare from "../screens/enfermeria/EnfermeriaCareScreen";
 
 const Drawer = createDrawerNavigator();
 const Stack = createStackNavigator();
@@ -292,6 +295,30 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
           icon: "medkit-outline",
           screen: "Enfermeria",
           subScreen: "EnfermeriaMedications",
+          params: enfermeriaParams,
+          requiresPatient: true,
+        },
+        {
+          name: "Valoración de Enfermería",
+          icon: "clipboard-outline",
+          screen: "Enfermeria",
+          subScreen: "EnfermeriaAssessment",
+          params: enfermeriaParams,
+          requiresPatient: true,
+        },
+        {
+          name: "Balance Hídrico",
+          icon: "water-outline",
+          screen: "Enfermeria",
+          subScreen: "EnfermeriaFluidBalance",
+          params: enfermeriaParams,
+          requiresPatient: true,
+        },
+        {
+          name: "Cuidados de Enfermería",
+          icon: "shield-checkmark-outline",
+          screen: "Enfermeria",
+          subScreen: "EnfermeriaCare",
           params: enfermeriaParams,
           requiresPatient: true,
         },
@@ -528,6 +555,18 @@ function EnfermeriaStack() {
       <Stack.Screen
         name="EnfermeriaMedications"
         component={EnfermeriaMedications}
+      />
+      <Stack.Screen
+        name="EnfermeriaAssessment"
+        component={EnfermeriaAssessment}
+      />
+      <Stack.Screen
+        name="EnfermeriaFluidBalance"
+        component={EnfermeriaFluidBalance}
+      />
+      <Stack.Screen
+        name="EnfermeriaCare"
+        component={EnfermeriaCare}
       />
     </Stack.Navigator>
   );

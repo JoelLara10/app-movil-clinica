@@ -15,10 +15,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
 import CacheService from '../../services/cacheService';
+import Pagination from '../../components/Pagination';
 import moment from 'moment';
 
 const CACHE_KEY_PREFIX = 'enfermeria_medications_';
 const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
+const HISTORY_ITEMS_PER_PAGE = 5;
 
 const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params;
@@ -26,6 +28,7 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState([]);
+  const [currentHistoryPage, setCurrentHistoryPage] = useState(1);
   const [medications, setMedications] = useState([
     { id: 0, nombre: '', dosis: '', frecuencia: '', via: '', fecha_aplicacion: '' }
   ]);
@@ -59,6 +62,7 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
       await CacheService.set(cacheKey, response.data, CACHE_TTL);
       
       setHistory(response.data || []);
+      if (forceRefresh) setCurrentHistoryPage(1);
     } catch (error) {
       console.error('Error loading medications history:', error);
       
@@ -182,6 +186,19 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
     </View>
   );
 
+  const totalHistoryPages = Math.ceil(history.length / HISTORY_ITEMS_PER_PAGE);
+  const paginatedHistory = history.slice(
+    (currentHistoryPage - 1) * HISTORY_ITEMS_PER_PAGE,
+    currentHistoryPage * HISTORY_ITEMS_PER_PAGE,
+  );
+
+  useEffect(() => {
+    const validTotalPages = Math.max(1, totalHistoryPages);
+    if (currentHistoryPage > validTotalPages) {
+      setCurrentHistoryPage(validTotalPages);
+    }
+  }, [currentHistoryPage, totalHistoryPages]);
+
   return (
     <ScrollView style={styles.container}>
       {/* Header */}
@@ -192,7 +209,13 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
         <Text style={styles.headerTitle}>
           <Ionicons name="medkit-outline" size={20} color="#fff" /> Administración de Medicamentos
         </Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity
+          onPress={() => loadMedicationsHistory(true)}
+          style={styles.backButton}
+          disabled={loading || loadingHistory}
+        >
+          <Ionicons name="refresh-outline" size={22} color="#fff" />
+        </TouchableOpacity>
       </LinearGradient>
 
       {/* Información del paciente */}
@@ -384,19 +407,30 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
                 <Text style={styles.emptyHistoryText}>No hay administraciones previas</Text>
               </View>
             ) : (
-              <FlatList
-                data={history}
-                renderItem={renderHistoryItem}
-                keyExtractor={(item, index) => {
-                  if (item.id_registro) {
-                    return `med_${item.id_registro}`;
-                  }
-                  return `med_fallback_${index}_${item.fecha_registro || 'unknown'}`;
-                }}
-                scrollEnabled={false}
-                initialNumToRender={5}
-                maxToRenderPerBatch={5}
-              />
+              <>
+                <FlatList
+                  data={paginatedHistory}
+                  renderItem={renderHistoryItem}
+                  keyExtractor={(item, index) => {
+                    if (item.id_registro) {
+                      return `med_${item.id_registro}`;
+                    }
+                    return `med_fallback_${index}_${item.fecha_registro || 'unknown'}`;
+                  }}
+                  scrollEnabled={false}
+                  initialNumToRender={HISTORY_ITEMS_PER_PAGE}
+                  maxToRenderPerBatch={HISTORY_ITEMS_PER_PAGE}
+                />
+                <View style={styles.historyPagination}>
+                  <Pagination
+                    currentPage={currentHistoryPage}
+                    totalPages={totalHistoryPages}
+                    onPageChange={setCurrentHistoryPage}
+                    itemsPerPage={HISTORY_ITEMS_PER_PAGE}
+                    totalItems={history.length}
+                  />
+                </View>
+              </>
             )}
           </View>
         )}
@@ -582,6 +616,10 @@ const styles = StyleSheet.create({
   historyMedDetails: { marginLeft: 20 },
   historyMedDetail: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   historyMedDetailText: { fontSize: 11, color: '#718096', marginLeft: 4 },
+  historyPagination: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
 });
 
 export default EnfermeriaMedicationsScreen;

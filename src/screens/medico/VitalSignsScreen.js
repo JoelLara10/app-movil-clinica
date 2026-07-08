@@ -15,10 +15,12 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../../services/api";
 import CacheService from "../../services/cacheService";
+import Pagination from "../../components/Pagination";
 import moment from "moment";
 
 const CACHE_KEY_PREFIX = "vital_signs_";
 const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
+const HISTORY_ITEMS_PER_PAGE = 5;
 
 const VitalSignsScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params || {};
@@ -36,6 +38,7 @@ const VitalSignsScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [history, setHistory] = useState([]);
+  const [currentHistoryPage, setCurrentHistoryPage] = useState(1);
   const [formData, setFormData] = useState({
     ta: "",
     fc: "",
@@ -60,6 +63,7 @@ const VitalSignsScreen = ({ navigation, route }) => {
         const cachedData = await CacheService.get(cacheKey);
         if (cachedData) {
           setHistory(cachedData);
+          if (forceRefresh) setCurrentHistoryPage(1);
           return;
         }
       }
@@ -67,6 +71,7 @@ const VitalSignsScreen = ({ navigation, route }) => {
       const response = await api.get(`/appointments/${id_atencion}/vital-signs`);
       await CacheService.set(cacheKey, response.data, CACHE_TTL);
       setHistory(response.data || []);
+      if (forceRefresh) setCurrentHistoryPage(1);
     } catch (error) {
       console.error("Error loading vital signs history:", error);
       const cachedData = await CacheService.get(`${CACHE_KEY_PREFIX}${id_atencion}`);
@@ -178,6 +183,19 @@ const VitalSignsScreen = ({ navigation, route }) => {
     </View>
   );
 
+  const totalHistoryPages = Math.ceil(history.length / HISTORY_ITEMS_PER_PAGE);
+  const paginatedHistory = history.slice(
+    (currentHistoryPage - 1) * HISTORY_ITEMS_PER_PAGE,
+    currentHistoryPage * HISTORY_ITEMS_PER_PAGE
+  );
+
+  useEffect(() => {
+    const validTotalPages = Math.max(1, totalHistoryPages);
+    if (currentHistoryPage > validTotalPages) {
+      setCurrentHistoryPage(validTotalPages);
+    }
+  }, [currentHistoryPage, totalHistoryPages]);
+
   if (loadingHistory && history.length === 0) {
     return (
       <View style={styles.loadingContainer}>
@@ -197,7 +215,13 @@ const VitalSignsScreen = ({ navigation, route }) => {
         <Text style={styles.headerTitle}>
           <Ionicons name="heart-outline" size={20} color="#fff" /> Signos Vitales
         </Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity
+          onPress={() => loadVitalSignsHistory(true)}
+          style={styles.backButton}
+          disabled={loadingHistory}
+        >
+          <Ionicons name="refresh-outline" size={22} color="#fff" />
+        </TouchableOpacity>
       </LinearGradient>
 
       {/* Información del paciente - SOLO EXP */}
@@ -419,16 +443,27 @@ const VitalSignsScreen = ({ navigation, route }) => {
             </Text>
           </View>
         ) : (
-          <FlatList
-            data={history}
-            renderItem={renderHistoryItem}
-            keyExtractor={(item, index) =>
-              item.id_signos?.toString() || index.toString()
-            }
-            scrollEnabled={false}
-            initialNumToRender={5}
-            maxToRenderPerBatch={5}
-          />
+          <>
+            <FlatList
+              data={paginatedHistory}
+              renderItem={renderHistoryItem}
+              keyExtractor={(item, index) =>
+                item.id_signos?.toString() || `vital-sign-${index}`
+              }
+              scrollEnabled={false}
+              initialNumToRender={HISTORY_ITEMS_PER_PAGE}
+              maxToRenderPerBatch={HISTORY_ITEMS_PER_PAGE}
+            />
+            <View style={styles.historyPagination}>
+              <Pagination
+                currentPage={currentHistoryPage}
+                totalPages={totalHistoryPages}
+                onPageChange={setCurrentHistoryPage}
+                itemsPerPage={HISTORY_ITEMS_PER_PAGE}
+                totalItems={history.length}
+              />
+            </View>
+          </>
         )}
       </View>
     </ScrollView>
@@ -695,6 +730,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#2d3748",
+  },
+  historyPagination: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
 });
 

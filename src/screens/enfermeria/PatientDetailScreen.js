@@ -86,6 +86,18 @@ const PatientDetailScreen = ({ navigation, route }) => {
     navigation.navigate('EnfermeriaMedications', { id_atencion, Id_exp });
   };
 
+  const navigateToAssessment = () => {
+    navigation.navigate('EnfermeriaAssessment', { id_atencion, Id_exp });
+  };
+
+  const navigateToFluidBalance = () => {
+    navigation.navigate('EnfermeriaFluidBalance', { id_atencion, Id_exp });
+  };
+
+  const navigateToCare = () => {
+    navigation.navigate('EnfermeriaCare', { id_atencion, Id_exp });
+  };
+
   // ============================================================
   //  MÓDULOS DE ENFERMERÍA CON ACCIONES DIRECTAS
   // ============================================================
@@ -110,6 +122,27 @@ const PatientDetailScreen = ({ navigation, route }) => {
       color: '#48bb78',
       bgColor: '#f0fff4',
       onPress: navigateToMedications
+    },
+    {
+      title: 'Valoración de Enfermería',
+      icon: 'clipboard-outline',
+      color: '#805ad5',
+      bgColor: '#faf5ff',
+      onPress: navigateToAssessment
+    },
+    {
+      title: 'Balance Hídrico',
+      icon: 'water-outline',
+      color: '#0284c7',
+      bgColor: '#f0f9ff',
+      onPress: navigateToFluidBalance
+    },
+    {
+      title: 'Cuidados de Enfermería',
+      icon: 'shield-checkmark-outline',
+      color: '#dd6b20',
+      bgColor: '#fffaf0',
+      onPress: navigateToCare
     },
   ];
 

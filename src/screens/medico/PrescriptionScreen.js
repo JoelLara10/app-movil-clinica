@@ -15,6 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
 import CacheService from '../../services/cacheService';
+import Pagination from '../../components/Pagination';
 import moment from 'moment';
 import 'moment/locale/es';
 
@@ -22,6 +23,7 @@ moment.locale('es');
 
 const CACHE_KEY_PREFIX = 'prescriptions_';
 const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
+const HISTORY_ITEMS_PER_PAGE = 5;
 
 const PrescriptionScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params;
@@ -29,6 +31,7 @@ const PrescriptionScreen = ({ navigation, route }) => {
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
   const [prescriptions, setPrescriptions] = useState([]);
+  const [currentHistoryPage, setCurrentHistoryPage] = useState(1);
   const [medications, setMedications] = useState([
     { id: 0, medicamento: '', dosis: '', frecuencia: '', duracion: '', indicaciones: '' }
   ]);
@@ -62,6 +65,7 @@ const PrescriptionScreen = ({ navigation, route }) => {
       await CacheService.set(cacheKey, response.data, CACHE_TTL);
       
       setPrescriptions(response.data);
+      if (forceRefresh) setCurrentHistoryPage(1);
     } catch (error) {
       console.error('Error loading prescriptions history:', error);
       
@@ -120,6 +124,10 @@ const PrescriptionScreen = ({ navigation, route }) => {
         ]);
         // Recargar historial con forceRefresh
         await loadPrescriptionsHistory(true);
+        // Mantener abierto el historial si ya estaba abierto
+        if (showHistory) {
+          setShowHistory(true);
+        }
       }
     } catch (error) {
       console.error('Error saving prescription:', error);
@@ -128,6 +136,21 @@ const PrescriptionScreen = ({ navigation, route }) => {
       setLoading(false);
     }
   };
+
+  // Calcular páginas para el historial
+  const totalHistoryPages = Math.ceil(prescriptions.length / HISTORY_ITEMS_PER_PAGE);
+  const paginatedHistory = prescriptions.slice(
+    (currentHistoryPage - 1) * HISTORY_ITEMS_PER_PAGE,
+    currentHistoryPage * HISTORY_ITEMS_PER_PAGE
+  );
+
+  // Ajustar página actual si es mayor que el total
+  useEffect(() => {
+    const validTotalPages = Math.max(1, totalHistoryPages);
+    if (currentHistoryPage > validTotalPages) {
+      setCurrentHistoryPage(validTotalPages);
+    }
+  }, [currentHistoryPage, totalHistoryPages]);
 
   const renderHistoryItem = ({ item }) => (
     <View style={styles.historyItem}>
@@ -196,7 +219,13 @@ const PrescriptionScreen = ({ navigation, route }) => {
         <Text style={styles.headerTitle}>
           <Ionicons name="medkit-outline" size={20} color="#fff" /> Receta Médica
         </Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity
+          onPress={() => loadPrescriptionsHistory(true)}
+          style={styles.backButton}
+          disabled={loadingHistory}
+        >
+          <Ionicons name="refresh-outline" size={22} color="#fff" />
+        </TouchableOpacity>
       </LinearGradient>
 
       {/* Información del paciente - CON EXPEDIENTE */}
@@ -372,9 +401,11 @@ const PrescriptionScreen = ({ navigation, route }) => {
             <View style={styles.historyHeaderContent}>
               <Ionicons name="time-outline" size={20} color="#fff" />
               <Text style={styles.historyTitle}>Historial de Recetas</Text>
-              <View style={styles.historyCount}>
-                <Text style={styles.historyCountText}>{prescriptions.length} recetas</Text>
-              </View>
+              {prescriptions.length > 0 && (
+                <View style={styles.historyCount}>
+                  <Text style={styles.historyCountText}>{prescriptions.length} recetas</Text>
+                </View>
+              )}
               <Ionicons 
                 name={showHistory ? "chevron-up-outline" : "chevron-down-outline"} 
                 size={20} 
@@ -394,19 +425,30 @@ const PrescriptionScreen = ({ navigation, route }) => {
                 <Text style={styles.emptyHistoryText}>No hay recetas previas</Text>
               </View>
             ) : (
-              <FlatList
-                data={prescriptions}
-                renderItem={renderHistoryItem}
-                keyExtractor={(item, index) => {
-                  if (item.id_receta) {
-                    return `receta_${item.id_receta}`;
-                  }
-                  return `receta_fallback_${index}_${item.fecha_registro || 'unknown'}`;
-                }}
-                scrollEnabled={false}
-                initialNumToRender={5}
-                maxToRenderPerBatch={5}
-              />
+              <>
+                <FlatList
+                  data={paginatedHistory}
+                  renderItem={renderHistoryItem}
+                  keyExtractor={(item, index) => {
+                    if (item.id_receta) {
+                      return `receta_${item.id_receta}`;
+                    }
+                    return `receta_fallback_${index}_${item.fecha_registro || 'unknown'}`;
+                  }}
+                  scrollEnabled={false}
+                  initialNumToRender={HISTORY_ITEMS_PER_PAGE}
+                  maxToRenderPerBatch={HISTORY_ITEMS_PER_PAGE}
+                />
+                <View style={styles.historyPagination}>
+                  <Pagination
+                    currentPage={currentHistoryPage}
+                    totalPages={totalHistoryPages}
+                    onPageChange={setCurrentHistoryPage}
+                    itemsPerPage={HISTORY_ITEMS_PER_PAGE}
+                    totalItems={prescriptions.length}
+                  />
+                </View>
+              </>
             )}
           </View>
         )}
@@ -753,6 +795,10 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#718096',
     marginLeft: 4,
+  },
+  historyPagination: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
 });
 

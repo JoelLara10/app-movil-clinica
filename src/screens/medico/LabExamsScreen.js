@@ -15,6 +15,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../../services/api";
 import CacheService from "../../services/cacheService";
+import Pagination from "../../components/Pagination";
 import moment from "moment";
 import "moment/locale/es";
 
@@ -24,6 +25,7 @@ const CACHE_KEY_CATALOG = "lab_exams_catalog";
 const CACHE_KEY_HISTORY = "lab_exams_history_";
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutos para catálogo
 const CACHE_TTL_HISTORY = 2 * 60 * 1000; // 2 minutos para historial
+const HISTORY_ITEMS_PER_PAGE = 5;
 
 const LabExamsScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params;
@@ -34,6 +36,7 @@ const LabExamsScreen = ({ navigation, route }) => {
   const [selectedExams, setSelectedExams] = useState([]);
   const [observations, setObservations] = useState("");
   const [requestedExams, setRequestedExams] = useState([]);
+  const [currentHistoryPage, setCurrentHistoryPage] = useState(1);
 
   useEffect(() => {
     // Limpiar completamente al montar la pantalla
@@ -118,9 +121,16 @@ const LabExamsScreen = ({ navigation, route }) => {
       await CacheService.set(cacheKey, response.data, CACHE_TTL_HISTORY);
 
       setRequestedExams(response.data);
+      if (forceRefresh) setCurrentHistoryPage(1);
     } catch (error) {
       console.error("Error loading requested exams:", error);
-      // ... resto del código
+      // Intentar cargar desde caché en caso de error
+      const cacheKey = `${CACHE_KEY_HISTORY}${id_atencion}`;
+      const cachedData = await CacheService.get(cacheKey);
+      if (cachedData) {
+        console.log("📦 Historial cargado desde caché (fallback)");
+        setRequestedExams(cachedData);
+      }
     } finally {
       setLoadingHistory(false);
     }
@@ -167,6 +177,10 @@ const LabExamsScreen = ({ navigation, route }) => {
         setSelectedExams([]);
         setObservations("");
         await loadRequestedExams(true);
+        // Mantener abierto el historial si ya estaba abierto
+        if (showHistory) {
+          setShowHistory(true);
+        }
       }
     } catch (error) {
       console.error("Error completo:", error.response?.data || error);
@@ -178,6 +192,21 @@ const LabExamsScreen = ({ navigation, route }) => {
       setLoading(false);
     }
   };
+
+  // Calcular páginas para el historial
+  const totalHistoryPages = Math.ceil(requestedExams.length / HISTORY_ITEMS_PER_PAGE);
+  const paginatedHistory = requestedExams.slice(
+    (currentHistoryPage - 1) * HISTORY_ITEMS_PER_PAGE,
+    currentHistoryPage * HISTORY_ITEMS_PER_PAGE
+  );
+
+  // Ajustar página actual si es mayor que el total
+  useEffect(() => {
+    const validTotalPages = Math.max(1, totalHistoryPages);
+    if (currentHistoryPage > validTotalPages) {
+      setCurrentHistoryPage(validTotalPages);
+    }
+  }, [currentHistoryPage, totalHistoryPages]);
 
   const renderHistoryItem = ({ item }) => {
     // Asegurar que examenes sea un array
@@ -256,7 +285,16 @@ const LabExamsScreen = ({ navigation, route }) => {
           <Ionicons name="flask-outline" size={20} color="#fff" /> Exámenes de
           Laboratorio
         </Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity
+          onPress={() => {
+            loadExams(true);
+            loadRequestedExams(true);
+          }}
+          style={styles.backButton}
+          disabled={loadingHistory}
+        >
+          <Ionicons name="refresh-outline" size={22} color="#fff" />
+        </TouchableOpacity>
       </LinearGradient>
 
       {/* Información del paciente - CON EXPEDIENTE */}
@@ -445,11 +483,13 @@ const LabExamsScreen = ({ navigation, route }) => {
             <View style={styles.historyHeaderContent}>
               <Ionicons name="time-outline" size={20} color="#fff" />
               <Text style={styles.historyTitle}>Historial de Solicitudes</Text>
-              <View style={styles.historyCount}>
-                <Text style={styles.historyCountText}>
-                  {requestedExams.length} solicitudes
-                </Text>
-              </View>
+              {requestedExams.length > 0 && (
+                <View style={styles.historyCount}>
+                  <Text style={styles.historyCountText}>
+                    {requestedExams.length} solicitudes
+                  </Text>
+                </View>
+              )}
               <Ionicons
                 name={
                   showHistory ? "chevron-up-outline" : "chevron-down-outline"
@@ -481,19 +521,30 @@ const LabExamsScreen = ({ navigation, route }) => {
                 </Text>
               </View>
             ) : (
-              <FlatList
-                data={requestedExams}
-                renderItem={renderHistoryItem}
-                keyExtractor={(item, index) => {
-                  if (item.id_examen) {
-                    return `lab_${item.id_examen}`;
-                  }
-                  return `lab_fallback_${index}_${item.fecha || "unknown"}`;
-                }}
-                scrollEnabled={false}
-                initialNumToRender={5}
-                maxToRenderPerBatch={5}
-              />
+              <>
+                <FlatList
+                  data={paginatedHistory}
+                  renderItem={renderHistoryItem}
+                  keyExtractor={(item, index) => {
+                    if (item.id_examen) {
+                      return `lab_${item.id_examen}`;
+                    }
+                    return `lab_fallback_${index}_${item.fecha || "unknown"}`;
+                  }}
+                  scrollEnabled={false}
+                  initialNumToRender={HISTORY_ITEMS_PER_PAGE}
+                  maxToRenderPerBatch={HISTORY_ITEMS_PER_PAGE}
+                />
+                <View style={styles.historyPagination}>
+                  <Pagination
+                    currentPage={currentHistoryPage}
+                    totalPages={totalHistoryPages}
+                    onPageChange={setCurrentHistoryPage}
+                    itemsPerPage={HISTORY_ITEMS_PER_PAGE}
+                    totalItems={requestedExams.length}
+                  />
+                </View>
+              </>
             )}
           </View>
         )}
@@ -907,6 +958,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#718096",
     marginLeft: 8,
+  },
+  historyPagination: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
 });
 

@@ -15,6 +15,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../../services/api";
 import CacheService from "../../services/cacheService";
+import Pagination from "../../components/Pagination";
 import moment from "moment";
 import "moment/locale/es";
 
@@ -23,6 +24,7 @@ moment.locale("es");
 const CACHE_KEY_CURRENT = "diagnosis_current_";
 const CACHE_KEY_HISTORY = "diagnosis_history_";
 const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
+const HISTORY_ITEMS_PER_PAGE = 5;
 
 const DiagnosisScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params;
@@ -33,6 +35,7 @@ const DiagnosisScreen = ({ navigation, route }) => {
   const [showHistory, setShowHistory] = useState(false);
   const [currentDiagnosis, setCurrentDiagnosis] = useState(null);
   const [history, setHistory] = useState([]);
+  const [currentHistoryPage, setCurrentHistoryPage] = useState(1);
 
   const [formData, setFormData] = useState({
     diagnostico_principal: "",
@@ -102,6 +105,7 @@ const DiagnosisScreen = ({ navigation, route }) => {
         const cachedData = await CacheService.get(cacheKey);
         if (cachedData) {
           setHistory(cachedData);
+          if (forceRefresh) setCurrentHistoryPage(1);
           return;
         }
       }
@@ -113,6 +117,7 @@ const DiagnosisScreen = ({ navigation, route }) => {
 
       await CacheService.set(cacheKey, historyData, CACHE_TTL);
       setHistory(historyData);
+      if (forceRefresh) setCurrentHistoryPage(1);
     } catch (error) {
       console.error(
         "Error loading diagnosis history:",
@@ -147,6 +152,11 @@ const DiagnosisScreen = ({ navigation, route }) => {
         loadCurrentDiagnosis(true),
         loadDiagnosisHistory(true),
       ]);
+      
+      // Mantener abierto el historial si ya estaba abierto
+      if (showHistory) {
+        setShowHistory(true);
+      }
     } catch (error) {
       console.error("Error saving diagnosis:", error);
       Alert.alert(
@@ -157,6 +167,21 @@ const DiagnosisScreen = ({ navigation, route }) => {
       setLoading(false);
     }
   };
+
+  // Calcular páginas para el historial
+  const totalHistoryPages = Math.ceil(history.length / HISTORY_ITEMS_PER_PAGE);
+  const paginatedHistory = history.slice(
+    (currentHistoryPage - 1) * HISTORY_ITEMS_PER_PAGE,
+    currentHistoryPage * HISTORY_ITEMS_PER_PAGE
+  );
+
+  // Ajustar página actual si es mayor que el total
+  useEffect(() => {
+    const validTotalPages = Math.max(1, totalHistoryPages);
+    if (currentHistoryPage > validTotalPages) {
+      setCurrentHistoryPage(validTotalPages);
+    }
+  }, [currentHistoryPage, totalHistoryPages]);
 
   const renderHistoryItem = ({ item, index }) => (
     <View style={styles.historyItem}>
@@ -234,7 +259,16 @@ const DiagnosisScreen = ({ navigation, route }) => {
           <Ionicons name="clipboard-outline" size={20} color="#fff" />{" "}
           Diagnóstico Médico
         </Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity
+          onPress={() => {
+            loadCurrentDiagnosis(true);
+            loadDiagnosisHistory(true);
+          }}
+          style={styles.backButton}
+          disabled={loadingData || loadingHistory}
+        >
+          <Ionicons name="refresh-outline" size={22} color="#fff" />
+        </TouchableOpacity>
       </LinearGradient>
 
       {/* Patient Info */}
@@ -366,6 +400,7 @@ const DiagnosisScreen = ({ navigation, route }) => {
         <TouchableOpacity
           onPress={() => setShowHistory(!showHistory)}
           style={styles.historyHeaderGradient}
+          activeOpacity={0.8}
         >
           <LinearGradient
             colors={["#667eea", "#764ba2"]}
@@ -374,11 +409,13 @@ const DiagnosisScreen = ({ navigation, route }) => {
             <View style={styles.historyHeaderContent}>
               <Ionicons name="time-outline" size={20} color="#fff" />
               <Text style={styles.historyTitle}>Historial de Diagnósticos</Text>
-              <View style={styles.historyCount}>
-                <Text style={styles.historyCountText}>
-                  {history.length} registros
-                </Text>
-              </View>
+              {history.length > 0 && (
+                <View style={styles.historyCount}>
+                  <Text style={styles.historyCountText}>
+                    {history.length} registros
+                  </Text>
+                </View>
+              )}
               <Ionicons
                 name={
                   showHistory ? "chevron-up-outline" : "chevron-down-outline"
@@ -406,14 +443,27 @@ const DiagnosisScreen = ({ navigation, route }) => {
                 </Text>
               </View>
             ) : (
-              <FlatList
-                data={history}
-                renderItem={renderHistoryItem}
-                keyExtractor={(item, index) =>
-                  `diag_${item.id_diagnostico || "no-id"}_${index}`
-                }
-                scrollEnabled={false}
-              />
+              <>
+                <FlatList
+                  data={paginatedHistory}
+                  renderItem={renderHistoryItem}
+                  keyExtractor={(item, index) =>
+                    `diag_${item.id_diagnostico || "no-id"}_${index}`
+                  }
+                  scrollEnabled={false}
+                  initialNumToRender={HISTORY_ITEMS_PER_PAGE}
+                  maxToRenderPerBatch={HISTORY_ITEMS_PER_PAGE}
+                />
+                <View style={styles.historyPagination}>
+                  <Pagination
+                    currentPage={currentHistoryPage}
+                    totalPages={totalHistoryPages}
+                    onPageChange={setCurrentHistoryPage}
+                    itemsPerPage={HISTORY_ITEMS_PER_PAGE}
+                    totalItems={history.length}
+                  />
+                </View>
+              </>
             )}
           </View>
         )}
@@ -659,6 +709,10 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   historyObservacionesValue: { fontSize: 13, color: "#4a5568" },
+  historyPagination: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
 });
 
 export default DiagnosisScreen;

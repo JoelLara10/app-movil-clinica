@@ -1,4 +1,4 @@
-// src/screens/enfermeria/EnfermeriaNoteScreen.js
+// src/screens/enfermeria/EnfermeriaFluidBalanceScreen.js
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -18,11 +18,11 @@ import CacheService from '../../services/cacheService';
 import Pagination from '../../components/Pagination';
 import moment from 'moment';
 
-const CACHE_KEY_PREFIX = 'enfermeria_notes_';
+const CACHE_KEY_PREFIX = 'enfermeria_fluid_balance_';
 const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
 const HISTORY_ITEMS_PER_PAGE = 5;
 
-const EnfermeriaNoteScreen = ({ navigation, route }) => {
+const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params;
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
@@ -30,47 +30,46 @@ const EnfermeriaNoteScreen = ({ navigation, route }) => {
   const [history, setHistory] = useState([]);
   const [currentHistoryPage, setCurrentHistoryPage] = useState(1);
   const [formData, setFormData] = useState({
-    nota_enfermeria: '',
+    ingresos_orales: '',
+    ingresos_iv: '',
+    egresos_orina: '',
+    egresos_drenajes: '',
+    observaciones: '',
   });
 
-  // Cargar historial de notas
+  // Cargar historial de balances hídricos
   useEffect(() => {
-    loadNursingNotesHistory();
+    loadFluidBalanceHistory();
   }, []);
 
-  const loadNursingNotesHistory = async (forceRefresh = false) => {
+  const loadFluidBalanceHistory = async (forceRefresh = false) => {
     try {
       setLoadingHistory(true);
       const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}`;
 
-      // Intentar obtener de caché primero (si no es forceRefresh)
       if (!forceRefresh) {
         const cachedData = await CacheService.get(cacheKey);
         if (cachedData) {
-          console.log('📦 Notas de enfermería cargadas desde caché');
+          console.log('📦 Historial de balance hídrico cargado desde caché');
           setHistory(cachedData);
           setLoadingHistory(false);
           return;
         }
       }
 
-      // Si no hay caché o es forceRefresh, cargar desde API
-      console.log('🌐 Cargando notas de enfermería desde API...');
-      const response = await api.get(`/appointments/${id_atencion}/nursing-notes`);
+      console.log('🌐 Cargando historial de balance hídrico desde API...');
+      const response = await api.get(`/appointments/${id_atencion}/fluid-balance`);
       
-      // Guardar en caché
       await CacheService.set(cacheKey, response.data, CACHE_TTL);
-      
       setHistory(response.data || []);
       if (forceRefresh) setCurrentHistoryPage(1);
     } catch (error) {
-      console.error('Error loading nursing notes history:', error);
+      console.error('Error loading fluid balance history:', error);
       
-      // Si falla la API, intentar cargar desde caché
       const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}`;
       const cachedData = await CacheService.get(cacheKey);
       if (cachedData) {
-        console.log('📦 Notas de enfermería cargadas desde caché (fallback)');
+        console.log('📦 Historial de balance hídrico cargado desde caché (fallback)');
         setHistory(cachedData);
       }
     } finally {
@@ -79,53 +78,113 @@ const EnfermeriaNoteScreen = ({ navigation, route }) => {
   };
 
   const handleSubmit = async () => {
-    if (!formData.nota_enfermeria.trim()) {
-      Alert.alert('Advertencia', 'La nota de enfermería es requerida');
+    const hasData = Object.values(formData).some(value => value.trim() !== '');
+    if (!hasData) {
+      Alert.alert('Advertencia', 'Ingrese al menos un dato en el balance hídrico');
       return;
     }
 
     setLoading(true);
     try {
-      const response = await api.post(`/appointments/${id_atencion}/nursing-notes`, formData);
+      const response = await api.post(`/appointments/${id_atencion}/fluid-balance`, formData);
       if (response.data) {
-        Alert.alert('Éxito', 'Nota de enfermería guardada correctamente');
-        // Limpiar formulario
-        setFormData({ nota_enfermeria: '' });
-        // Recargar historial con forceRefresh
-        await loadNursingNotesHistory(true);
+        Alert.alert('Éxito', 'Balance hídrico guardado correctamente');
+        setFormData({
+          ingresos_orales: '',
+          ingresos_iv: '',
+          egresos_orina: '',
+          egresos_drenajes: '',
+          observaciones: '',
+        });
+        await loadFluidBalanceHistory(true);
       }
     } catch (error) {
-      console.error('Error saving nursing note:', error);
-      Alert.alert('Error', error.response?.data?.error || 'No se pudo guardar la nota de enfermería');
+      console.error('Error saving fluid balance:', error);
+      Alert.alert('Error', error.response?.data?.error || 'No se pudo guardar el balance hídrico');
     } finally {
       setLoading(false);
     }
   };
 
-  const renderHistoryItem = ({ item }) => (
-    <View style={styles.historyItem}>
-      <View style={styles.historyHeader}>
-        <View style={styles.historyBadge}>
-          <Text style={styles.historyBadgeText}>
-            {moment(item.fecha_registro).format('DD/MM')}
-          </Text>
+  const renderHistoryItem = ({ item }) => {
+    const balance = item.balance || {};
+    const totalIngresos = (parseFloat(balance.ingresos_orales) || 0) + (parseFloat(balance.ingresos_iv) || 0);
+    const totalEgresos = (parseFloat(balance.egresos_orina) || 0) + (parseFloat(balance.egresos_drenajes) || 0);
+    const balanceNeto = totalIngresos - totalEgresos;
+
+    return (
+      <View style={styles.historyItem}>
+        <View style={styles.historyHeader}>
+          <View style={styles.historyBadge}>
+            <Text style={styles.historyBadgeText}>
+              {moment(item.fecha_registro).format('DD/MM')}
+            </Text>
+          </View>
+          <View style={styles.historyInfo}>
+            <Text style={styles.historyDate}>
+              {moment(item.fecha_registro).format('dddd, D [de] MMMM [de] YYYY [a las] HH:mm')}
+            </Text>
+            <Text style={styles.historyDoctor}>
+              <Ionicons name="medkit-outline" size={12} color="#718096" /> Enf. {item.enfermero_nombre || 'No especificado'}
+            </Text>
+          </View>
         </View>
-        <View style={styles.historyInfo}>
-          <Text style={styles.historyDate}>
-            {moment(item.fecha_registro).format('dddd, D [de] MMMM [de] YYYY [a las] HH:mm')}
-          </Text>
-          <Text style={styles.historyDoctor}>
-            <Ionicons name="medkit-outline" size={12} color="#718096" /> Enf. {item.enfermero_nombre || 'No especificado'}
-          </Text>
+        
+        <View style={styles.historyContent}>
+          <View style={styles.historyRow}>
+            <View style={styles.historyHalf}>
+              <Text style={styles.historyLabel}>Ingresos orales:</Text>
+              <Text style={styles.historyValue}>{balance.ingresos_orales || 0} ml</Text>
+            </View>
+            <View style={styles.historyHalf}>
+              <Text style={styles.historyLabel}>Ingresos IV:</Text>
+              <Text style={styles.historyValue}>{balance.ingresos_iv || 0} ml</Text>
+            </View>
+          </View>
+          
+          <View style={styles.historyRow}>
+            <View style={styles.historyHalf}>
+              <Text style={styles.historyLabel}>Egresos orina:</Text>
+              <Text style={styles.historyValue}>{balance.egresos_orina || 0} ml</Text>
+            </View>
+            <View style={styles.historyHalf}>
+              <Text style={styles.historyLabel}>Egresos drenajes:</Text>
+              <Text style={styles.historyValue}>{balance.egresos_drenajes || 0} ml</Text>
+            </View>
+          </View>
+          
+          <View style={[styles.historyRow, styles.historyTotalRow]}>
+            <View style={styles.historyHalf}>
+              <Text style={styles.historyTotalLabel}>Total ingresos:</Text>
+              <Text style={styles.historyTotalValue}>{totalIngresos} ml</Text>
+            </View>
+            <View style={styles.historyHalf}>
+              <Text style={styles.historyTotalLabel}>Total egresos:</Text>
+              <Text style={styles.historyTotalValue}>{totalEgresos} ml</Text>
+            </View>
+          </View>
+          
+          <View style={styles.historyBalanceRow}>
+            <Text style={styles.historyBalanceLabel}>Balance neto:</Text>
+            <Text style={[
+              styles.historyBalanceValue,
+              balanceNeto >= 0 ? styles.balancePositive : styles.balanceNegative
+            ]}>
+              {balanceNeto >= 0 ? '+' : ''}{balanceNeto} ml
+            </Text>
+          </View>
+
+          {balance.observaciones && (
+            <View style={styles.historyField}>
+              <Ionicons name="document-text-outline" size={14} color="#718096" />
+              <Text style={styles.historyFieldLabel}>Observaciones:</Text>
+              <Text style={styles.historyFieldValue}>{balance.observaciones}</Text>
+            </View>
+          )}
         </View>
       </View>
-      
-      <View style={styles.historyContent}>
-        <Text style={styles.historyNoteLabel}>Nota:</Text>
-        <Text style={styles.historyNoteText}>{item.nota || 'Sin contenido'}</Text>
-      </View>
-    </View>
-  );
+    );
+  };
 
   const totalHistoryPages = Math.ceil(history.length / HISTORY_ITEMS_PER_PAGE);
   const paginatedHistory = history.slice(
@@ -143,15 +202,15 @@ const EnfermeriaNoteScreen = ({ navigation, route }) => {
   return (
     <ScrollView style={styles.container}>
       {/* Header */}
-      <LinearGradient colors={['#667eea', '#764ba2']} style={styles.header}>
+      <LinearGradient colors={['#4299e1', '#3182ce']} style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          <Ionicons name="document-text-outline" size={20} color="#fff" /> Nota de Enfermería
+          <Ionicons name="water-outline" size={20} color="#fff" /> Balance Hídrico
         </Text>
         <TouchableOpacity
-          onPress={() => loadNursingNotesHistory(true)}
+          onPress={() => loadFluidBalanceHistory(true)}
           style={styles.backButton}
           disabled={loading || loadingHistory}
         >
@@ -181,7 +240,7 @@ const EnfermeriaNoteScreen = ({ navigation, route }) => {
         </View>
       </View>
 
-      {/* Tarjeta principal - Nueva nota */}
+      {/* Tarjeta principal - Nuevo balance */}
       <View style={styles.mainCard}>
         <LinearGradient 
           colors={['#4299e1', '#3182ce']} 
@@ -191,27 +250,90 @@ const EnfermeriaNoteScreen = ({ navigation, route }) => {
         >
           <View style={styles.cardHeaderContent}>
             <Ionicons name="add-circle-outline" size={22} color="#fff" />
-            <Text style={styles.cardHeaderTitle}>Nueva Nota de Enfermería</Text>
+            <Text style={styles.cardHeaderTitle}>Registrar Balance Hídrico</Text>
           </View>
         </LinearGradient>
 
         <View style={styles.cardBody}>
-          <View style={styles.soapSection}>
-            <View style={styles.sectionHeader}>
-              <View style={[styles.sectionBadge, styles.badgeN]}>
-                <Text style={styles.badgeText}>N</Text>
-              </View>
-              <Text style={styles.sectionTitle}>Nota de Enfermería</Text>
+          {/* Ingresos orales */}
+          <View style={styles.fieldGroup}>
+            <View style={styles.fieldLabel}>
+              <Ionicons name="cafe-outline" size={16} color="#4299e1" />
+              <Text style={styles.fieldLabelText}>Ingresos orales (ml)</Text>
             </View>
             <TextInput
-              style={styles.textArea}
-              placeholder="Observaciones del paciente, cuidados realizados, evolución..."
+              style={styles.fieldInput}
+              placeholder="Ej: 1500"
+              placeholderTextColor="#a0aec0"
+              keyboardType="numeric"
+              value={formData.ingresos_orales}
+              onChangeText={(text) => setFormData({ ...formData, ingresos_orales: text })}
+            />
+          </View>
+
+          {/* Ingresos IV */}
+          <View style={styles.fieldGroup}>
+            <View style={styles.fieldLabel}>
+              <Ionicons name="medical-outline" size={16} color="#4299e1" />
+              <Text style={styles.fieldLabelText}>Ingresos IV (ml)</Text>
+            </View>
+            <TextInput
+              style={styles.fieldInput}
+              placeholder="Ej: 1000"
+              placeholderTextColor="#a0aec0"
+              keyboardType="numeric"
+              value={formData.ingresos_iv}
+              onChangeText={(text) => setFormData({ ...formData, ingresos_iv: text })}
+            />
+          </View>
+
+          {/* Egresos orina */}
+          <View style={styles.fieldGroup}>
+            <View style={styles.fieldLabel}>
+              <Ionicons name="water-outline" size={16} color="#4299e1" />
+              <Text style={styles.fieldLabelText}>Egresos orina (ml)</Text>
+            </View>
+            <TextInput
+              style={styles.fieldInput}
+              placeholder="Ej: 1200"
+              placeholderTextColor="#a0aec0"
+              keyboardType="numeric"
+              value={formData.egresos_orina}
+              onChangeText={(text) => setFormData({ ...formData, egresos_orina: text })}
+            />
+          </View>
+
+          {/* Egresos drenajes */}
+          <View style={styles.fieldGroup}>
+            <View style={styles.fieldLabel}>
+              <Ionicons name="bandage-outline" size={16} color="#4299e1" />
+              <Text style={styles.fieldLabelText}>Egresos drenajes (ml)</Text>
+            </View>
+            <TextInput
+              style={styles.fieldInput}
+              placeholder="Ej: 200"
+              placeholderTextColor="#a0aec0"
+              keyboardType="numeric"
+              value={formData.egresos_drenajes}
+              onChangeText={(text) => setFormData({ ...formData, egresos_drenajes: text })}
+            />
+          </View>
+
+          {/* Observaciones */}
+          <View style={styles.fieldGroup}>
+            <View style={styles.fieldLabel}>
+              <Ionicons name="document-text-outline" size={16} color="#718096" />
+              <Text style={styles.fieldLabelText}>Observaciones</Text>
+            </View>
+            <TextInput
+              style={[styles.fieldInput, styles.textArea]}
+              placeholder="Notas adicionales del balance hídrico"
               placeholderTextColor="#a0aec0"
               multiline
-              numberOfLines={6}
+              numberOfLines={4}
               textAlignVertical="top"
-              value={formData.nota_enfermeria}
-              onChangeText={(text) => setFormData({ ...formData, nota_enfermeria: text })}
+              value={formData.observaciones}
+              onChangeText={(text) => setFormData({ ...formData, observaciones: text })}
             />
           </View>
         </View>
@@ -226,13 +348,13 @@ const EnfermeriaNoteScreen = ({ navigation, route }) => {
           ) : (
             <>
               <Ionicons name="save-outline" size={18} color="#fff" />
-              <Text style={styles.saveButtonText}>Guardar Nota</Text>
+              <Text style={styles.saveButtonText}>Guardar Balance</Text>
             </>
           )}
         </TouchableOpacity>
       </View>
 
-      {/* Historial de Notas de Enfermería */}
+      {/* Historial de Balances */}
       <View style={styles.historyCard}>
         <TouchableOpacity 
           style={styles.historyHeaderGradient}
@@ -247,9 +369,9 @@ const EnfermeriaNoteScreen = ({ navigation, route }) => {
           >
             <View style={styles.historyHeaderContent}>
               <Ionicons name="time-outline" size={20} color="#fff" />
-              <Text style={styles.historyTitle}>Historial de Notas</Text>
+              <Text style={styles.historyTitle}>Historial de Balances</Text>
               <View style={styles.historyCount}>
-                <Text style={styles.historyCountText}>{history.length} notas</Text>
+                <Text style={styles.historyCountText}>{history.length} registros</Text>
               </View>
               <Ionicons 
                 name={showHistory ? "chevron-up-outline" : "chevron-down-outline"} 
@@ -267,7 +389,7 @@ const EnfermeriaNoteScreen = ({ navigation, route }) => {
             ) : history.length === 0 ? (
               <View style={styles.emptyHistory}>
                 <Ionicons name="document-text-outline" size={48} color="#cbd5e0" />
-                <Text style={styles.emptyHistoryText}>No hay notas previas</Text>
+                <Text style={styles.emptyHistoryText}>No hay balances previos</Text>
               </View>
             ) : (
               <>
@@ -275,10 +397,10 @@ const EnfermeriaNoteScreen = ({ navigation, route }) => {
                   data={paginatedHistory}
                   renderItem={renderHistoryItem}
                   keyExtractor={(item, index) => {
-                    if (item.id_nota) {
-                      return `note_${item.id_nota}`;
+                    if (item.id_balance) {
+                      return `balance_${item.id_balance}`;
                     }
-                    return `note_fallback_${index}_${item.fecha_registro || 'unknown'}`;
+                    return `balance_fallback_${index}_${item.fecha_registro || 'unknown'}`;
                   }}
                   scrollEnabled={false}
                   initialNumToRender={HISTORY_ITEMS_PER_PAGE}
@@ -352,23 +474,20 @@ const styles = StyleSheet.create({
   cardHeaderContent: { flexDirection: 'row', alignItems: 'center' },
   cardHeaderTitle: { fontSize: 16, fontWeight: '600', color: '#fff', marginLeft: 8 },
   cardBody: { padding: 20 },
-  soapSection: { marginBottom: 24, padding: 16, backgroundColor: '#f7fafc', borderRadius: 15 },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  sectionBadge: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  badgeN: { backgroundColor: '#4299e1' },
-  badgeText: { fontSize: 20, fontWeight: 'bold', color: '#fff' },
-  sectionTitle: { fontSize: 16, fontWeight: '600', color: '#2d3748' },
-  textArea: {
+  fieldGroup: { marginBottom: 16 },
+  fieldLabel: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  fieldLabelText: { fontSize: 13, fontWeight: '600', color: '#4a5568', marginLeft: 6 },
+  fieldInput: {
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     fontSize: 14,
     color: '#2d3748',
     backgroundColor: '#fff',
-    minHeight: 150,
-    textAlignVertical: 'top',
   },
+  textArea: { minHeight: 100, textAlignVertical: 'top' },
   saveButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -377,7 +496,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 20,
     borderRadius: 12,
-    backgroundColor: '#48bb78',
+    backgroundColor: '#4299e1',
   },
   saveButtonText: { fontSize: 16, fontWeight: '600', color: '#fff', marginLeft: 8 },
   disabledButton: { opacity: 0.7 },
@@ -436,12 +555,38 @@ const styles = StyleSheet.create({
   historyDate: { fontSize: 12, fontWeight: '500', color: '#2d3748' },
   historyDoctor: { fontSize: 11, color: '#718096', marginTop: 2 },
   historyContent: { padding: 12 },
-  historyNoteLabel: { fontSize: 12, fontWeight: '600', color: '#4299e1', marginBottom: 4 },
-  historyNoteText: { fontSize: 13, color: '#2d3748', lineHeight: 20 },
+  historyRow: { flexDirection: 'row', marginBottom: 6 },
+  historyHalf: { flex: 1 },
+  historyLabel: { fontSize: 12, color: '#718096' },
+  historyValue: { fontSize: 12, fontWeight: '600', color: '#2d3748' },
+  historyTotalRow: { 
+    borderTopWidth: 1, 
+    borderTopColor: '#e2e8f0', 
+    paddingTop: 8,
+    marginTop: 4,
+  },
+  historyTotalLabel: { fontSize: 12, fontWeight: '700', color: '#4a5568' },
+  historyTotalValue: { fontSize: 13, fontWeight: '700', color: '#2d3748' },
+  historyBalanceRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center',
+    backgroundColor: '#f0f4f8',
+    padding: 8,
+    borderRadius: 8,
+    marginTop: 6,
+  },
+  historyBalanceLabel: { fontSize: 13, fontWeight: '700', color: '#4a5568', marginRight: 8 },
+  historyBalanceValue: { fontSize: 16, fontWeight: '700' },
+  balancePositive: { color: '#48bb78' },
+  balanceNegative: { color: '#e53e3e' },
+  historyField: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 6, flexWrap: 'wrap' },
+  historyFieldLabel: { fontSize: 12, fontWeight: '600', color: '#4a5568', marginLeft: 6, marginRight: 4 },
+  historyFieldValue: { fontSize: 12, color: '#2d3748', flex: 1 },
   historyPagination: {
     paddingHorizontal: 16,
     paddingBottom: 16,
   },
 });
 
-export default EnfermeriaNoteScreen;
+export default EnfermeriaFluidBalanceScreen;

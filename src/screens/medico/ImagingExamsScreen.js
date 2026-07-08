@@ -14,10 +14,18 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../../services/api";
+import CacheService from "../../services/cacheService";
+import Pagination from "../../components/Pagination";
 import moment from "moment";
 import "moment/locale/es";
 
 moment.locale("es");
+
+const CACHE_KEY_CATALOG = "imaging_exams_catalog";
+const CACHE_KEY_HISTORY = "imaging_exams_history_";
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutos para catálogo
+const CACHE_TTL_HISTORY = 2 * 60 * 1000; // 2 minutos para historial
+const HISTORY_ITEMS_PER_PAGE = 5;
 
 const ImagingExamsScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params;
@@ -28,6 +36,7 @@ const ImagingExamsScreen = ({ navigation, route }) => {
   const [selectedExams, setSelectedExams] = useState([]);
   const [observations, setObservations] = useState("");
   const [requestedExams, setRequestedExams] = useState([]);
+  const [currentHistoryPage, setCurrentHistoryPage] = useState(1);
 
   useEffect(() => {
     setSelectedExams([]);
@@ -41,13 +50,25 @@ const ImagingExamsScreen = ({ navigation, route }) => {
     };
   }, [id_atencion]);
 
-  const loadExams = async () => {
+  const loadExams = async (forceRefresh = false) => {
     try {
-      console.log("Cargando exámenes de gabinete...");
+      // Intentar obtener de caché primero (si no es forceRefresh)
+      if (!forceRefresh) {
+        const cachedData = await CacheService.get(CACHE_KEY_CATALOG);
+        if (cachedData) {
+          console.log("📦 Catálogo de exámenes de gabinete cargado desde caché");
+          setExams(cachedData);
+          return;
+        }
+      }
+
+      console.log("🌐 Cargando exámenes de gabinete desde API...");
       const response = await api.get("/exams/catalog?type=GABINETE");
       console.log("Exámenes recibidos:", response.data);
 
       if (response.data && Array.isArray(response.data)) {
+        // Guardar en caché
+        await CacheService.set(CACHE_KEY_CATALOG, response.data, CACHE_TTL);
         setExams(response.data);
       } else {
         console.error("Formato de respuesta inválido:", response.data);
@@ -55,26 +76,59 @@ const ImagingExamsScreen = ({ navigation, route }) => {
       }
     } catch (error) {
       console.error("Error loading exams:", error);
-      Alert.alert(
-        "Error",
-        "No se pudieron cargar los exámenes de gabinete: " +
-          (error.response?.data?.error || error.message),
-      );
-      setExams([]);
+      
+      // Si falla la API, intentar cargar desde caché
+      const cachedData = await CacheService.get(CACHE_KEY_CATALOG);
+      if (cachedData) {
+        setExams(cachedData);
+        Alert.alert("Sin conexión", "Mostrando catálogo guardado previamente");
+      } else {
+        Alert.alert(
+          "Error",
+          "No se pudieron cargar los exámenes de gabinete: " +
+            (error.response?.data?.error || error.message),
+        );
+        setExams([]);
+      }
     }
   };
 
-  const loadRequestedExams = async () => {
+  const loadRequestedExams = async (forceRefresh = false) => {
     try {
       setLoadingHistory(true);
-      console.log("Cargando solicitudes previas...");
+      const cacheKey = `${CACHE_KEY_HISTORY}${id_atencion}`;
+
+      // Intentar obtener de caché primero (si no es forceRefresh)
+      if (!forceRefresh) {
+        const cachedData = await CacheService.get(cacheKey);
+        if (cachedData) {
+          console.log("📦 Historial de exámenes de gabinete cargado desde caché");
+          setRequestedExams(cachedData);
+          setLoadingHistory(false);
+          return;
+        }
+      }
+
+      console.log("🌐 Cargando solicitudes previas desde API...");
       const response = await api.get(
         `/exams/requested/${id_atencion}?type=GABINETE`,
       );
       console.log("Solicitudes recibidas:", response.data);
-      setRequestedExams(response.data || []);
+      
+      const historyData = response.data || [];
+      // Guardar en caché
+      await CacheService.set(cacheKey, historyData, CACHE_TTL_HISTORY);
+      setRequestedExams(historyData);
+      if (forceRefresh) setCurrentHistoryPage(1);
     } catch (error) {
       console.error("Error loading requested exams:", error);
+      // Intentar cargar desde caché en caso de error
+      const cacheKey = `${CACHE_KEY_HISTORY}${id_atencion}`;
+      const cachedData = await CacheService.get(cacheKey);
+      if (cachedData) {
+        console.log("📦 Historial cargado desde caché (fallback)");
+        setRequestedExams(cachedData);
+      }
     } finally {
       setLoadingHistory(false);
     }
@@ -101,14 +155,18 @@ const ImagingExamsScreen = ({ navigation, route }) => {
         id_atencion: parseInt(id_atencion),
         exams: selectedExams.map((id) => parseInt(id)),
         observations: observations || "",
-        type: "GABINETE", // ← Forzar tipo GABINETE
+        type: "GABINETE",
       });
 
       if (response.data) {
         Alert.alert("Éxito", "Exámenes de gabinete solicitados correctamente");
         setSelectedExams([]);
         setObservations("");
-        loadRequestedExams();
+        await loadRequestedExams(true);
+        // Mantener abierto el historial si ya estaba abierto
+        if (showHistory) {
+          setShowHistory(true);
+        }
       }
     } catch (error) {
       console.error("Error saving exams:", error);
@@ -121,6 +179,21 @@ const ImagingExamsScreen = ({ navigation, route }) => {
     }
   };
 
+  // Calcular páginas para el historial
+  const totalHistoryPages = Math.ceil(requestedExams.length / HISTORY_ITEMS_PER_PAGE);
+  const paginatedHistory = requestedExams.slice(
+    (currentHistoryPage - 1) * HISTORY_ITEMS_PER_PAGE,
+    currentHistoryPage * HISTORY_ITEMS_PER_PAGE
+  );
+
+  // Ajustar página actual si es mayor que el total
+  useEffect(() => {
+    const validTotalPages = Math.max(1, totalHistoryPages);
+    if (currentHistoryPage > validTotalPages) {
+      setCurrentHistoryPage(validTotalPages);
+    }
+  }, [currentHistoryPage, totalHistoryPages]);
+
   const renderHistoryItem = ({ item }) => {
     // Asegurar que examenes sea un array
     const examenesList = Array.isArray(item.examenes) ? item.examenes : [];
@@ -130,12 +203,12 @@ const ImagingExamsScreen = ({ navigation, route }) => {
         <View style={styles.historyHeader}>
           <View style={styles.historyBadge}>
             <Text style={styles.historyBadgeText}>
-              {moment(item.fecha).format("DD/MM")}
+              {moment(item.fecha_solicitud || item.fecha).format("DD/MM")}
             </Text>
           </View>
           <View style={styles.historyInfo}>
             <Text style={styles.historyDate}>
-              {moment(item.fecha).format(
+              {moment(item.fecha_solicitud || item.fecha).format(
                 "dddd, D [de] MMMM [de] YYYY [a las] HH:mm",
               )}
             </Text>
@@ -198,7 +271,16 @@ const ImagingExamsScreen = ({ navigation, route }) => {
           <Ionicons name="scan-outline" size={20} color="#fff" /> Exámenes de
           Gabinete
         </Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity
+          onPress={() => {
+            loadExams(true);
+            loadRequestedExams(true);
+          }}
+          style={styles.backButton}
+          disabled={loadingHistory}
+        >
+          <Ionicons name="refresh-outline" size={22} color="#fff" />
+        </TouchableOpacity>
       </LinearGradient>
 
       {/* Información del paciente */}
@@ -211,8 +293,12 @@ const ImagingExamsScreen = ({ navigation, route }) => {
             <Text style={styles.patientName}>Paciente</Text>
             <View style={styles.patientMeta}>
               <Text style={styles.patientMetaItem}>
-                <Ionicons name="card-outline" size={12} /> Exp:{" "}
-                {Id_exp || "N/A"}
+                <Ionicons name="card-outline" size={12} color="#ed8936" />
+                <Text style={styles.patientMetaText}>Exp: {Id_exp || "N/A"}</Text>
+              </Text>
+              <Text style={styles.patientMetaItem}>
+                <Ionicons name="calendar-outline" size={12} color="#ed8936" />
+                <Text style={styles.patientMetaText}>Atención: {id_atencion}</Text>
               </Text>
             </View>
           </View>
@@ -379,6 +465,13 @@ const ImagingExamsScreen = ({ navigation, route }) => {
             <View style={styles.historyHeaderContent}>
               <Ionicons name="time-outline" size={20} color="#fff" />
               <Text style={styles.historyTitle}>Historial de Solicitudes</Text>
+              {requestedExams.length > 0 && (
+                <View style={styles.historyCount}>
+                  <Text style={styles.historyCountText}>
+                    {requestedExams.length} solicitudes
+                  </Text>
+                </View>
+              )}
               <Ionicons
                 name={
                   showHistory ? "chevron-up-outline" : "chevron-down-outline"
@@ -410,14 +503,27 @@ const ImagingExamsScreen = ({ navigation, route }) => {
                 </Text>
               </View>
             ) : (
-              <FlatList
-                data={requestedExams}
-                renderItem={renderHistoryItem}
-                keyExtractor={(item, index) =>
-                  item.id_examen?.toString() || index.toString()
-                }
-                scrollEnabled={false}
-              />
+              <>
+                <FlatList
+                  data={paginatedHistory}
+                  renderItem={renderHistoryItem}
+                  keyExtractor={(item, index) =>
+                    item.id_examen?.toString() || `imaging_${index}`
+                  }
+                  scrollEnabled={false}
+                  initialNumToRender={HISTORY_ITEMS_PER_PAGE}
+                  maxToRenderPerBatch={HISTORY_ITEMS_PER_PAGE}
+                />
+                <View style={styles.historyPagination}>
+                  <Pagination
+                    currentPage={currentHistoryPage}
+                    totalPages={totalHistoryPages}
+                    onPageChange={setCurrentHistoryPage}
+                    itemsPerPage={HISTORY_ITEMS_PER_PAGE}
+                    totalItems={requestedExams.length}
+                  />
+                </View>
+              </>
             )}
           </View>
         )}
@@ -487,8 +593,14 @@ const styles = StyleSheet.create({
   patientMeta: {
     flexDirection: "row",
     gap: 12,
+    flexWrap: "wrap",
   },
   patientMetaItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  patientMetaText: {
     fontSize: 12,
     color: "#718096",
   },
@@ -710,6 +822,18 @@ const styles = StyleSheet.create({
     color: "#fff",
     marginLeft: 8,
   },
+  historyCount: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  historyCountText: {
+    fontSize: 11,
+    color: "#fff",
+    fontWeight: "500",
+  },
   historyBody: {
     padding: 16,
   },
@@ -806,6 +930,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#718096",
     marginLeft: 8,
+  },
+  historyEmptyExams: {
+    fontSize: 12,
+    color: "#a0aec0",
+    fontStyle: "italic",
+    marginLeft: 8,
+    marginBottom: 4,
+  },
+  historyPagination: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
 });
 

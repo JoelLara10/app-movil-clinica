@@ -14,10 +14,18 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
+import CacheService from '../../services/cacheService';
+import Pagination from '../../components/Pagination';
 import moment from 'moment';
 import 'moment/locale/es';
 
 moment.locale('es');
+
+const CACHE_KEY_PATIENT = 'study_results_patient_';
+const CACHE_KEY_LAB = 'study_results_lab_';
+const CACHE_KEY_GAB = 'study_results_gab_';
+const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
+const RESULTS_PER_PAGE = 5;
 
 const StudyResultsScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params;
@@ -28,30 +36,92 @@ const StudyResultsScreen = ({ navigation, route }) => {
   const [gabinete, setGabinete] = useState([]);
   const [selectedExam, setSelectedExam] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  
+  // Estados de paginación
+  const [labCurrentPage, setLabCurrentPage] = useState(1);
+  const [gabCurrentPage, setGabCurrentPage] = useState(1);
 
   useEffect(() => {
     loadData();
   }, []);
 
-  const loadData = async () => {
+  const loadData = async (forceRefresh = false) => {
     try {
       setLoading(true);
       
+      const cacheKeyPatient = `${CACHE_KEY_PATIENT}${id_atencion}`;
+      const cacheKeyLab = `${CACHE_KEY_LAB}${id_atencion}`;
+      const cacheKeyGab = `${CACHE_KEY_GAB}${id_atencion}`;
+
       // Cargar información del paciente
-      const pacienteRes = await api.get(`/paciente/${id_atencion}/${Id_exp}`);
-      setPaciente(pacienteRes.data.paciente);
-      
+      if (!forceRefresh) {
+        const cachedPatient = await CacheService.get(cacheKeyPatient);
+        if (cachedPatient) {
+          setPaciente(cachedPatient);
+        } else {
+          const pacienteRes = await api.get(`/paciente/${id_atencion}/${Id_exp}`);
+          setPaciente(pacienteRes.data.paciente);
+          await CacheService.set(cacheKeyPatient, pacienteRes.data.paciente, CACHE_TTL);
+        }
+      } else {
+        const pacienteRes = await api.get(`/paciente/${id_atencion}/${Id_exp}`);
+        setPaciente(pacienteRes.data.paciente);
+        await CacheService.set(cacheKeyPatient, pacienteRes.data.paciente, CACHE_TTL);
+      }
+
       // Cargar resultados de laboratorio
-      const labRes = await api.get(`/exams/patient/${id_atencion}?type=LABORATORIO`);
-      setLaboratorio(labRes.data);
-      
+      if (!forceRefresh) {
+        const cachedLab = await CacheService.get(cacheKeyLab);
+        if (cachedLab) {
+          setLaboratorio(cachedLab);
+        } else {
+          const labRes = await api.get(`/exams/patient/${id_atencion}?type=LABORATORIO`);
+          setLaboratorio(labRes.data);
+          await CacheService.set(cacheKeyLab, labRes.data, CACHE_TTL);
+        }
+      } else {
+        const labRes = await api.get(`/exams/patient/${id_atencion}?type=LABORATORIO`);
+        setLaboratorio(labRes.data);
+        await CacheService.set(cacheKeyLab, labRes.data, CACHE_TTL);
+      }
+
       // Cargar resultados de gabinete
-      const gabRes = await api.get(`/exams/patient/${id_atencion}?type=GABINETE`);
-      setGabinete(gabRes.data);
+      if (!forceRefresh) {
+        const cachedGab = await CacheService.get(cacheKeyGab);
+        if (cachedGab) {
+          setGabinete(cachedGab);
+        } else {
+          const gabRes = await api.get(`/exams/patient/${id_atencion}?type=GABINETE`);
+          setGabinete(gabRes.data);
+          await CacheService.set(cacheKeyGab, gabRes.data, CACHE_TTL);
+        }
+      } else {
+        const gabRes = await api.get(`/exams/patient/${id_atencion}?type=GABINETE`);
+        setGabinete(gabRes.data);
+        await CacheService.set(cacheKeyGab, gabRes.data, CACHE_TTL);
+      }
       
     } catch (error) {
       console.error('Error loading data:', error);
-      Alert.alert('Error', 'No se pudieron cargar los resultados');
+      
+      // Intentar cargar desde caché en caso de error
+      const cacheKeyPatient = `${CACHE_KEY_PATIENT}${id_atencion}`;
+      const cacheKeyLab = `${CACHE_KEY_LAB}${id_atencion}`;
+      const cacheKeyGab = `${CACHE_KEY_GAB}${id_atencion}`;
+      
+      const [cachedPatient, cachedLab, cachedGab] = await Promise.all([
+        CacheService.get(cacheKeyPatient),
+        CacheService.get(cacheKeyLab),
+        CacheService.get(cacheKeyGab)
+      ]);
+      
+      if (cachedPatient) setPaciente(cachedPatient);
+      if (cachedLab) setLaboratorio(cachedLab);
+      if (cachedGab) setGabinete(cachedGab);
+      
+      if (!cachedPatient && !cachedLab && !cachedGab) {
+        Alert.alert('Error', 'No se pudieron cargar los resultados');
+      }
     } finally {
       setLoading(false);
     }
@@ -59,7 +129,10 @@ const StudyResultsScreen = ({ navigation, route }) => {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadData();
+    await loadData(true);
+    // Resetear páginas al refrescar
+    setLabCurrentPage(1);
+    setGabCurrentPage(1);
     setRefreshing(false);
   };
 
@@ -68,7 +141,36 @@ const StudyResultsScreen = ({ navigation, route }) => {
     setModalVisible(true);
   };
 
-  const renderResultsTable = (results, type) => {
+  // Calcular páginas para laboratorio
+  const labTotalPages = Math.ceil(laboratorio.length / RESULTS_PER_PAGE);
+  const paginatedLaboratorio = laboratorio.slice(
+    (labCurrentPage - 1) * RESULTS_PER_PAGE,
+    labCurrentPage * RESULTS_PER_PAGE
+  );
+
+  // Calcular páginas para gabinete
+  const gabTotalPages = Math.ceil(gabinete.length / RESULTS_PER_PAGE);
+  const paginatedGabinete = gabinete.slice(
+    (gabCurrentPage - 1) * RESULTS_PER_PAGE,
+    gabCurrentPage * RESULTS_PER_PAGE
+  );
+
+  // Ajustar páginas si es necesario
+  useEffect(() => {
+    const validLabPages = Math.max(1, labTotalPages);
+    if (labCurrentPage > validLabPages) {
+      setLabCurrentPage(validLabPages);
+    }
+  }, [labCurrentPage, labTotalPages]);
+
+  useEffect(() => {
+    const validGabPages = Math.max(1, gabTotalPages);
+    if (gabCurrentPage > validGabPages) {
+      setGabCurrentPage(validGabPages);
+    }
+  }, [gabCurrentPage, gabTotalPages]);
+
+  const renderResultsTable = (results, type, currentPage, setCurrentPage, totalPages) => {
     const isLab = type === 'LABORATORIO';
     const headerColor = isLab ? '#48bb78' : '#ed8936';
     const iconName = isLab ? 'flask-outline' : 'scan-outline';
@@ -153,6 +255,19 @@ const StudyResultsScreen = ({ navigation, route }) => {
             </View>
           ))}
         </ScrollView>
+        
+        {/* Paginación */}
+        {totalPages > 1 && (
+          <View style={styles.paginationContainer}>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              itemsPerPage={RESULTS_PER_PAGE}
+              totalItems={results.length}
+            />
+          </View>
+        )}
       </View>
     );
   };
@@ -242,7 +357,6 @@ const StudyResultsScreen = ({ navigation, route }) => {
                 <TouchableOpacity
                   style={styles.downloadButton}
                   onPress={() => {
-                    // Aquí iría la lógica para descargar/ver el archivo
                     Alert.alert('Información', 'Funcionalidad de descarga próximamente');
                   }}
                 >
@@ -325,7 +439,13 @@ const StudyResultsScreen = ({ navigation, route }) => {
         </LinearGradient>
 
         <View style={styles.cardBody}>
-          {renderResultsTable(laboratorio, 'LABORATORIO')}
+          {renderResultsTable(
+            paginatedLaboratorio, 
+            'LABORATORIO', 
+            labCurrentPage, 
+            setLabCurrentPage, 
+            labTotalPages
+          )}
         </View>
       </View>
 
@@ -347,7 +467,13 @@ const StudyResultsScreen = ({ navigation, route }) => {
         </LinearGradient>
 
         <View style={styles.cardBody}>
-          {renderResultsTable(gabinete, 'GABINETE')}
+          {renderResultsTable(
+            paginatedGabinete, 
+            'GABINETE', 
+            gabCurrentPage, 
+            setGabCurrentPage, 
+            gabTotalPages
+          )}
         </View>
       </View>
 
@@ -694,6 +820,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#fff',
+  },
+  paginationContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+    backgroundColor: '#f7fafc',
   },
 });
 

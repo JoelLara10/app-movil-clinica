@@ -229,7 +229,13 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
         <Text style={styles.headerTitle}>
           <Ionicons name="document-text-outline" size={20} color="#fff" /> Historia Clínica
         </Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity
+          onPress={loadExistingData}
+          style={styles.backButton}
+          disabled={loadingData}
+        >
+          <Ionicons name="refresh-outline" size={22} color="#fff" />
+        </TouchableOpacity>
       </LinearGradient>
 
       <View style={styles.mainCard}>
