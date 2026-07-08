@@ -157,8 +157,8 @@ export default function UploadResultForm({ navigation, route }) {
         timeout: 60000,
       });
 
-      // Invalida caché de listas, contadores y detalle del examen
-      await invalidateCachePrefix('estudios_');
+      // Invalidar caché de listas completas, contadores y detalle del examen
+      await invalidateCachePrefix('estudios_all_');
       await removeCache(CacheKeys.counts);
       await removeCache(CacheKeys.examenInfo(id_examen));
 
@@ -282,9 +282,6 @@ export default function UploadResultForm({ navigation, route }) {
   );
 }
 
-// ============================================================
-//  ESTILOS 
-// ============================================================
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f7fafc' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },

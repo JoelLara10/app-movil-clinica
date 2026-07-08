@@ -4,20 +4,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const DEFAULT_TTL = 5 * 60 * 1000; // 5 minutos
 
 export const CacheKeys = {
-  // Listas paginadas: estudios_${type}_${status}_page_${page}
-  estudiosList: (type, status, page) => `estudios_${type}_${status}_page_${page}`,
-  // Contadores
+  estudiosAll: (type, status) => `estudios_all_${type}_${status}`,
   counts: 'estudios_counts',
-  // Detalle de un examen (para formularios)
   examenInfo: (id) => `examen_${id}_info`,
   examenEditInfo: (id, type) => `examen_${id}_edit_${type}`,
 };
 
-/**
- * Obtiene un valor del caché si existe y no ha expirado.
- * @param {string} key
- * @returns {Promise<any>} - El valor almacenado o null.
- */
 export const getCache = async (key) => {
   try {
     const item = await AsyncStorage.getItem(key);
@@ -34,12 +26,6 @@ export const getCache = async (key) => {
   }
 };
 
-/**
- * Guarda un valor en caché con un tiempo de vida.
- * @param {string} key
- * @param {any} value
- * @param {number} ttl - Tiempo de vida en milisegundos (opcional).
- */
 export const setCache = async (key, value, ttl = DEFAULT_TTL) => {
   try {
     const item = {
@@ -52,9 +38,6 @@ export const setCache = async (key, value, ttl = DEFAULT_TTL) => {
   }
 };
 
-/**
- * Elimina una clave específica del caché.
- */
 export const removeCache = async (key) => {
   try {
     await AsyncStorage.removeItem(key);
@@ -63,10 +46,6 @@ export const removeCache = async (key) => {
   }
 };
 
-/**
- * Elimina todas las claves que comiencen con un prefijo.
- * Útil para invalidar todas las listas de estudios o detalles de un examen.
- */
 export const invalidateCachePrefix = async (prefix) => {
   try {
     const keys = await AsyncStorage.getAllKeys();

@@ -166,8 +166,8 @@ export default function EditResultForm({ navigation, route }) {
         timeout: 60000,
       });
 
-      // Invalidar caché de listas, contadores, info y edit-info
-      await invalidateCachePrefix('estudios_');
+      // Invalidar caché de listas completas, contadores, info y edit-info
+      await invalidateCachePrefix('estudios_all_');
       await removeCache(CacheKeys.counts);
       await removeCache(CacheKeys.examenInfo(id_examen));
       await removeCache(CacheKeys.examenEditInfo(id_examen, tipo));
