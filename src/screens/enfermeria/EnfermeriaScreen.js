@@ -1,4 +1,4 @@
-// src/screens/medico/MedicoScreen.js
+// src/screens/enfermeria/EnfermeriaScreen.js
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -13,7 +13,6 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
-import { usePatient } from '../../context/PatientContext';
 import api from '../../services/api';
 import CacheService from '../../services/cacheService';
 import moment from 'moment';
@@ -21,16 +20,15 @@ import 'moment/locale/es';
 
 moment.locale('es');
 
-const CACHE_KEY_CONSULTA = 'medico_consulta';
-const CACHE_KEY_URGENCIAS = 'medico_urgencias';
-const CACHE_KEY_HOSPITALIZADOS = 'medico_hospitalizados';
+const CACHE_KEY_CONSULTA = 'enfermeria_consulta';
+const CACHE_KEY_URGENCIAS = 'enfermeria_urgencias';
+const CACHE_KEY_HOSPITALIZADOS = 'enfermeria_hospitalizados';
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 
 const ITEMS_PER_PAGE = 6; // Por área
 
-const MedicoScreen = ({ navigation }) => {
+const EnfermeriaScreen = ({ navigation }) => {
   const { user } = useAuth();
-  const { selectPatient } = usePatient();
   const [consulta, setConsulta] = useState([]);
   const [urgencias, setUrgencias] = useState([]);
   const [hospitalizados, setHospitalizados] = useState([]);
@@ -57,7 +55,7 @@ const MedicoScreen = ({ navigation }) => {
         ]);
 
         if (cachedConsulta && cachedUrgencias && cachedHospitalizados) {
-          console.log('📦 Datos médicos cargados desde caché');
+          console.log('📦 Datos cargados desde caché');
           setConsulta(cachedConsulta);
           setUrgencias(cachedUrgencias);
           setHospitalizados(cachedHospitalizados);
@@ -67,7 +65,7 @@ const MedicoScreen = ({ navigation }) => {
       }
 
       // Cargar desde API
-      console.log('🌐 Cargando médicos desde API...');
+      console.log('🌐 Cargando desde API...');
       const response = await api.get('/medico');
       
       const consultaData = response.data.beds_consulta || [];
@@ -85,7 +83,7 @@ const MedicoScreen = ({ navigation }) => {
       setUrgencias(urgenciasData);
       setHospitalizados(hospitalizadosData);
 
-      console.log(`✅ Médicos cargados: Consulta ${consultaData.length}, Urgencias ${urgenciasData.length}, Hospitalizados ${hospitalizadosData.length}`);
+      console.log(`✅ Cargados: Consulta ${consultaData.length}, Urgencias ${urgenciasData.length}, Hospitalizados ${hospitalizadosData.length}`);
 
     } catch (error) {
       console.error('Error loading patients:', error);
@@ -137,6 +135,12 @@ const MedicoScreen = ({ navigation }) => {
     return 'Paciente';
   };
 
+  const getAreaColor = (area) => {
+    if (area === 'Urgencias') return '#f56565';
+    if (area === 'Hospitalizado') return '#ed8936';
+    return '#4299e1';
+  };
+
   const renderPatientCard = (item, index, area, areaColor) => {
     const isOccupied = item.estatus === 'OCUPADA' && item.tiene_atencion;
     const displayName = isOccupied ? getPatientName(item) : '—';
@@ -147,11 +151,7 @@ const MedicoScreen = ({ navigation }) => {
         style={[styles.bedCard, isOccupied && styles.bedCardOccupied]}
         onPress={() => {
           if (isOccupied && item.id_atencion && item.Id_exp) {
-            selectPatient({
-              id_atencion: item.id_atencion,
-              Id_exp: item.Id_exp,
-            });
-            navigation.navigate('PatientDetail', { 
+            navigation.navigate('EnfermeriaPatientDetail', { 
               id_atencion: item.id_atencion,
               Id_exp: item.Id_exp
             });
@@ -252,7 +252,7 @@ const MedicoScreen = ({ navigation }) => {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          <Ionicons name="medkit-outline" size={20} color="#fff" /> Módulo Médico
+          <Ionicons name="medkit-outline" size={20} color="#fff" /> Módulo de Enfermería
         </Text>
         <TouchableOpacity onPress={onRefresh} style={styles.refreshButton}>
           <Ionicons name="refresh-outline" size={24} color="#fff" />
@@ -262,7 +262,7 @@ const MedicoScreen = ({ navigation }) => {
       {/* Bienvenida */}
       <View style={styles.welcomeCard}>
         <View>
-          <Text style={styles.welcomeTitle}>¡Hola, Dr. {user?.username}!</Text>
+          <Text style={styles.welcomeTitle}>¡Hola, Enf. {user?.username}!</Text>
           <Text style={styles.welcomeSubtitle}>
             {moment().format('dddd, D [de] MMMM [de] YYYY')}
           </Text>
@@ -427,4 +427,4 @@ const styles = StyleSheet.create({
   footerText: { fontSize: 11, color: 'rgba(0,0,0,0.4)' },
 });
 
-export default MedicoScreen;
+export default EnfermeriaScreen;

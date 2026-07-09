@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   ActivityIndicator,
@@ -102,121 +102,371 @@ const censusSections = [
   },
 ];
 
-
 const matchesSearch = (patient, query) => {
   const text = `${patient.account} ${patient.room} ${patient.patient} ${patient.record} ${patient.doctor} ${patient.reason}`.toLowerCase();
   return text.includes(query.trim().toLowerCase());
 };
 
-const PATIENTS_PER_PAGE = 20;
+const PATIENTS_PER_PAGE = 5;
+const CACHE_TIME = 1000 * 60 * 5;
+const censusCache = new Map();
+
 const CensoScreen = ({ navigation }) => {
   const [searches, setSearches] = useState({
     consulta: '',
     preparacion: '',
     recuperacion: '',
   });
+
   const [sections, setSections] = useState(censusSections);
   const [summary, setSummary] = useState({ activos: 5, areas: 3, avisos: 3 });
   const [loading, setLoading] = useState(true);
+  const [loadingMoreBySection, setLoadingMoreBySection] = useState({});
   const [refreshing, setRefreshing] = useState(false);
   const [apiNotice, setApiNotice] = useState('');
 
-  const [visibleBySection, setVisibleBySection] = useState({
-  consulta: PATIENTS_PER_PAGE,
-  preparacion: PATIENTS_PER_PAGE,
-  recuperacion: PATIENTS_PER_PAGE,
-});
+  const [pagesBySection, setPagesBySection] = useState({
+    consulta: 1,
+    preparacion: 1,
+    recuperacion: 1,
+  });
 
+  const [paginationBySection, setPaginationBySection] = useState({
+    consulta: {
+      page: 1,
+      limit: PATIENTS_PER_PAGE,
+      total: censusSections[0].data.length,
+      total_pages: 1,
+      has_more: false,
+    },
+    preparacion: {
+      page: 1,
+      limit: PATIENTS_PER_PAGE,
+      total: censusSections[1].data.length,
+      total_pages: 1,
+      has_more: false,
+    },
+    recuperacion: {
+      page: 1,
+      limit: PATIENTS_PER_PAGE,
+      total: censusSections[2].data.length,
+      total_pages: 1,
+      has_more: false,
+    },
+  });
 
-  const loadCensus = async ({ silent = false } = {}) => {
-    try {
-      if (!silent) setLoading(true);
-      const response = await adminService.getCensus();
-      setSections(response.sections || censusSections);
-      setSummary(response.summary || { activos: 0, areas: 0, avisos: 0 });
-      setApiNotice('');
-    } catch (error) {
-      setApiNotice('Mostrando datos locales. No se pudo consultar el censo en la API.');
-      setSections(censusSections);
-    } finally {
+  const requestIdRef = useRef(0);
+
+  const getGlobalSearch = () =>
+    Object.values(searches)
+      .join(' ')
+      .trim();
+
+  const getCacheKey = (search = '', page = 1) =>
+    `${search.trim().toLowerCase()}::${page}`;
+
+  const mergeByKey = (currentItems, newItems, keyFactory) => {
+    const map = new Map();
+
+    [...currentItems, ...newItems].forEach((item, index) => {
+      const key = keyFactory(item, index);
+      map.set(key, item);
+    });
+
+    return Array.from(map.values());
+  };
+
+  const getSectionPagination = (section, response, page) =>
+    section.pagination ||
+    response[`${section.key}_pagination`] ||
+    response.sections_pagination ||
+    response.data_pagination ||
+    response.pagination || {
+      page,
+      limit: PATIENTS_PER_PAGE,
+      total: section.data?.length || 0,
+      total_pages: page,
+      has_more: false,
+    };
+
+  const applyCensusResponse = (
+    response,
+    {
+      append = false,
+      appendSectionKey = null,
+      page = 1,
+    } = {}
+  ) => {
+    const responseSections = response.sections || censusSections;
+
+    setSections((currentSections) => {
+      if (!append) {
+        return responseSections;
+      }
+
+      return currentSections.map((currentSection) => {
+        if (appendSectionKey && currentSection.key !== appendSectionKey) {
+          return currentSection;
+        }
+
+        const incomingSection = responseSections.find(
+          (section) => section.key === currentSection.key
+        );
+
+        if (!incomingSection) {
+          return currentSection;
+        }
+
+        return {
+          ...currentSection,
+          ...incomingSection,
+          data: mergeByKey(
+            currentSection.data || [],
+            incomingSection.data || [],
+            (item, index) =>
+              `${item.id_atencion || item.account || 'censo'}-${item.Id_exp || item.record || index}`
+          ),
+        };
+      });
+    });
+
+    setSummary(response.summary || { activos: 0, areas: 0, avisos: 0 });
+
+    setPaginationBySection((current) => {
+      const nextPagination = { ...current };
+
+      responseSections.forEach((section) => {
+        nextPagination[section.key] = getSectionPagination(
+          section,
+          response,
+          page
+        );
+      });
+
+      return nextPagination;
+    });
+
+    setApiNotice('');
+  };
+
+  const loadCensus = async ({
+    silent = false,
+    forceRefresh = false,
+    page = 1,
+    append = false,
+    appendSectionKey = null,
+  } = {}) => {
+    const currentRequestId = requestIdRef.current + 1;
+    requestIdRef.current = currentRequestId;
+
+    const globalSearch = getGlobalSearch();
+    const cacheKey = getCacheKey(globalSearch, page);
+    const cachedData = censusCache.get(cacheKey);
+    const cacheIsValid =
+      cachedData &&
+      Date.now() - cachedData.timestamp < CACHE_TIME;
+
+    if (!forceRefresh && cacheIsValid) {
+      applyCensusResponse(cachedData.data, {
+        append,
+        appendSectionKey,
+        page,
+      });
+
       setLoading(false);
       setRefreshing(false);
+      setLoadingMoreBySection({});
+      return;
+    }
+
+    try {
+      if (!silent && !append && !cachedData) {
+        setLoading(true);
+      }
+
+      if (cachedData) {
+        applyCensusResponse(cachedData.data, {
+          append,
+          appendSectionKey,
+          page,
+        });
+      }
+
+      const response = await adminService.getCensus(
+        globalSearch,
+        page,
+        PATIENTS_PER_PAGE
+      );
+
+      if (currentRequestId !== requestIdRef.current) {
+        return;
+      }
+
+      censusCache.set(cacheKey, {
+        data: response,
+        timestamp: Date.now(),
+      });
+
+      applyCensusResponse(response, {
+        append,
+        appendSectionKey,
+        page,
+      });
+    } catch (error) {
+      if (currentRequestId !== requestIdRef.current) {
+        return;
+      }
+
+      if (cachedData) {
+        applyCensusResponse(cachedData.data, {
+          append,
+          appendSectionKey,
+          page,
+        });
+
+        setApiNotice('Mostrando información guardada en caché.');
+      } else if (!append) {
+        setApiNotice('Mostrando datos locales. No se pudo consultar el censo en la API.');
+        setSections(censusSections);
+      } else {
+        setApiNotice('No se pudieron cargar más pacientes desde la API.');
+      }
+    } finally {
+      if (currentRequestId === requestIdRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+        setLoadingMoreBySection({});
+      }
     }
   };
 
   useEffect(() => {
-    loadCensus();
-  }, []);
+    const hasSearch = getGlobalSearch().length > 0;
+    const delay = hasSearch ? 350 : 0;
+
+    const timer = setTimeout(() => {
+      setPagesBySection({
+        consulta: 1,
+        preparacion: 1,
+        recuperacion: 1,
+      });
+
+      loadCensus({
+        silent: hasSearch,
+        page: 1,
+      });
+    }, delay);
+
+    return () => clearTimeout(timer);
+  }, [searches]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadCensus({ silent: true });
+
+    setPagesBySection({
+      consulta: 1,
+      preparacion: 1,
+      recuperacion: 1,
+    });
+
+    loadCensus({
+      silent: true,
+      forceRefresh: true,
+      page: 1,
+    });
   };
 
   const updateSearch = (key, value) => {
     setSearches((current) => ({ ...current, [key]: value }));
   };
 
-  const renderPatient = (patient, accent, roomLabel, index) => (
-  <View
-    key={`${patient.id_atencion || patient.account}-${patient.Id_exp || patient.record}-${index}`}
-    style={styles.patientCard}
-  >
-    <View style={styles.patientTopRow}>
-      <View style={[styles.accountBadge, { backgroundColor: `${accent}18` }]}>
-        <Ionicons name="receipt-outline" size={16} color={accent} />
+  const loadMoreSection = (sectionKey) => {
+    const pagination = paginationBySection[sectionKey];
 
-        <Text style={[styles.accountText, { color: accent }]} selectable>
-          {patient.account}
-        </Text>
+    if (loadingMoreBySection[sectionKey] || !pagination?.has_more) {
+      return;
+    }
+
+    const nextPage = (pagesBySection[sectionKey] || 1) + 1;
+
+    setPagesBySection((current) => ({
+      ...current,
+      [sectionKey]: nextPage,
+    }));
+
+    setLoadingMoreBySection((current) => ({
+      ...current,
+      [sectionKey]: true,
+    }));
+
+    loadCensus({
+      silent: true,
+      page: nextPage,
+      append: true,
+      appendSectionKey: sectionKey,
+    });
+  };
+
+  const renderPatient = (patient, accent, roomLabel, index) => (
+    <View
+      key={`${patient.id_atencion || patient.account}-${patient.Id_exp || patient.record}-${index}`}
+      style={styles.patientCard}
+    >
+      <View style={styles.patientTopRow}>
+        <View style={[styles.accountBadge, { backgroundColor: `${accent}18` }]}>
+          <Ionicons name="receipt-outline" size={16} color={accent} />
+
+          <Text style={[styles.accountText, { color: accent }]} selectable>
+            {patient.account}
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          style={styles.smallAction}
+          onPress={() =>
+            Alert.alert(
+              'Vista pendiente',
+              'Aqui se conectara el alta del paciente.'
+            )
+          }
+        >
+          <Ionicons
+            name="checkmark-circle-outline"
+            size={18}
+            color="#48bb78"
+          />
+
+          <Text style={styles.smallActionText}>Alta</Text>
+        </TouchableOpacity>
       </View>
 
-      <TouchableOpacity
-        style={styles.smallAction}
-        onPress={() =>
-          Alert.alert(
-            'Vista pendiente',
-            'Aqui se conectara el alta del paciente.'
-          )
-        }
-      >
-        <Ionicons
-          name="checkmark-circle-outline"
-          size={18}
-          color="#48bb78"
-        />
-
-        <Text style={styles.smallActionText}>Alta</Text>
-      </TouchableOpacity>
-    </View>
-
-    <Text style={styles.patientName} selectable>
-      {patient.patient}
-    </Text>
-
-    <View style={styles.infoGrid}>
-      <InfoItem label={roomLabel} value={patient.room} />
-      <InfoItem label="Ingreso" value={patient.admittedAt} />
-      <InfoItem label="Edad" value={`${patient.age} anos`} />
-      <InfoItem label="Exp" value={patient.record} />
-      <InfoItem label="Medico" value={patient.doctor} />
-
-      <InfoItem
-        label="Aviso"
-        value={patient.notice}
-        strong={patient.notice !== 'Sin aviso'}
-      />
-    </View>
-
-    <View style={styles.reasonBox}>
-      <Text style={styles.reasonLabel}>Motivo</Text>
-
-      <Text style={styles.reasonText} selectable>
-        {patient.reason}
+      <Text style={styles.patientName} selectable>
+        {patient.patient}
       </Text>
+
+      <View style={styles.infoGrid}>
+        <InfoItem label={roomLabel} value={patient.room} />
+        <InfoItem label="Ingreso" value={patient.admittedAt} />
+        <InfoItem label="Edad" value={`${patient.age} anos`} />
+        <InfoItem label="Exp" value={patient.record} />
+        <InfoItem label="Medico" value={patient.doctor} />
+
+        <InfoItem
+          label="Aviso"
+          value={patient.notice}
+          strong={patient.notice !== 'Sin aviso'}
+        />
+      </View>
+
+      <View style={styles.reasonBox}>
+        <Text style={styles.reasonLabel}>Motivo</Text>
+
+        <Text style={styles.reasonText} selectable>
+          {patient.reason}
+        </Text>
+      </View>
     </View>
-  </View>
-);
+  );
 
   return (
     <ScrollView
@@ -229,10 +479,12 @@ const CensoScreen = ({ navigation }) => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
+
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Censo de Pacientes</Text>
           <Text style={styles.headerSubtitle}>Consulta, preparacion y recuperacion</Text>
         </View>
+
         <TouchableOpacity
           style={styles.headerButton}
           onPress={() => Alert.alert('Impresion pendiente', 'El PDF del censo se conectara cuando este lista la API.')}
@@ -264,14 +516,21 @@ const CensoScreen = ({ navigation }) => {
       {sections.map((section) => {
         const query = searches[section.key] || '';
 
-const filtered = (section.data || []).filter((patient) =>
-  matchesSearch(patient, query)
-);
+        const filtered = (section.data || []).filter((patient) =>
+          matchesSearch(patient, query)
+        );
 
-const visibleLimit =
-  visibleBySection[section.key] || PATIENTS_PER_PAGE;
+        const sectionPagination = paginationBySection[section.key] || {
+          total: filtered.length,
+          has_more: false,
+        };
 
-const visiblePatients = filtered.slice(0, visibleLimit);
+        const remainingPatients = Math.max(
+          (sectionPagination.total || filtered.length) - filtered.length,
+          0
+        );
+
+        const isLoadingMore = !!loadingMoreBySection[section.key];
 
         return (
           <View key={section.key} style={styles.section}>
@@ -280,13 +539,17 @@ const visiblePatients = filtered.slice(0, visibleLimit);
                 <Ionicons name={section.icon} size={22} color={section.accent} />
                 <Text style={styles.sectionTitle}>{section.title}</Text>
               </View>
+
               <View style={[styles.countPill, { backgroundColor: section.accent }]}>
-                <Text style={styles.countText}>{filtered.length}</Text>
+                <Text style={styles.countText}>
+                  {sectionPagination.total || filtered.length}
+                </Text>
               </View>
             </View>
 
             <View style={styles.searchBox}>
               <Ionicons name="search-outline" size={18} color="#a0aec0" />
+
               <TextInput
                 value={query}
                 onChangeText={(value) => updateSearch(section.key, value)}
@@ -296,58 +559,58 @@ const visiblePatients = filtered.slice(0, visibleLimit);
               />
             </View>
 
-            {visiblePatients.length ? (
-  <>
-    {visiblePatients.map((patient, index) =>
-      renderPatient(
-        patient,
-        section.accent,
-        section.roomLabel,
-        index
-      )
-    )}
+            {filtered.length ? (
+              <>
+                {filtered.map((patient, index) =>
+                  renderPatient(
+                    patient,
+                    section.accent,
+                    section.roomLabel,
+                    index
+                  )
+                )}
 
-    {visiblePatients.length < filtered.length ? (
-      <TouchableOpacity
-        style={styles.loadMoreButton}
-        onPress={() =>
-          setVisibleBySection((current) => ({
-            ...current,
-            [section.key]:
-              (current[section.key] || PATIENTS_PER_PAGE) +
-              PATIENTS_PER_PAGE,
-          }))
-        }
-      >
-        <Ionicons
-          name="chevron-down-outline"
-          size={18}
-          color="#667eea"
-        />
+                {sectionPagination.has_more ? (
+                  <TouchableOpacity
+                    style={styles.loadMoreButton}
+                    onPress={() => loadMoreSection(section.key)}
+                    disabled={isLoadingMore}
+                  >
+                    {isLoadingMore ? (
+                      <ActivityIndicator color="#667eea" />
+                    ) : (
+                      <Ionicons
+                        name="chevron-down-outline"
+                        size={18}
+                        color="#667eea"
+                      />
+                    )}
 
-        <Text style={styles.loadMoreText}>
-          Mostrar 20 más
-        </Text>
+                    <Text style={styles.loadMoreText}>
+                      {isLoadingMore
+                        ? 'Cargando...'
+                        : 'Mostrar 5 más'}
+                    </Text>
 
-        <Text style={styles.remainingText}>
-          {filtered.length - visiblePatients.length} restantes
-        </Text>
-      </TouchableOpacity>
-    ) : null}
-  </>
-) : (
-  <View style={styles.emptyState}>
-    <Ionicons
-      name="file-tray-outline"
-      size={34}
-      color="#a0aec0"
-    />
+                    <Text style={styles.remainingText}>
+                      {remainingPatients} restantes
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
+              </>
+            ) : (
+              <View style={styles.emptyState}>
+                <Ionicons
+                  name="file-tray-outline"
+                  size={34}
+                  color="#a0aec0"
+                />
 
-    <Text style={styles.emptyText}>
-      No hay pacientes para mostrar
-    </Text>
-  </View>
-)}
+                <Text style={styles.emptyText}>
+                  No hay pacientes para mostrar
+                </Text>
+              </View>
+            )}
           </View>
         );
       })}
@@ -369,6 +632,7 @@ const SummaryCard = ({ icon, label, value, color }) => (
     <View style={[styles.summaryIcon, { backgroundColor: `${color}18` }]}>
       <Ionicons name={icon} size={22} color={color} />
     </View>
+
     <Text style={styles.summaryValue}>{value}</Text>
     <Text style={styles.summaryLabel}>{label}</Text>
   </View>
@@ -387,29 +651,29 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   loadMoreButton: {
-  backgroundColor: '#fff',
-  borderRadius: 14,
-  minHeight: 52,
-  marginBottom: 12,
-  alignItems: 'center',
-  justifyContent: 'center',
-  flexDirection: 'row',
-  borderWidth: 1,
-  borderColor: '#c3dafe',
-},
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    minHeight: 52,
+    marginBottom: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: '#c3dafe',
+  },
 
-loadMoreText: {
-  color: '#667eea',
-  fontSize: 13,
-  fontWeight: '800',
-  marginLeft: 6,
-},
+  loadMoreText: {
+    color: '#667eea',
+    fontSize: 13,
+    fontWeight: '800',
+    marginLeft: 6,
+  },
 
-remainingText: {
-  color: '#718096',
-  fontSize: 11,
-  marginLeft: 8,
-},
+  remainingText: {
+    color: '#718096',
+    fontSize: 11,
+    marginLeft: 8,
+  },
   headerButton: {
     width: 42,
     height: 42,

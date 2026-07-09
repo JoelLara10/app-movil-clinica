@@ -13,6 +13,10 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
+import CacheService from '../../services/cacheService';
+
+const CACHE_KEY_PREFIX = 'historia_clinica_';
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 
 const HistoriaClinicaScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params;
@@ -46,11 +50,37 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
   const loadExistingData = async () => {
     try {
       setLoadingData(true);
+      const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}_${Id_exp}`;
+
+      // 1. Intentar obtener de caché primero
+      const cachedData = await CacheService.get(cacheKey);
+      if (cachedData) {
+        console.log('📦 Historia clínica cargada desde caché');
+        setFormData({
+          motivo_consulta: cachedData.motivo_consulta || '',
+          sintomatologia: cachedData.sintomatologia || [],
+          sintomatologia_otros: cachedData.sintomatologia_otros || '',
+          heredo: cachedData.heredo || [],
+          heredo_otros: cachedData.heredo_otros || '',
+          nopat: cachedData.nopat || [],
+          nopat_otros: cachedData.nopat_otros || '',
+          pat_enfermedades: cachedData.pat_enfermedades || '',
+          pat_medicamentos: cachedData.pat_medicamentos || '',
+          pat_alergias: cachedData.pat_alergias || '',
+          pat_oculares: cachedData.pat_oculares || '',
+          pat_cirugias: cachedData.pat_cirugias || '',
+        });
+        setLoadingData(false);
+        return;
+      }
+
+      // 2. Si no hay caché, cargar desde API
+      console.log('🌐 Cargando historia clínica desde API...');
       const response = await api.get(`/historia-clinica/${id_atencion}/${Id_exp}`);
       
       if (response.data && Object.keys(response.data).length > 0) {
         const data = response.data;
-        setFormData({
+        const parsedData = {
           motivo_consulta: data.motivo_consulta || '',
           sintomatologia: data.sintomatologia ? data.sintomatologia.split(',') : [],
           sintomatologia_otros: data.sintomatologia_otros || '',
@@ -63,10 +93,36 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
           pat_alergias: data.pat_alergias || '',
           pat_oculares: data.pat_oculares || '',
           pat_cirugias: data.pat_cirugias || '',
-        });
+        };
+
+        // Guardar en caché
+        await CacheService.set(cacheKey, parsedData, CACHE_TTL);
+        setFormData(parsedData);
       }
     } catch (error) {
       console.error('Error loading historia clinica:', error);
+      
+      // 3. Si falla la API, intentar cargar desde caché aunque esté expirada
+      const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}_${Id_exp}`;
+      const cachedData = await CacheService.get(cacheKey);
+      if (cachedData) {
+        console.log('📦 Historia clínica cargada desde caché (fallback)');
+        setFormData({
+          motivo_consulta: cachedData.motivo_consulta || '',
+          sintomatologia: cachedData.sintomatologia || [],
+          sintomatologia_otros: cachedData.sintomatologia_otros || '',
+          heredo: cachedData.heredo || [],
+          heredo_otros: cachedData.heredo_otros || '',
+          nopat: cachedData.nopat || [],
+          nopat_otros: cachedData.nopat_otros || '',
+          pat_enfermedades: cachedData.pat_enfermedades || '',
+          pat_medicamentos: cachedData.pat_medicamentos || '',
+          pat_alergias: cachedData.pat_alergias || '',
+          pat_oculares: cachedData.pat_oculares || '',
+          pat_cirugias: cachedData.pat_cirugias || '',
+        });
+        Alert.alert('Sin conexión', 'Mostrando datos guardados previamente');
+      }
     } finally {
       setLoadingData(false);
     }
@@ -103,6 +159,10 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
       
       const response = await api.post(`/historia-clinica/${id_atencion}/${Id_exp}`, dataToSend);
       if (response.data) {
+        // Actualizar caché después de guardar
+        const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}_${Id_exp}`;
+        await CacheService.set(cacheKey, formData, CACHE_TTL);
+        
         Alert.alert('Éxito', 'Historia clínica guardada correctamente');
         navigation.goBack();
       }
@@ -169,7 +229,13 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
         <Text style={styles.headerTitle}>
           <Ionicons name="document-text-outline" size={20} color="#fff" /> Historia Clínica
         </Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity
+          onPress={loadExistingData}
+          style={styles.backButton}
+          disabled={loadingData}
+        >
+          <Ionicons name="refresh-outline" size={22} color="#fff" />
+        </TouchableOpacity>
       </LinearGradient>
 
       <View style={styles.mainCard}>

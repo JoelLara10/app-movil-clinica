@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   ActivityIndicator,
@@ -96,7 +96,9 @@ const money = (value) =>
     .toFixed(2)
     .replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 5;
+const CACHE_TIME = 1000 * 60 * 5;
+const cashCutCache = new Map();
 
 const CorteCajaScreen = ({ navigation }) => {
   const [search, setSearch] = useState('');
@@ -109,52 +111,246 @@ const CorteCajaScreen = ({ navigation }) => {
   });
 
   const [loading, setLoading] = useState(true);
+  const [loadingMoreMovements, setLoadingMoreMovements] = useState(false);
+  const [loadingMoreAccounts, setLoadingMoreAccounts] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [apiNotice, setApiNotice] = useState('');
 
-  const [visibleMovements, setVisibleMovements] =
-    useState(ITEMS_PER_PAGE);
+  const [movementsPage, setMovementsPage] = useState(1);
+  const [accountsPage, setAccountsPage] = useState(1);
 
-  const [visibleAccounts, setVisibleAccounts] =
-    useState(ITEMS_PER_PAGE);
+  const [movementsPagination, setMovementsPagination] = useState({
+    page: 1,
+    limit: ITEMS_PER_PAGE,
+    total: movements.length,
+    total_pages: 1,
+    has_more: false,
+  });
 
-  const loadCashCut = async ({ silent = false } = {}) => {
+  const [accountsPagination, setAccountsPagination] = useState({
+    page: 1,
+    limit: ITEMS_PER_PAGE,
+    total: activeAccounts.length,
+    total_pages: 1,
+    has_more: false,
+  });
+
+  const requestIdRef = useRef(0);
+
+  const getCacheKey = (value = '', page = 1) =>
+    `${value.trim().toLowerCase()}::${page}`;
+
+  const normalizeCashCutResponse = (response) => ({
+    period: response.period || { label: '' },
+    summary: response.summary,
+    movements: response.movements || response.data || [],
+    activeAccounts: response.activeAccounts || response.accounts || [],
+  });
+
+  const getMovementsPagination = (response, page) =>
+    response.movements_pagination ||
+    response.cash_cut_pagination ||
+    response.corte_caja_pagination ||
+    response.data_pagination ||
+    response.pagination || {
+      page,
+      limit: ITEMS_PER_PAGE,
+      total: response.movements?.length || 0,
+      total_pages: page,
+      has_more: false,
+    };
+
+  const getAccountsPagination = (response, page) =>
+    response.activeAccounts_pagination ||
+    response.accounts_pagination ||
+    response.patients_pagination ||
+    response.data_pagination ||
+    response.pagination || {
+      page,
+      limit: ITEMS_PER_PAGE,
+      total: response.activeAccounts?.length || 0,
+      total_pages: page,
+      has_more: false,
+    };
+
+  const mergeByKey = (currentItems, newItems, keyFactory) => {
+    const map = new Map();
+
+    [...currentItems, ...newItems].forEach((item, index) => {
+      const key = keyFactory(item, index);
+      map.set(key, item);
+    });
+
+    return Array.from(map.values());
+  };
+
+  const applyCashCutResponse = (
+    response,
+    {
+      append = false,
+      page = 1,
+      appendType = 'all',
+    } = {}
+  ) => {
+    const normalized = normalizeCashCutResponse(response);
+
+    setCashCut((current) => {
+      if (!append) {
+        return normalized;
+      }
+
+      const nextMovements =
+        appendType === 'movements' || appendType === 'all'
+          ? mergeByKey(
+              current.movements || [],
+              normalized.movements || [],
+              (item, index) =>
+                `${item.id || item.id_movimiento || item.id_atencion || 'movement'}-${index}`
+            )
+          : current.movements || [];
+
+      const nextAccounts =
+        appendType === 'accounts' || appendType === 'all'
+          ? mergeByKey(
+              current.activeAccounts || [],
+              normalized.activeAccounts || [],
+              (item, index) =>
+                `${item.id_atencion || item.attention || item.record || 'account'}-${index}`
+            )
+          : current.activeAccounts || [];
+
+      return {
+        period: normalized.period || current.period,
+        summary: normalized.summary || current.summary,
+        movements: nextMovements,
+        activeAccounts: nextAccounts,
+      };
+    });
+
+    if (appendType === 'movements' || appendType === 'all') {
+      setMovementsPagination(getMovementsPagination(response, page));
+    }
+
+    if (appendType === 'accounts' || appendType === 'all') {
+      setAccountsPagination(getAccountsPagination(response, page));
+    }
+
+    setApiNotice('');
+  };
+
+  const loadCashCut = async ({
+    silent = false,
+    forceRefresh = false,
+    page = 1,
+    append = false,
+    appendType = 'all',
+  } = {}) => {
+    const currentRequestId = requestIdRef.current + 1;
+    requestIdRef.current = currentRequestId;
+
+    const cacheKey = getCacheKey(search, page);
+    const cachedData = cashCutCache.get(cacheKey);
+    const cacheIsValid =
+      cachedData &&
+      Date.now() - cachedData.timestamp < CACHE_TIME;
+
+    if (!forceRefresh && cacheIsValid) {
+      applyCashCutResponse(cachedData.data, {
+        append,
+        page,
+        appendType,
+      });
+
+      setLoading(false);
+      setRefreshing(false);
+      setLoadingMoreMovements(false);
+      setLoadingMoreAccounts(false);
+      return;
+    }
+
     try {
-      if (!silent) {
+      if (!silent && !append && !cachedData) {
         setLoading(true);
+      }
+
+      if (cachedData) {
+        applyCashCutResponse(cachedData.data, {
+          append,
+          page,
+          appendType,
+        });
       }
 
       const response = await adminService.getCashCut({
         search,
+        page,
+        limit: ITEMS_PER_PAGE,
       });
 
-      setCashCut({
-        period: response.period || { label: '' },
-        summary: response.summary,
-        movements: response.movements || [],
-        activeAccounts: response.activeAccounts || [],
+      if (currentRequestId !== requestIdRef.current) {
+        return;
+      }
+
+      cashCutCache.set(cacheKey, {
+        data: response,
+        timestamp: Date.now(),
       });
 
-      setVisibleMovements(ITEMS_PER_PAGE);
-      setVisibleAccounts(ITEMS_PER_PAGE);
-      setApiNotice('');
+      applyCashCutResponse(response, {
+        append,
+        page,
+        appendType,
+      });
     } catch (error) {
-      setApiNotice(
-        'Mostrando datos locales. No se pudo consultar el corte en la API.'
-      );
+      if (currentRequestId !== requestIdRef.current) {
+        return;
+      }
 
-      setCashCut({
-        period: { label: '17 Jun 2026' },
-        summary: null,
-        movements,
-        activeAccounts,
-      });
+      if (cachedData) {
+        applyCashCutResponse(cachedData.data, {
+          append,
+          page,
+          appendType,
+        });
 
-      setVisibleMovements(ITEMS_PER_PAGE);
-      setVisibleAccounts(ITEMS_PER_PAGE);
+        setApiNotice('Mostrando información guardada en caché.');
+      } else if (!append) {
+        setApiNotice(
+          'Mostrando datos locales. No se pudo consultar el corte en la API.'
+        );
+
+        setCashCut({
+          period: { label: '17 Jun 2026' },
+          summary: null,
+          movements,
+          activeAccounts,
+        });
+
+        setMovementsPagination({
+          page: 1,
+          limit: ITEMS_PER_PAGE,
+          total: movements.length,
+          total_pages: 1,
+          has_more: false,
+        });
+
+        setAccountsPagination({
+          page: 1,
+          limit: ITEMS_PER_PAGE,
+          total: activeAccounts.length,
+          total_pages: 1,
+          has_more: false,
+        });
+      } else {
+        setApiNotice('No se pudieron cargar más registros desde la API.');
+      }
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (currentRequestId === requestIdRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+        setLoadingMoreMovements(false);
+        setLoadingMoreAccounts(false);
+      }
     }
   };
 
@@ -163,8 +359,12 @@ const CorteCajaScreen = ({ navigation }) => {
     const delay = hasSearch ? 350 : 0;
 
     const timer = setTimeout(() => {
+      setMovementsPage(1);
+      setAccountsPage(1);
+
       loadCashCut({
         silent: hasSearch,
+        page: 1,
       });
     }, delay);
 
@@ -173,7 +373,50 @@ const CorteCajaScreen = ({ navigation }) => {
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadCashCut({ silent: true });
+    setMovementsPage(1);
+    setAccountsPage(1);
+
+    loadCashCut({
+      silent: true,
+      forceRefresh: true,
+      page: 1,
+    });
+  };
+
+  const loadMoreMovements = () => {
+    if (loadingMoreMovements || !movementsPagination.has_more) {
+      return;
+    }
+
+    const nextPage = movementsPage + 1;
+
+    setMovementsPage(nextPage);
+    setLoadingMoreMovements(true);
+
+    loadCashCut({
+      silent: true,
+      page: nextPage,
+      append: true,
+      appendType: 'movements',
+    });
+  };
+
+  const loadMoreAccounts = () => {
+    if (loadingMoreAccounts || !accountsPagination.has_more) {
+      return;
+    }
+
+    const nextPage = accountsPage + 1;
+
+    setAccountsPage(nextPage);
+    setLoadingMoreAccounts(true);
+
+    loadCashCut({
+      silent: true,
+      page: nextPage,
+      append: true,
+      appendType: 'accounts',
+    });
   };
 
   const totals = useMemo(() => {
@@ -195,10 +438,12 @@ const CorteCajaScreen = ({ navigation }) => {
     return {
       income,
       pending,
-      movements: cashCut.movements.length,
-      accounts: cashCut.activeAccounts.length,
+      movements:
+        movementsPagination.total || cashCut.movements.length,
+      accounts:
+        accountsPagination.total || cashCut.activeAccounts.length,
     };
-  }, [cashCut]);
+  }, [cashCut, movementsPagination, accountsPagination]);
 
   const filteredAccounts = cashCut.activeAccounts.filter(
     (account) => {
@@ -212,21 +457,21 @@ const CorteCajaScreen = ({ navigation }) => {
     }
   );
 
-  const visibleMovementItems = cashCut.movements.slice(
-    0,
-    visibleMovements
+  const visibleMovementItems = cashCut.movements;
+
+  const visibleAccountItems = filteredAccounts;
+
+  const remainingMovements = Math.max(
+    (movementsPagination.total || cashCut.movements.length) -
+      visibleMovementItems.length,
+    0
   );
 
-  const visibleAccountItems = filteredAccounts.slice(
-    0,
-    visibleAccounts
+  const remainingAccounts = Math.max(
+    (accountsPagination.total || filteredAccounts.length) -
+      visibleAccountItems.length,
+    0
   );
-
-  const remainingMovements =
-    cashCut.movements.length - visibleMovementItems.length;
-
-  const remainingAccounts =
-    filteredAccounts.length - visibleAccountItems.length;
 
   return (
     <ScrollView
@@ -450,20 +695,23 @@ const CorteCajaScreen = ({ navigation }) => {
         {remainingMovements > 0 ? (
           <TouchableOpacity
             style={styles.loadMoreButton}
-            onPress={() =>
-              setVisibleMovements(
-                (current) => current + ITEMS_PER_PAGE
-              )
-            }
+            onPress={loadMoreMovements}
+            disabled={loadingMoreMovements}
           >
-            <Ionicons
-              name="chevron-down-outline"
-              size={18}
-              color="#667eea"
-            />
+            {loadingMoreMovements ? (
+              <ActivityIndicator color="#667eea" />
+            ) : (
+              <Ionicons
+                name="chevron-down-outline"
+                size={18}
+                color="#667eea"
+              />
+            )}
 
             <Text style={styles.loadMoreText}>
-              Mostrar 20 movimientos más
+              {loadingMoreMovements
+                ? 'Cargando...'
+                : 'Mostrar 5 movimientos más'}
             </Text>
 
             <Text style={styles.remainingText}>
@@ -573,20 +821,23 @@ const CorteCajaScreen = ({ navigation }) => {
         {remainingAccounts > 0 ? (
           <TouchableOpacity
             style={styles.loadMoreButton}
-            onPress={() =>
-              setVisibleAccounts(
-                (current) => current + ITEMS_PER_PAGE
-              )
-            }
+            onPress={loadMoreAccounts}
+            disabled={loadingMoreAccounts}
           >
-            <Ionicons
-              name="chevron-down-outline"
-              size={18}
-              color="#667eea"
-            />
+            {loadingMoreAccounts ? (
+              <ActivityIndicator color="#667eea" />
+            ) : (
+              <Ionicons
+                name="chevron-down-outline"
+                size={18}
+                color="#667eea"
+              />
+            )}
 
             <Text style={styles.loadMoreText}>
-              Mostrar 20 cuentas más
+              {loadingMoreAccounts
+                ? 'Cargando...'
+                : 'Mostrar 5 cuentas más'}
             </Text>
 
             <Text style={styles.remainingText}>

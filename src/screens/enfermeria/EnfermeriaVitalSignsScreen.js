@@ -1,4 +1,4 @@
-// src/screens/medico/VitalSignsScreen.js
+// src/screens/enfermeria/EnfermeriaVitalSignsScreen.js
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -18,16 +18,16 @@ import CacheService from "../../services/cacheService";
 import Pagination from "../../components/Pagination";
 import moment from "moment";
 
-const CACHE_KEY_PREFIX = "vital_signs_";
+const CACHE_KEY_PREFIX = "enfermeria_vital_signs_";
 const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
 const HISTORY_ITEMS_PER_PAGE = 5;
 
-const VitalSignsScreen = ({ navigation, route }) => {
+const EnfermeriaVitalSignsScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params || {};
 
   // ==================== DEBUG ====================
   useEffect(() => {
-    console.log("🔍 VitalSignsScreen - Params recibidos:", {
+    console.log("🔍 EnfermeriaVitalSignsScreen - Params recibidos:", {
       id_atencion,
       Id_exp,
       fullParams: route.params,
@@ -62,12 +62,15 @@ const VitalSignsScreen = ({ navigation, route }) => {
       if (!forceRefresh) {
         const cachedData = await CacheService.get(cacheKey);
         if (cachedData) {
+          console.log('📦 Signos vitales (enfermería) cargados desde caché');
           setHistory(cachedData);
           if (forceRefresh) setCurrentHistoryPage(1);
+          setLoadingHistory(false);
           return;
         }
       }
 
+      console.log('🌐 Cargando signos vitales (enfermería) desde API...');
       const response = await api.get(`/appointments/${id_atencion}/vital-signs`);
       await CacheService.set(cacheKey, response.data, CACHE_TTL);
       setHistory(response.data || []);
@@ -75,7 +78,10 @@ const VitalSignsScreen = ({ navigation, route }) => {
     } catch (error) {
       console.error("Error loading vital signs history:", error);
       const cachedData = await CacheService.get(`${CACHE_KEY_PREFIX}${id_atencion}`);
-      if (cachedData) setHistory(cachedData);
+      if (cachedData) {
+        console.log('📦 Signos vitales (enfermería) cargados desde caché (fallback)');
+        setHistory(cachedData);
+      }
     } finally {
       setLoadingHistory(false);
     }
@@ -111,6 +117,8 @@ const VitalSignsScreen = ({ navigation, route }) => {
     Object.keys(dataToSend).forEach((key) => {
       if (dataToSend[key] === null) delete dataToSend[key];
     });
+
+    console.log('📤 Enviando signos vitales (enfermería):', dataToSend);
 
     setLoading(true);
     try {
@@ -186,7 +194,7 @@ const VitalSignsScreen = ({ navigation, route }) => {
   const totalHistoryPages = Math.ceil(history.length / HISTORY_ITEMS_PER_PAGE);
   const paginatedHistory = history.slice(
     (currentHistoryPage - 1) * HISTORY_ITEMS_PER_PAGE,
-    currentHistoryPage * HISTORY_ITEMS_PER_PAGE
+    currentHistoryPage * HISTORY_ITEMS_PER_PAGE,
   );
 
   useEffect(() => {
@@ -218,7 +226,7 @@ const VitalSignsScreen = ({ navigation, route }) => {
         <TouchableOpacity
           onPress={() => loadVitalSignsHistory(true)}
           style={styles.backButton}
-          disabled={loadingHistory}
+          disabled={loading || loadingHistory}
         >
           <Ionicons name="refresh-outline" size={22} color="#fff" />
         </TouchableOpacity>
@@ -411,7 +419,7 @@ const VitalSignsScreen = ({ navigation, route }) => {
       {/* Historial de Signos Vitales */}
       <View style={styles.historyCard}>
         <LinearGradient
-          colors={["#4299e1", "#3182ce"]}
+          colors={["#f56565", "#f56565"]}
           style={styles.historyHeaderGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
@@ -448,7 +456,7 @@ const VitalSignsScreen = ({ navigation, route }) => {
               data={paginatedHistory}
               renderItem={renderHistoryItem}
               keyExtractor={(item, index) =>
-                item.id_signos?.toString() || `vital-sign-${index}`
+                item.id_signos?.toString() || index.toString()
               }
               scrollEnabled={false}
               initialNumToRender={HISTORY_ITEMS_PER_PAGE}
@@ -737,4 +745,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default VitalSignsScreen;
+export default EnfermeriaVitalSignsScreen;

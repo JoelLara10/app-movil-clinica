@@ -14,6 +14,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
+import { getCache, setCache, CacheKeys, invalidateCachePrefix, removeCache } from '../../services/EstudiosCache';
+import Pagination from '../../components/Pagination'; // Ajusta la ruta según tu estructura
 
 const SECTIONS = [
   { id: 'solicitudes_lab', label: 'Solicitudes Lab', icon: '🧪' },
@@ -45,22 +47,28 @@ const SECTION_CONFIG = {
   },
 };
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 5;                // Registros por página
+const FETCH_ALL_LIMIT = 9999;       // Obtener todos los registros de una vez
 
-const EstudiosScreen = ({ navigation }) => {
+const EstudiosScreen = ({ navigation, route }) => {
   const { user } = useAuth();
   const [selectedSection, setSelectedSection] = useState('solicitudes_lab');
-  const [items, setItems] = useState([]);
+  const [allItems, setAllItems] = useState([]);      // Todos los registros de la sección
+  const [currentPage, setCurrentPage] = useState(1);
   const [counts, setCounts] = useState({ laboratorio: 0, gabinete: 0, total: 0 });
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
 
   const initialLoadDone = useRef(false);
   const skipFocusRefresh = useRef(false);
+
+  useEffect(() => {
+    const initialSection = route?.params?.initialSection;
+    if (initialSection && SECTION_CONFIG[initialSection] && initialSection !== selectedSection) {
+      setSelectedSection(initialSection);
+    }
+  }, [route?.params?.initialSection, selectedSection]);
 
   const normalizeItem = (item = {}) => ({
     id_examen: item.id_examen ?? item._id ?? '',
@@ -79,98 +87,101 @@ const EstudiosScreen = ({ navigation }) => {
   });
 
   // ============================================================
-  //  loadData - AHORA ORDENA POR FECHA (más reciente primero)
+  //  Carga TODOS los registros desde caché o API
   // ============================================================
-  const loadData = useCallback(async (pageNum = 1, append = false) => {
+  const loadAllData = useCallback(async (force = false) => {
     const config = SECTION_CONFIG[selectedSection];
     if (!config) {
-      setItems([]);
+      setAllItems([]);
       setError('Sección inválida');
       return;
     }
 
+    const cacheKey = CacheKeys.estudiosAll(
+      config.type,
+      config.isPending ? 'pending' : 'completed'
+    );
+
     try {
-      if (pageNum === 1) {
-        setLoading(true);
-        setItems([]);
-      } else {
-        setLoadingMore(true);
-      }
+      setLoading(true);
       setError('');
 
-      const response = await api.get(`/exams${config.endpoint}`, {
-        params: {
-          type: config.type,
-          page: pageNum,
-          limit: PAGE_SIZE,
-        },
-      });
+      let data = null;
+      if (!force) {
+        const cached = await getCache(cacheKey);
+        if (cached) {
+          data = cached;
+          console.log(`📦 Carga desde caché: ${cacheKey}`);
+        }
+      }
 
-      const data = Array.isArray(response.data) ? response.data : [];
+      if (!data) {
+        console.log(`🌐 Cargando desde API para ${selectedSection}...`);
+        const response = await api.get(`/exams${config.endpoint}`, {
+          params: {
+            type: config.type,
+            page: 1,
+            limit: FETCH_ALL_LIMIT,
+          },
+        });
+        data = Array.isArray(response.data) ? response.data : [];
+        await setCache(cacheKey, data);
+        console.log(`💾 Guardado en caché: ${cacheKey} (${data.length} registros)`);
+      }
+
+      // Normalizar y ordenar por fecha (más reciente primero)
       let normalized = data.map(normalizeItem);
-
-      // 🔥 ORDENAR POR FECHA (más reciente primero)
-      // Si no hay fecha, se coloca al final
       normalized.sort((a, b) => {
         const dateA = a.fecha ? new Date(a.fecha).getTime() : 0;
         const dateB = b.fecha ? new Date(b.fecha).getTime() : 0;
-        return dateB - dateA; // descendente
+        return dateB - dateA;
       });
 
-      if (append) {
-        setItems(prev => {
-          const existingIds = new Set(prev.map(item => item.id_examen));
-          const newItems = normalized.filter(item => !existingIds.has(item.id_examen));
-          // También ordenamos el conjunto completo por si acaso
-          const merged = [...prev, ...newItems];
-          merged.sort((a, b) => {
-            const dateA = a.fecha ? new Date(a.fecha).getTime() : 0;
-            const dateB = b.fecha ? new Date(b.fecha).getTime() : 0;
-            return dateB - dateA;
-          });
-          return merged;
-        });
-      } else {
-        setItems(normalized);
-      }
-
-      setHasMore(data.length === PAGE_SIZE);
-      setPage(pageNum);
+      setAllItems(normalized);
+      setCurrentPage(1); // Reiniciar a primera página
     } catch (err) {
-      const data = err.response?.data;
-      setError(data?.error || 'No se pudieron cargar los estudios.');
-      if (pageNum === 1) setItems([]);
+      const errorMsg = err.response?.data?.error || 'No se pudieron cargar los estudios.';
+      setError(errorMsg);
+      setAllItems([]);
     } finally {
       setLoading(false);
-      setLoadingMore(false);
     }
   }, [selectedSection]);
 
   // ============================================================
-  //  loadCounts
+  //  Carga de contadores (con caché)
   // ============================================================
-  const loadCounts = useCallback(async () => {
+  const loadCounts = useCallback(async (force = false) => {
     try {
+      if (!force) {
+        const cached = await getCache(CacheKeys.counts);
+        if (cached) {
+          setCounts(cached);
+          return;
+        }
+      }
       const response = await api.get('/exams/counts');
-      setCounts({
+      const counts = {
         laboratorio: response.data?.laboratorio ?? 0,
         gabinete: response.data?.gabinete ?? 0,
         total: response.data?.total ?? 0,
-      });
+      };
+      setCounts(counts);
+      await setCache(CacheKeys.counts, counts);
     } catch (error) {
       console.error('Error loading counts:', error);
     }
   }, []);
 
   // ============================================================
-  //  EFECTOS
+  //  Efectos
   // ============================================================
   useEffect(() => {
     skipFocusRefresh.current = false;
-    loadData(1, false);
+    loadAllData();
     loadCounts();
     initialLoadDone.current = true;
-  }, [selectedSection, loadData, loadCounts]);
+  }, [selectedSection, loadAllData, loadCounts]);
 
   useFocusEffect(
     useCallback(() => {
@@ -179,26 +190,27 @@ const EstudiosScreen = ({ navigation }) => {
         skipFocusRefresh.current = false;
         return;
       }
-      loadData(1, false);
+      loadAllData();
       loadCounts();
-    }, [loadData, loadCounts])
+    }, [loadAllData, loadCounts])
   );
 
   // ============================================================
-  //  HANDLERS
+  //  Handlers
   // ============================================================
   const onRefresh = async () => {
     setRefreshing(true);
     skipFocusRefresh.current = true;
-    await Promise.all([loadData(1, false), loadCounts()]);
+    await Promise.all([
+      loadAllData(true),   // forzar recarga desde API
+      loadCounts(true)
+    ]);
     setRefreshing(false);
     skipFocusRefresh.current = false;
   };
 
-  const loadMore = () => {
-    if (!loadingMore && !loading && hasMore) {
-      loadData(page + 1, true);
-    }
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
   };
 
   const handleUpload = (id_examen) => {
@@ -219,7 +231,6 @@ const EstudiosScreen = ({ navigation }) => {
     navigation.navigate(screen, { id_examen, tipo });
   };
 
-  // 🔥 ELIMINAR CON CONFIRMACIÓN
   const handleDelete = (id_examen) => {
     const tipo = selectedSection.includes('lab') ? 'laboratorio' : 'gabinete';
     Alert.alert(
@@ -233,9 +244,10 @@ const EstudiosScreen = ({ navigation }) => {
           onPress: async () => {
             try {
               await api.delete(`/exams/${id_examen}/results?type=${tipo}`);
-              // Recargar datos después de eliminar
-              loadData(1, false);
-              loadCounts();
+              await invalidateCachePrefix('estudios_all_');
+              await removeCache(CacheKeys.counts);
+              await loadAllData(true);
+              await loadCounts(true);
             } catch (error) {
               Alert.alert('Error', 'No se pudo eliminar el resultado. Intenta de nuevo.');
             }
@@ -246,7 +258,18 @@ const EstudiosScreen = ({ navigation }) => {
   };
 
   // ============================================================
-  //  RENDER
+  //  Obtener datos paginados según página actual
+  // ============================================================
+  const getPaginatedItems = () => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const end = start + PAGE_SIZE;
+    return allItems.slice(start, end);
+  };
+
+  const totalPages = Math.ceil(allItems.length / PAGE_SIZE);
+
+  // ============================================================
+  //  Render
   // ============================================================
   const renderItem = ({ item }) => {
     const isPending = selectedSection.startsWith('solicitudes');
@@ -317,16 +340,6 @@ const EstudiosScreen = ({ navigation }) => {
     );
   };
 
-  const renderFooter = () => {
-    if (!loadingMore) return null;
-    return (
-      <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" />
-        <Text style={styles.footerText}>Cargando más...</Text>
-      </View>
-    );
-  };
-
   const renderEmpty = () => {
     const isPending = selectedSection.startsWith('solicitudes');
     return (
@@ -341,6 +354,8 @@ const EstudiosScreen = ({ navigation }) => {
       </View>
     );
   };
+
+  const paginatedItems = getPaginatedItems();
 
   return (
     <View style={styles.container}>
@@ -397,28 +412,36 @@ const EstudiosScreen = ({ navigation }) => {
             <Text style={styles.emptyText}>{error}</Text>
           </View>
         ) : (
-          <FlatList
-            key={selectedSection}
-            data={items}
-            renderItem={renderItem}
-            keyExtractor={(item, index) => `${item.id_examen}_${index}`}
-            contentContainerStyle={styles.listContent}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-            ListEmptyComponent={
-              loading ? (
-                <View style={styles.loadingBox}>
-                  <ActivityIndicator size="large" />
-                  <Text style={styles.loadingText}>Cargando estudios...</Text>
-                </View>
-              ) : (
-                renderEmpty()
-              )
-            }
-            ListFooterComponent={renderFooter}
-            onEndReached={loadMore}
-            onEndReachedThreshold={0.2}
-            extraData={selectedSection}
-          />
+          <>
+            <FlatList
+              key={selectedSection}
+              data={paginatedItems}
+              renderItem={renderItem}
+              keyExtractor={(item, index) => `${item.id_examen}_${index}`}
+              contentContainerStyle={styles.listContent}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+              ListEmptyComponent={
+                loading ? (
+                  <View style={styles.loadingBox}>
+                    <ActivityIndicator size="large" />
+                    <Text style={styles.loadingText}>Cargando estudios...</Text>
+                  </View>
+                ) : (
+                  renderEmpty()
+                )
+              }
+              extraData={selectedSection}
+            />
+            {totalPages > 1 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                itemsPerPage={PAGE_SIZE}
+                totalItems={allItems.length}
+              />
+            )}
+          </>
         )}
       </View>
     </View>

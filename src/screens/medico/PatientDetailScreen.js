@@ -1,3 +1,4 @@
+// src/screens/medico/PatientDetailScreen.js
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -11,27 +12,50 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../../services/api";
+import CacheService from "../../services/cacheService";
 import moment from "moment";
 import "moment/locale/es";
 import { usePatient } from "../../context/PatientContext";
 
 moment.locale("es");
 
+const CACHE_KEY_PREFIX = 'patient_detail_';
+const CACHE_TTL = 2 * 60 * 1000;
+
 const PatientDetailScreen = ({ navigation, route }) => {
-  const { id_atencion, Id_exp } = route.params;
+  const { id_atencion, Id_exp } = route.params || {};
   const [patient, setPatient] = useState(null);
   const [loading, setLoading] = useState(true);
-  const { setSelectedPatient } = usePatient();
+  const { setSelectedPatient, selectPatient } = usePatient(); // ← Usamos selectPatient si existe
 
   useEffect(() => {
+    if (id_atencion && Id_exp) {
+      // Guardar correctamente en el contexto
+      setSelectedPatient({ 
+        id_atencion, 
+        Id_exp 
+      });
+      
+      // También puedes usar selectPatient si lo tienes
+      // selectPatient({ id_atencion, Id_exp });
+    }
     loadPatientData();
-    setSelectedPatient({ id_atencion, Id_exp });
-  }, []);
+  }, [id_atencion, Id_exp]);
 
   const loadPatientData = async () => {
     try {
-      // Usar la URL correcta según tu list_routes.py: /paciente/{id_atencion}/{Id_exp}
+      const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}_${Id_exp}`;
+      
+      const cachedData = await CacheService.get(cacheKey);
+      if (cachedData) {
+        setPatient(cachedData);
+        setLoading(false);
+        return;
+      }
+
       const response = await api.get(`/paciente/${id_atencion}/${Id_exp}`);
+      
+      await CacheService.set(cacheKey, response.data, CACHE_TTL);
       setPatient(response.data);
     } catch (error) {
       console.error("Error loading patient:", error);
@@ -98,9 +122,7 @@ const PatientDetailScreen = ({ navigation, route }) => {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#667eea" />
-        <Text style={styles.loadingText}>
-          Cargando información del paciente...
-        </Text>
+        <Text style={styles.loadingText}>Cargando información del paciente...</Text>
       </View>
     );
   }
@@ -112,17 +134,13 @@ const PatientDetailScreen = ({ navigation, route }) => {
 
   return (
     <ScrollView style={styles.container}>
-      {/* Header */}
+      {/* Header - igual */}
       <LinearGradient colors={["#667eea", "#764ba2"]} style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          <Ionicons name="person-outline" size={20} color="#fff" /> Detalle del
-          Paciente
+          <Ionicons name="person-outline" size={20} color="#fff" /> Detalle del Paciente
         </Text>
         <View style={{ width: 40 }} />
       </LinearGradient>
@@ -222,8 +240,7 @@ const PatientDetailScreen = ({ navigation, route }) => {
       {/* Acciones médicas */}
       <View style={styles.modulesContainer}>
         <Text style={styles.modulesTitle}>
-          <Ionicons name="flash-outline" size={18} color="#667eea" /> Acciones
-          Médicas
+          <Ionicons name="flash-outline" size={18} color="#667eea" /> Acciones Médicas
         </Text>
         <View style={styles.modulesGrid}>
           {modules.map((mod, index) => (
@@ -233,15 +250,11 @@ const PatientDetailScreen = ({ navigation, route }) => {
               onPress={() =>
                 navigation.navigate(mod.screen, {
                   id_atencion,
+                  Id_exp,   // ← Aseguramos que se pase también aquí
                 })
               }
             >
-              <View
-                style={[
-                  styles.moduleIcon,
-                  { backgroundColor: mod.color + "20" },
-                ]}
-              >
+              <View style={[styles.moduleIcon, { backgroundColor: mod.color + "20" }]}>
                 <Ionicons name={mod.icon} size={24} color={mod.color} />
               </View>
               <Text style={[styles.moduleTitle, { color: mod.color }]}>

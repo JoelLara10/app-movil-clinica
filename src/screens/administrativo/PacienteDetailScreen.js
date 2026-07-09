@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   ActivityIndicator,
@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import adminService from '../../services/adminService';
@@ -42,6 +43,12 @@ const documents = [
   { title: 'Ficha', icon: 'id-card-outline', color: '#9f7aea' },
 ];
 
+const ACCOUNTS_PER_PAGE = 5;
+const CACHE_TIME = 1000 * 60 * 5;
+const accountsMemoryCache = new Map();
+const accountDetailMemoryCache = new Map();
+const optionsMemoryCache = new Map();
+
 const money = (value) => `$${Number(value || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 
 const normalizePatient = (patient = {}) => ({
@@ -52,14 +59,125 @@ const normalizePatient = (patient = {}) => ({
   record: patient.record || patient.Id_exp || fallbackPatient.record,
 });
 
+const getAsyncCacheKey = (key) => `paciente_detail_cache_${key}`;
+
+const getCacheItem = async (memoryCache, key) => {
+  const memoryItem = memoryCache.get(key);
+
+  if (memoryItem && Date.now() - memoryItem.timestamp < CACHE_TIME) {
+    return memoryItem.data;
+  }
+
+  try {
+    const rawValue = await AsyncStorage.getItem(getAsyncCacheKey(key));
+
+    if (!rawValue) {
+      return null;
+    }
+
+    const parsedValue = JSON.parse(rawValue);
+
+    if (!parsedValue?.timestamp || Date.now() - parsedValue.timestamp >= CACHE_TIME) {
+      await AsyncStorage.removeItem(getAsyncCacheKey(key));
+      return null;
+    }
+
+    memoryCache.set(key, parsedValue);
+
+    return parsedValue.data;
+  } catch (error) {
+    return null;
+  }
+};
+
+const setCacheItem = async (memoryCache, key, data) => {
+  const cacheValue = {
+    data,
+    timestamp: Date.now(),
+  };
+
+  memoryCache.set(key, cacheValue);
+
+  try {
+    await AsyncStorage.setItem(getAsyncCacheKey(key), JSON.stringify(cacheValue));
+  } catch (error) {
+    console.log('ERROR GUARDANDO CACHE:', error.message);
+  }
+};
+
 const extractAccounts = (response) => {
   if (Array.isArray(response)) return response;
-  return response?.activeAccounts || response?.accounts || response?.data || [];
+
+  return response?.activeAccounts ||
+    response?.accounts ||
+    response?.data ||
+    response?.items ||
+    response?.records ||
+    response?.rows ||
+    response?.results ||
+    [];
+};
+
+const extractAccountsPagination = (response) => {
+  if (!response || Array.isArray(response)) {
+    return {
+      page: 1,
+      limit: ACCOUNTS_PER_PAGE,
+      total: Array.isArray(response) ? response.length : 0,
+      total_pages: 1,
+      has_more: false,
+    };
+  }
+
+  return response.activeAccounts_pagination ||
+    response.accounts_pagination ||
+    response.data_pagination ||
+    response.items_pagination ||
+    response.records_pagination ||
+    response.rows_pagination ||
+    response.results_pagination ||
+    response.pagination ||
+    {
+      page: 1,
+      limit: ACCOUNTS_PER_PAGE,
+      total: extractAccounts(response).length,
+      total_pages: 1,
+      has_more: false,
+    };
+};
+
+const getAccountKey = (item, index = 0) => (
+  String(
+    item?.id_atencion ||
+    item?.idAtencion ||
+    item?.attention ||
+    item?.record ||
+    item?.Id_exp ||
+    item?.id_exp ||
+    index
+  )
+);
+
+const mergeAccounts = (currentAccounts = [], nextAccounts = []) => {
+  const usedKeys = new Set();
+  const mergedAccounts = [];
+
+  [...currentAccounts, ...nextAccounts].forEach((item, index) => {
+    const key = getAccountKey(item, index);
+
+    if (!usedKeys.has(key)) {
+      usedKeys.add(key);
+      mergedAccounts.push(item);
+    }
+  });
+
+  return mergedAccounts;
 };
 
 const PacienteDetailScreen = ({ navigation, route }) => {
   const patient = normalizePatient(route?.params?.patient);
   const idAtencion = patient.id_atencion || patient.idAtencion || route?.params?.id_atencion;
+
   const [service, setService] = useState('');
   const [serviceQty, setServiceQty] = useState('1');
   const [serviceId, setServiceId] = useState(null);
@@ -73,6 +191,14 @@ const PacienteDetailScreen = ({ navigation, route }) => {
   const [saving, setSaving] = useState(false);
   const [apiNotice, setApiNotice] = useState('');
   const [accountList, setAccountList] = useState([]);
+  const [accountsPage, setAccountsPage] = useState(1);
+  const [accountsHasMore, setAccountsHasMore] = useState(false);
+  const [accountsTotal, setAccountsTotal] = useState(0);
+  const [loadingMoreAccounts, setLoadingMoreAccounts] = useState(false);
+  const [accountSearch, setAccountSearch] = useState('');
+  const [debouncedAccountSearch, setDebouncedAccountSearch] = useState('');
+
+  const requestIdRef = useRef(0);
 
   const totals = useMemo(() => {
     if (account) {
@@ -84,56 +210,202 @@ const PacienteDetailScreen = ({ navigation, route }) => {
         balance: account.balance || account.pending || 0,
       };
     }
+
     const subtotal = initialCharges.reduce((sum, item) => sum + item.quantity * item.price, 0);
     const iva = subtotal * 0.16;
     const total = subtotal + iva;
     const advances = 5000;
+
     return { subtotal, iva, total, advances, balance: total - advances };
   }, [account]);
 
   const charges = account?.charges || account?.items || initialCharges;
   const documentItems = account?.documents || documents;
 
-  const loadAccount = async ({ silent = false } = {}) => {
-    if (!idAtencion) {
-      try {
-        if (!silent) setLoading(true);
-        const response = await adminService.getAccounts();
-        setAccountList(extractAccounts(response));
-        setApiNotice('');
-      } catch (error) {
-        setApiNotice('No se pudieron consultar las cuentas activas en la API.');
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-      return;
-    }
+  const applyAccountsResponse = useCallback((response, requestedPage, append = false) => {
+    const nextAccounts = extractAccounts(response);
+    const pagination = extractAccountsPagination(response);
+
+    setAccountList((currentAccounts) => (
+      append ? mergeAccounts(currentAccounts, nextAccounts) : nextAccounts
+    ));
+
+    setAccountsPage(pagination.page || requestedPage);
+    setAccountsHasMore(Boolean(pagination.has_more));
+    setAccountsTotal(pagination.total ?? nextAccounts.length);
+    setApiNotice('');
+  }, []);
+
+  const loadAccountList = useCallback(async ({
+    requestedPage = 1,
+    append = false,
+    forceRefresh = false,
+    silent = false,
+  } = {}) => {
+    const currentRequestId = requestIdRef.current + 1;
+    requestIdRef.current = currentRequestId;
+
+    const searchValue = debouncedAccountSearch.trim();
+    const cacheKey = `accounts_search_${searchValue.toLowerCase()}_page_${requestedPage}`;
 
     try {
-      if (!silent) setLoading(true);
+      if (append) {
+        setLoadingMoreAccounts(true);
+      } else if (!silent) {
+        setLoading(true);
+      }
+
+      const cachedData = await getCacheItem(accountsMemoryCache, cacheKey);
+
+      if (!forceRefresh && cachedData) {
+        applyAccountsResponse(cachedData, requestedPage, append);
+        setLoading(false);
+        setLoadingMoreAccounts(false);
+        setRefreshing(false);
+
+        return;
+      }
+
+      const response = await adminService.getAccounts(searchValue, requestedPage, ACCOUNTS_PER_PAGE);
+
+      if (currentRequestId !== requestIdRef.current) {
+        return;
+      }
+
+      await setCacheItem(accountsMemoryCache, cacheKey, response);
+      applyAccountsResponse(response, requestedPage, append);
+    } catch (error) {
+      if (currentRequestId !== requestIdRef.current) {
+        return;
+      }
+
+      const cachedData = await getCacheItem(accountsMemoryCache, cacheKey);
+
+      if (cachedData) {
+        applyAccountsResponse(cachedData, requestedPage, append);
+        setApiNotice('Mostrando información guardada en caché.');
+      } else {
+        setApiNotice('No se pudieron consultar las cuentas activas en la API.');
+      }
+    } finally {
+      if (currentRequestId === requestIdRef.current) {
+        setLoading(false);
+        setLoadingMoreAccounts(false);
+        setRefreshing(false);
+      }
+    }
+  }, [applyAccountsResponse, debouncedAccountSearch]);
+
+  const loadAccountDetail = useCallback(async ({ silent = false, forceRefresh = false } = {}) => {
+    const accountCacheKey = `account_detail_${idAtencion}`;
+    const optionsCacheKey = 'options_account_detail';
+
+    try {
+      if (!silent) {
+        setLoading(true);
+      }
+
+      const cachedAccount = await getCacheItem(accountDetailMemoryCache, accountCacheKey);
+      const cachedOptions = await getCacheItem(optionsMemoryCache, optionsCacheKey);
+
+      if (!forceRefresh && cachedAccount) {
+        setAccount(cachedAccount);
+
+        if (cachedOptions) {
+          setOptions(cachedOptions);
+        }
+
+        setApiNotice('');
+        setLoading(false);
+        setRefreshing(false);
+
+        return;
+      }
+
       const [accountResponse, optionsResponse] = await Promise.all([
         adminService.getAccount(idAtencion),
         adminService.getOptions(),
       ]);
+
       setAccount(accountResponse);
       setOptions(optionsResponse || { servicios: [], medicamentos: [] });
+
+      await setCacheItem(accountDetailMemoryCache, accountCacheKey, accountResponse);
+      await setCacheItem(optionsMemoryCache, optionsCacheKey, optionsResponse || { servicios: [], medicamentos: [] });
+
       setApiNotice('');
     } catch (error) {
-      setApiNotice('Mostrando datos locales. No se pudo consultar la cuenta en la API.');
+      const cachedAccount = await getCacheItem(accountDetailMemoryCache, accountCacheKey);
+      const cachedOptions = await getCacheItem(optionsMemoryCache, optionsCacheKey);
+
+      if (cachedAccount) {
+        setAccount(cachedAccount);
+
+        if (cachedOptions) {
+          setOptions(cachedOptions);
+        }
+
+        setApiNotice('Mostrando información guardada en caché.');
+      } else {
+        setApiNotice('Mostrando datos locales. No se pudo consultar la cuenta en la API.');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [idAtencion]);
+
+  const loadAccount = useCallback(async ({ silent = false, forceRefresh = false } = {}) => {
+    if (!idAtencion) {
+      await loadAccountList({
+        requestedPage: 1,
+        append: false,
+        forceRefresh,
+        silent,
+      });
+
+      return;
+    }
+
+    await loadAccountDetail({ silent, forceRefresh });
+  }, [idAtencion, loadAccountDetail, loadAccountList]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedAccountSearch(accountSearch.trim());
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [accountSearch]);
 
   useEffect(() => {
     loadAccount();
-  }, [idAtencion]);
+  }, [loadAccount]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadAccount({ silent: true });
+
+    loadAccount({
+      silent: true,
+      forceRefresh: true,
+    });
+  };
+
+  const loadMoreAccounts = () => {
+    if (loading || loadingMoreAccounts || !accountsHasMore) {
+      return;
+    }
+
+    loadAccountList({
+      requestedPage: accountsPage + 1,
+      append: true,
+      forceRefresh: false,
+      silent: true,
+    });
+  };
+
+  const clearAccountSearch = () => {
+    setAccountSearch('');
   };
 
   const addPending = async (type) => {
@@ -154,6 +426,7 @@ const PacienteDetailScreen = ({ navigation, route }) => {
 
     try {
       setSaving(true);
+
       const response = await adminService.addCharge(idAtencion, {
         tipo: isService ? 'SERVICIO' : 'MEDICAMENTO',
         id_serv: isService ? selectedId : undefined,
@@ -161,7 +434,10 @@ const PacienteDetailScreen = ({ navigation, route }) => {
         descripcion: description,
         cantidad: Number(quantity) || 1,
       });
+
       setAccount(response);
+      await setCacheItem(accountDetailMemoryCache, `account_detail_${idAtencion}`, response);
+
       setService('');
       setServiceQty('1');
       setServiceId(null);
@@ -177,6 +453,7 @@ const PacienteDetailScreen = ({ navigation, route }) => {
 
   const removeCharge = async (charge) => {
     const chargeId = charge.charge_id || charge.id_cargo || charge.id;
+
     if (!idAtencion || !chargeId) {
       Alert.alert('Cargo local', 'Este cargo no tiene identificador de API.');
       return;
@@ -184,7 +461,7 @@ const PacienteDetailScreen = ({ navigation, route }) => {
 
     try {
       await adminService.removeCharge(idAtencion, chargeId);
-      await loadAccount({ silent: true });
+      await loadAccountDetail({ silent: true, forceRefresh: true });
     } catch (error) {
       Alert.alert('Error', error.response?.data?.error || 'No se pudo eliminar el cargo.');
     }
@@ -198,8 +475,13 @@ const PacienteDetailScreen = ({ navigation, route }) => {
 
     try {
       setSaving(true);
+
       const response = await adminService.closeAccount(idAtencion);
-      setAccount(response.account || response);
+      const nextAccount = response.account || response;
+
+      setAccount(nextAccount);
+      await setCacheItem(accountDetailMemoryCache, `account_detail_${idAtencion}`, nextAccount);
+
       Alert.alert('Cuenta cerrada', response.message || 'Cuenta cerrada exitosamente.');
     } catch (error) {
       Alert.alert('Error', error.response?.data?.error || 'No se pudo cerrar la cuenta.');
@@ -213,10 +495,12 @@ const PacienteDetailScreen = ({ navigation, route }) => {
       <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
         <Ionicons name="arrow-back" size={24} color="#fff" />
       </TouchableOpacity>
+
       <View style={styles.headerCenter}>
         <Text style={styles.headerTitle}>Cuenta del Paciente</Text>
         <Text style={styles.headerSubtitle}>{subtitle}</Text>
       </View>
+
       <TouchableOpacity
         style={styles.headerButton}
         onPress={() => Alert.alert('PDF pendiente', 'El PDF de cuenta se conectara con la API despues.')}
@@ -232,9 +516,54 @@ const PacienteDetailScreen = ({ navigation, route }) => {
         style={styles.container}
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={styles.contentContainer}
+        keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {renderHeader('Selecciona una cuenta activa')}
+
+        <View style={styles.accountSearchBox}>
+          <Ionicons name="search-outline" size={18} color="#a0aec0" />
+
+          <TextInput
+            value={accountSearch}
+            onChangeText={setAccountSearch}
+            placeholder="Buscar por paciente, expediente, atención o cama..."
+            placeholderTextColor="#a0aec0"
+            style={styles.accountSearchInput}
+            autoCorrect={false}
+            autoCapitalize="none"
+            returnKeyType="search"
+          />
+
+          {accountSearch ? (
+            <TouchableOpacity onPress={clearAccountSearch} style={styles.clearSearchButton}>
+              <Ionicons name="close-circle" size={18} color="#a0aec0" />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
+        <View style={styles.accountsDashboard}>
+          <View style={styles.dashboardItem}>
+            <Text style={[styles.dashboardValue, { color: '#667eea' }]}>
+              {accountsTotal || accountList.length}
+            </Text>
+            <Text style={styles.dashboardLabel}>Cuentas</Text>
+          </View>
+
+          <View style={styles.dashboardItem}>
+            <Text style={[styles.dashboardValue, { color: '#48bb78' }]}>
+              {accountList.length}
+            </Text>
+            <Text style={styles.dashboardLabel}>Mostradas</Text>
+          </View>
+
+          <View style={styles.dashboardItem}>
+            <Text style={[styles.dashboardValue, { color: '#ed8936' }]}>
+              {debouncedAccountSearch ? 'Sí' : 'No'}
+            </Text>
+            <Text style={styles.dashboardLabel}>Filtro</Text>
+          </View>
+        </View>
 
         {apiNotice ? (
           <View style={styles.noticeBox}>
@@ -256,30 +585,46 @@ const PacienteDetailScreen = ({ navigation, route }) => {
               <Ionicons name="receipt-outline" size={21} color="#667eea" />
               <Text style={styles.sectionTitle}>Cuentas activas</Text>
             </View>
-            <Text style={styles.sectionHint}>{accountList.length}</Text>
+
+            <Text style={styles.sectionHint}>
+              {accountsTotal || accountList.length}
+            </Text>
           </View>
+
+          {debouncedAccountSearch ? (
+            <View style={styles.searchResultInfo}>
+              <Ionicons name="filter-outline" size={15} color="#667eea" />
+              <Text style={styles.searchResultText}>
+                Resultados para "{debouncedAccountSearch}"
+              </Text>
+            </View>
+          ) : null}
 
           {accountList.length ? (
             accountList.map((item, index) => (
               <TouchableOpacity
-                key={item.id_atencion || item.attention || index}
+                key={getAccountKey(item, index)}
                 style={styles.accountPickerCard}
                 onPress={() => navigation.replace('PacienteDetail', { patient: item })}
               >
                 <View style={styles.accountPickerIcon}>
                   <Ionicons name="person-outline" size={20} color="#667eea" />
                 </View>
+
                 <View style={styles.accountPickerBody}>
                   <Text style={styles.accountPickerName} selectable>
                     {item.patient || item.name || 'Paciente sin nombre'}
                   </Text>
+
                   <Text style={styles.accountPickerMeta}>
                     {item.record || item.Id_exp} - {item.attention || item.id_atencion} - {item.bed || 'Sin cama'}
                   </Text>
+
                   <Text style={styles.accountPickerMeta}>
                     Saldo: {money(item.balance || item.pending || 0)}
                   </Text>
                 </View>
+
                 <Ionicons name="chevron-forward" size={20} color="#a0aec0" />
               </TouchableOpacity>
             ))
@@ -288,6 +633,23 @@ const PacienteDetailScreen = ({ navigation, route }) => {
               <Ionicons name="file-tray-outline" size={34} color="#a0aec0" />
               <Text style={styles.emptyText}>No hay cuentas activas para mostrar</Text>
             </View>
+          ) : null}
+
+          {!loading && accountsHasMore ? (
+            <TouchableOpacity
+              style={styles.loadMoreButton}
+              onPress={loadMoreAccounts}
+              disabled={loadingMoreAccounts}
+            >
+              {loadingMoreAccounts ? (
+                <ActivityIndicator color="#667eea" />
+              ) : (
+                <>
+                  <Ionicons name="chevron-down-outline" size={18} color="#667eea" />
+                  <Text style={styles.loadMoreText}>Mostrar 5 más</Text>
+                </>
+              )}
+            </TouchableOpacity>
           ) : null}
         </View>
       </ScrollView>
@@ -308,10 +670,19 @@ const PacienteDetailScreen = ({ navigation, route }) => {
         <View style={styles.heroAvatar}>
           <Ionicons name="person-outline" size={30} color="#667eea" />
         </View>
+
         <View style={styles.heroBody}>
-          <Text style={styles.patientName} selectable>{(account || patient).name || (account || patient).patient}</Text>
-          <Text style={styles.patientMeta}>{(account || patient).area} - {(account || patient).bed} - {(account || patient).doctor}</Text>
-          <Text style={styles.patientMeta}>Ingreso: {(account || patient).admittedAt}</Text>
+          <Text style={styles.patientName} selectable>
+            {(account || patient).name || (account || patient).patient}
+          </Text>
+
+          <Text style={styles.patientMeta}>
+            {(account || patient).area} - {(account || patient).bed} - {(account || patient).doctor}
+          </Text>
+
+          <Text style={styles.patientMeta}>
+            Ingreso: {(account || patient).admittedAt}
+          </Text>
         </View>
       </View>
 
@@ -363,6 +734,7 @@ const PacienteDetailScreen = ({ navigation, route }) => {
           onAdd={() => addPending('Servicio')}
           saving={saving}
         />
+
         <ChargeForm
           title="Medicamento"
           placeholder="Selecciona o escribe medicamento"
@@ -390,6 +762,7 @@ const PacienteDetailScreen = ({ navigation, route }) => {
             <Ionicons name="receipt-outline" size={21} color="#48bb78" />
             <Text style={styles.sectionTitle}>Detalle de cuenta</Text>
           </View>
+
           <Text style={styles.sectionHint}>{charges.length} cargos</Text>
         </View>
 
@@ -398,18 +771,27 @@ const PacienteDetailScreen = ({ navigation, route }) => {
             <View style={styles.chargeIndex}>
               <Text style={styles.chargeIndexText}>{index + 1}</Text>
             </View>
+
             <View style={styles.chargeBody}>
               <View style={styles.chargeTop}>
-                <Text style={styles.chargeDescription} selectable>{charge.description || charge.descripcion}</Text>
+                <Text style={styles.chargeDescription} selectable>
+                  {charge.description || charge.descripcion}
+                </Text>
+
                 <TouchableOpacity onPress={() => removeCharge(charge)}>
                   <Ionicons name="trash-outline" size={18} color="#e53e3e" />
                 </TouchableOpacity>
               </View>
+
               <Text style={styles.chargeDate}>{charge.date || charge.fecha || ''}</Text>
+
               <View style={styles.chargeAmounts}>
                 <Text style={styles.chargeMeta}>Cant. {charge.quantity || charge.cantidad}</Text>
                 <Text style={styles.chargeMeta}>Precio {money(charge.price || charge.precio)}</Text>
-                <Text style={styles.chargeTotal}>{money(charge.subtotal || ((charge.quantity || charge.cantidad || 1) * (charge.price || charge.precio || 0)))}</Text>
+
+                <Text style={styles.chargeTotal}>
+                  {money(charge.subtotal || ((charge.quantity || charge.cantidad || 1) * (charge.price || charge.precio || 0)))}
+                </Text>
               </View>
             </View>
           </View>
@@ -423,6 +805,7 @@ const PacienteDetailScreen = ({ navigation, route }) => {
             <Text style={styles.sectionTitle}>Documentos</Text>
           </View>
         </View>
+
         <View style={styles.documentGrid}>
           {documentItems.map((doc) => (
             <TouchableOpacity
@@ -433,6 +816,7 @@ const PacienteDetailScreen = ({ navigation, route }) => {
               <View style={[styles.documentIcon, { backgroundColor: `${doc.color || '#667eea'}18` }]}>
                 <Ionicons name={doc.icon || 'document-text-outline'} size={21} color={doc.color || '#667eea'} />
               </View>
+
               <Text style={styles.documentText}>{doc.title}</Text>
             </TouchableOpacity>
           ))}
@@ -444,6 +828,7 @@ const PacienteDetailScreen = ({ navigation, route }) => {
           <Text style={styles.closeTitle}>Cerrar cuenta</Text>
           <Text style={styles.closeSubtitle}>Marca la atencion como cerrada cuando la cuenta quede liquidada.</Text>
         </View>
+
         <TouchableOpacity
           style={styles.closeButton}
           onPress={closeAccount}
@@ -467,6 +852,7 @@ const TotalCard = ({ label, value, color }) => (
 const ChargeForm = ({ title, placeholder, value, qty, onValueChange, onQtyChange, onAdd, options, selectedId, onSelect, saving }) => (
   <View style={styles.chargeForm}>
     <Text style={styles.formTitle}>{title}</Text>
+
     {options?.length ? (
       <View style={styles.optionWrap}>
         {options.map((item) => (
@@ -482,6 +868,7 @@ const ChargeForm = ({ title, placeholder, value, qty, onValueChange, onQtyChange
         ))}
       </View>
     ) : null}
+
     <View style={styles.formRow}>
       <TextInput
         value={value}
@@ -490,6 +877,7 @@ const ChargeForm = ({ title, placeholder, value, qty, onValueChange, onQtyChange
         placeholderTextColor="#a0aec0"
         style={[styles.input, styles.itemInput]}
       />
+
       <TextInput
         value={qty}
         onChangeText={onQtyChange}
@@ -499,6 +887,7 @@ const ChargeForm = ({ title, placeholder, value, qty, onValueChange, onQtyChange
         style={[styles.input, styles.qtyInput]}
       />
     </View>
+
     <TouchableOpacity style={styles.addButton} onPress={onAdd} disabled={saving}>
       {saving ? <ActivityIndicator color="#fff" /> : <Ionicons name="add-circle-outline" size={18} color="#fff" />}
       <Text style={styles.addButtonText}>Agregar {title.toLowerCase()}</Text>
@@ -562,6 +951,71 @@ const styles = StyleSheet.create({
   },
   totalValue: { fontSize: 18, fontWeight: '900', fontVariant: ['tabular-nums'] },
   totalLabel: { color: '#718096', fontSize: 12, marginTop: 2 },
+  accountSearchBox: {
+    marginHorizontal: 16,
+    marginTop: -22,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    boxShadow: '0 2px 8px rgba(45, 55, 72, 0.08)',
+  },
+  accountSearchInput: {
+    flex: 1,
+    marginLeft: 8,
+    color: '#2d3748',
+    fontSize: 14,
+  },
+  clearSearchButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accountsDashboard: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    boxShadow: '0 2px 8px rgba(45, 55, 72, 0.08)',
+  },
+  dashboardItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  dashboardValue: {
+    fontSize: 19,
+    fontWeight: '900',
+    fontVariant: ['tabular-nums'],
+  },
+  dashboardLabel: {
+    color: '#718096',
+    fontSize: 11,
+    marginTop: 2,
+  },
+  searchResultInfo: {
+    backgroundColor: '#ebf4ff',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  searchResultText: {
+    color: '#4c51bf',
+    fontSize: 12,
+    fontWeight: '800',
+    marginLeft: 6,
+    flex: 1,
+  },
   section: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -689,6 +1143,23 @@ const styles = StyleSheet.create({
   accountPickerBody: { flex: 1, paddingRight: 8 },
   accountPickerName: { color: '#2d3748', fontSize: 15, fontWeight: '900' },
   accountPickerMeta: { color: '#718096', fontSize: 12, marginTop: 3 },
+  loadMoreButton: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    minHeight: 52,
+    marginTop: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: '#c3dafe',
+  },
+  loadMoreText: {
+    color: '#667eea',
+    fontSize: 13,
+    fontWeight: '900',
+    marginLeft: 6,
+  },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',

@@ -8,7 +8,11 @@ const API_URL =
   Platform.OS === 'web'
     ? 'http://localhost:5001/api/v1'
     : Constants.expoConfig?.extra?.API_URL ||
+<<<<<<< HEAD
       'http://192.168.1.6:5001/api/v1';
+=======
+      'http://192.168.100.4:5001/api/v1';
+>>>>>>> fbb3f20f960c02aaead36523a571ca0972995f50
 
 // Storage compatible web + mobile
 const storage = {

@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../services/api';
 import moment from 'moment';
 import 'moment/locale/es';
@@ -56,16 +57,25 @@ const VitalSignsListScreen = ({ navigation, route }) => {
     setRefreshing(false);
   };
 
-  const handleGeneratePDF = (id_signos) => {
-    // Construir URL del PDF
-    const baseUrl = api.defaults.baseURL;
-    const pdfUrl = `${baseUrl.replace('/api/v1', '')}/pdf/vital-signs/${id_signos}`;
-    
-    // Abrir en navegador
-    Linking.openURL(pdfUrl).catch(err => {
-      console.error('Error opening PDF:', err);
-      Alert.alert('Error', 'No se pudo abrir el PDF');
-    });
+  const handleGeneratePDF = async (id_signos) => {
+    try {
+      const token = await AsyncStorage.getItem('@ineo_token');
+      if (!token) {
+        Alert.alert('Sesión', 'No se encontró sesión activa');
+        return;
+      }
+
+      const baseUrl = api.defaults.baseURL;
+      const pdfUrl = `${baseUrl}/pdf/vital-signs/${id_signos}?token=${encodeURIComponent(token)}&id_atencion=${id_atencion}`;
+
+      Linking.openURL(pdfUrl).catch((err) => {
+        console.error('Error opening PDF:', err);
+        Alert.alert('Error', 'No se pudo abrir el PDF');
+      });
+    } catch (error) {
+      console.error('Error generating PDF URL:', error);
+      Alert.alert('Error', 'No se pudo generar el documento');
+    }
   };
 
   const renderSignosTable = () => {

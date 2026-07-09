@@ -14,7 +14,13 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
+import CacheService from '../../services/cacheService';
+import Pagination from '../../components/Pagination';
 import moment from 'moment';
+
+const CACHE_KEY_PREFIX = 'medical_notes_';
+const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
+const HISTORY_ITEMS_PER_PAGE = 5;
 
 const MedicalNoteScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params;
@@ -22,6 +28,7 @@ const MedicalNoteScreen = ({ navigation, route }) => {
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [currentHistoryPage, setCurrentHistoryPage] = useState(1);
   const [formData, setFormData] = useState({
     subjetivo: '',
     objetivo: '',
@@ -34,13 +41,41 @@ const MedicalNoteScreen = ({ navigation, route }) => {
     loadMedicalNotesHistory();
   }, []);
 
-  const loadMedicalNotesHistory = async () => {
+  const loadMedicalNotesHistory = async (forceRefresh = false) => {
     try {
       setLoadingHistory(true);
+      const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}`;
+
+      // Intentar obtener de caché primero (si no es forceRefresh)
+      if (!forceRefresh) {
+        const cachedData = await CacheService.get(cacheKey);
+        if (cachedData) {
+          console.log('📦 Notas médicas cargadas desde caché');
+          setHistory(cachedData);
+          setLoadingHistory(false);
+          return;
+        }
+      }
+
+      // Si no hay caché o es forceRefresh, cargar desde API
+      console.log('🌐 Cargando notas médicas desde API...');
       const response = await api.get(`/appointments/${id_atencion}/medical-notes`);
+      
+      // Guardar en caché
+      await CacheService.set(cacheKey, response.data, CACHE_TTL);
+      
       setHistory(response.data);
+      if (forceRefresh) setCurrentHistoryPage(1);
     } catch (error) {
       console.error('Error loading medical notes history:', error);
+      
+      // Si falla la API, intentar cargar desde caché aunque esté expirada
+      const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}`;
+      const cachedData = await CacheService.get(cacheKey);
+      if (cachedData) {
+        console.log('📦 Notas médicas cargadas desde caché (fallback)');
+        setHistory(cachedData);
+      }
     } finally {
       setLoadingHistory(false);
     }
@@ -69,8 +104,12 @@ const MedicalNoteScreen = ({ navigation, route }) => {
           analisis: '',
           plan: '',
         });
-        // Recargar historial
-        loadMedicalNotesHistory();
+        // Recargar historial con forceRefresh
+        await loadMedicalNotesHistory(true);
+        // Mantener abierto el historial si ya estaba abierto
+        if (showHistory) {
+          setShowHistory(true);
+        }
       }
     } catch (error) {
       console.error('Error saving medical note:', error);
@@ -79,6 +118,21 @@ const MedicalNoteScreen = ({ navigation, route }) => {
       setLoading(false);
     }
   };
+
+  // Calcular páginas para el historial
+  const totalHistoryPages = Math.ceil(history.length / HISTORY_ITEMS_PER_PAGE);
+  const paginatedHistory = history.slice(
+    (currentHistoryPage - 1) * HISTORY_ITEMS_PER_PAGE,
+    currentHistoryPage * HISTORY_ITEMS_PER_PAGE
+  );
+
+  // Ajustar página actual si es mayor que el total
+  useEffect(() => {
+    const validTotalPages = Math.max(1, totalHistoryPages);
+    if (currentHistoryPage > validTotalPages) {
+      setCurrentHistoryPage(validTotalPages);
+    }
+  }, [currentHistoryPage, totalHistoryPages]);
 
   const renderHistoryItem = ({ item }) => (
     <View style={styles.historyItem}>
@@ -156,7 +210,13 @@ const MedicalNoteScreen = ({ navigation, route }) => {
         <Text style={styles.headerTitle}>
           <Ionicons name="document-text-outline" size={20} color="#fff" /> Nota Médica SOAP
         </Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity
+          onPress={() => loadMedicalNotesHistory(true)}
+          style={styles.backButton}
+          disabled={loadingHistory}
+        >
+          <Ionicons name="refresh-outline" size={22} color="#fff" />
+        </TouchableOpacity>
       </LinearGradient>
 
       {/* Información del paciente */}
@@ -306,6 +366,11 @@ const MedicalNoteScreen = ({ navigation, route }) => {
             <View style={styles.historyHeaderContent}>
               <Ionicons name="time-outline" size={20} color="#fff" />
               <Text style={styles.historyTitle}>Historial de Notas Médicas</Text>
+              {history.length > 0 && (
+                <View style={styles.historyCount}>
+                  <Text style={styles.historyCountText}>{history.length} registros</Text>
+                </View>
+              )}
               <Ionicons 
                 name={showHistory ? "chevron-up-outline" : "chevron-down-outline"} 
                 size={20} 
@@ -325,12 +390,25 @@ const MedicalNoteScreen = ({ navigation, route }) => {
                 <Text style={styles.emptyHistoryText}>No hay notas médicas previas</Text>
               </View>
             ) : (
-              <FlatList
-                data={history}
-                renderItem={renderHistoryItem}
-                keyExtractor={(item, index) => item.id_nota?.toString() || index.toString()}
-                scrollEnabled={false}
-              />
+              <>
+                <FlatList
+                  data={paginatedHistory}
+                  renderItem={renderHistoryItem}
+                  keyExtractor={(item, index) => item.id_nota?.toString() || `note-${index}`}
+                  scrollEnabled={false}
+                  initialNumToRender={HISTORY_ITEMS_PER_PAGE}
+                  maxToRenderPerBatch={HISTORY_ITEMS_PER_PAGE}
+                />
+                <View style={styles.historyPagination}>
+                  <Pagination
+                    currentPage={currentHistoryPage}
+                    totalPages={totalHistoryPages}
+                    onPageChange={setCurrentHistoryPage}
+                    itemsPerPage={HISTORY_ITEMS_PER_PAGE}
+                    totalItems={history.length}
+                  />
+                </View>
+              </>
             )}
           </View>
         )}
@@ -540,6 +618,18 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginLeft: 8,
   },
+  historyCount: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  historyCountText: {
+    fontSize: 11,
+    color: '#fff',
+    fontWeight: '500',
+  },
   historyBody: {
     padding: 16,
   },
@@ -626,6 +716,10 @@ const styles = StyleSheet.create({
     color: '#2d3748',
     marginLeft: 30,
     marginBottom: 8,
+  },
+  historyPagination: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
 });
 

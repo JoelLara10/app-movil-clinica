@@ -13,6 +13,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import * as DocumentPicker from 'expo-document-picker';
 import api from '../services/api';
+import { getCache, setCache, CacheKeys, invalidateCachePrefix, removeCache } from '../services/EstudiosCache';
 
 export default function EditResultForm({ navigation, route }) {
   const { id_examen, tipo } = route.params;
@@ -23,12 +24,20 @@ export default function EditResultForm({ navigation, route }) {
   const [archivosAEliminar, setArchivosAEliminar] = useState({});
   const [error, setError] = useState('');
 
+  // ============================================================
+  //  CARGAR INFORMACIÓN CON CACHÉ
+  // ============================================================
   useEffect(() => {
     const loadInfo = async () => {
       try {
         setLoading(true);
-        const response = await api.get(`/exams/${id_examen}/edit-info?type=${tipo}`);
-        const data = response.data;
+        const cacheKey = CacheKeys.examenEditInfo(id_examen, tipo);
+        let data = await getCache(cacheKey);
+        if (!data) {
+          const response = await api.get(`/exams/${id_examen}/edit-info?type=${tipo}`);
+          data = response.data;
+          await setCache(cacheKey, data);
+        }
         setInfo({
           paciente: data.paciente || '',
           habitacion: data.habitacion || '',
@@ -47,8 +56,11 @@ export default function EditResultForm({ navigation, route }) {
       }
     };
     loadInfo();
-  }, [id_examen]);
+  }, [id_examen, tipo]);
 
+  // ============================================================
+  //  SELECCIÓN DE ARCHIVOS
+  // ============================================================
   const pickDocuments = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
@@ -107,6 +119,9 @@ export default function EditResultForm({ navigation, route }) {
     }));
   };
 
+  // ============================================================
+  //  ENVÍO CON INVALIDACIÓN DE CACHÉ
+  // ============================================================
   const handleSubmit = async () => {
     const archivosExistentes = info.archivos.filter(nombre => !archivosAEliminar[nombre]);
     if (archivosExistentes.length === 0 && nuevosArchivos.length === 0) {
@@ -151,6 +166,12 @@ export default function EditResultForm({ navigation, route }) {
         timeout: 60000,
       });
 
+      // Invalidar caché de listas completas, contadores, info y edit-info
+      await invalidateCachePrefix('estudios_all_');
+      await removeCache(CacheKeys.counts);
+      await removeCache(CacheKeys.examenInfo(id_examen));
+      await removeCache(CacheKeys.examenEditInfo(id_examen, tipo));
+
       Alert.alert('Éxito', 'Cambios guardados correctamente.', [
         { text: 'OK', onPress: () => navigation.goBack() }
       ]);
@@ -168,6 +189,9 @@ export default function EditResultForm({ navigation, route }) {
     }
   };
 
+  // ============================================================
+  //  RENDER
+  // ============================================================
   if (loading) {
     return (
       <View style={styles.centered}>

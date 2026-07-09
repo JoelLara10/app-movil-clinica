@@ -13,30 +13,39 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext";
 import { usePatient } from "../context/PatientContext";
 
-const Sidebar = ({ navigation, closeDrawer }) => {
+const Sidebar = ({ navigation }) => {
   const { user, logout } = useAuth();
   const { selectedPatient } = usePatient();
 
   const id_atencion = selectedPatient?.id_atencion;
   const pacienteId = selectedPatient?.Id_exp;
+  const userRole = user?.role;
 
-  // Navegación que soporta pantallas anidadas (screen + subScreen)
-  const navigateFlexible = (screen, params = {}, subScreen) => {
+  const handleNavigation = (screen, params = {}, subScreen) => {
+    navigation.closeDrawer();
+    
+    // Si la pantalla está dentro de un Stack, navegamos al Stack y luego a la pantalla
+    const stackNavigators = {
+      'Medico': 'Medico',
+      'Enfermeria': 'Enfermeria',
+      'Estudios': 'Estudios',
+      'Admin': 'Admin',
+      'Config': 'Config'
+    };
+
     if (subScreen) {
-      navigation.navigate(screen, { screen: subScreen, params });
+      // Navegar a la pantalla anidada
+      navigation.navigate('MainStack', {
+        screen: screen,
+        params: { screen: subScreen, params }
+      });
+    } else if (stackNavigators[screen]) {
+      // Navegar a la pantalla principal del stack
+      navigation.navigate('MainStack', { screen });
     } else {
-      navigation.navigate(screen, params);
+      // Navegar a una pantalla directa del stack
+      navigation.navigate('MainStack', { screen, params });
     }
-    navigation.closeDrawer?.();
-  };
-
-  const handleNavigation = (screen, requiresPatient = true, params = {}, subScreen) => {
-    if (requiresPatient && !id_atencion) {
-      Alert.alert("Información", "Seleccione un paciente primero");
-      return;
-    }
-
-    navigateFlexible(screen, params, subScreen);
   };
 
   const handleLogout = () => {
@@ -46,19 +55,377 @@ const Sidebar = ({ navigation, closeDrawer }) => {
     ]);
   };
 
+  // =====================================================
+  // CONSTRUCCIÓN DEL MENÚ POR ROL
+  // =====================================================
   const menuSections = [];
 
-  // Mostrar Panel Médico sólo si el usuario tiene rol 'medico'
-  if (user?.role === 'medico') {
+  // --- 1. MENÚ PARA MÉDICO ---
+  if (userRole === 'medico') {
     menuSections.push({
       section: 'PRINCIPAL',
       items: [
+        {
+          name: 'Dashboard',
+          icon: 'home-outline',
+          screen: 'Dashboard',
+          requiresPatient: false,
+          params: {},
+        },
         {
           name: 'Panel Médico',
           icon: 'speedometer-outline',
           screen: 'Medico',
           subScreen: 'MedicoList',
-          isMainScreen: true,
+          requiresPatient: false,
+          params: {},
+        },
+      ],
+    });
+
+    // Secciones médicas (Historia, Notas, Documentos)
+    menuSections.push(
+      {
+        section: 'HISTORIA CLÍNICA',
+        items: [
+          {
+            name: 'Historia Clínica',
+            icon: 'document-text-outline',
+            screen: 'Medico',
+            subScreen: 'HistoriaClinica',
+            requiresPatient: true,
+            params: { id_atencion, Id_exp: pacienteId },
+          },
+        ],
+      },
+      {
+        section: 'NOTAS MÉDICAS',
+        items: [
+          {
+            name: 'Signos Vitales',
+            icon: 'heart-outline',
+            screen: 'Medico',
+            subScreen: 'VitalSigns',
+            requiresPatient: true,
+            params: { id_atencion },
+          },
+          {
+            name: 'Nota Médica (SOAP)',
+            icon: 'document-text-outline',
+            screen: 'Medico',
+            subScreen: 'MedicalNote',
+            requiresPatient: true,
+            params: { id_atencion },
+          },
+          {
+            name: 'Diagnóstico',
+            icon: 'clipboard-outline',
+            screen: 'Medico',
+            subScreen: 'Diagnosis',
+            requiresPatient: true,
+            params: { id_atencion },
+          },
+          {
+            name: 'Receta',
+            icon: 'medkit-outline',
+            screen: 'Medico',
+            subScreen: 'Prescription',
+            requiresPatient: true,
+            params: { id_atencion },
+          },
+          {
+            name: 'Exámenes de Laboratorio',
+            icon: 'flask-outline',
+            screen: 'Medico',
+            subScreen: 'LabExams',
+            requiresPatient: true,
+            params: { id_atencion, Id_exp: pacienteId },
+          },
+          {
+            name: 'Exámenes de Gabinete',
+            icon: 'scan-outline',
+            screen: 'Medico',
+            subScreen: 'ImagingExams',
+            requiresPatient: true,
+            params: { id_atencion, Id_exp: pacienteId },
+          },
+        ],
+      },
+      {
+        section: 'DOCUMENTOS',
+        items: [
+          {
+            name: 'Imprimir Documentos',
+            icon: 'print-outline',
+            screen: 'Medico',
+            subScreen: 'PrintDocs',
+            requiresPatient: true,
+            params: { id_atencion },
+          },
+          {
+            name: 'Resultados de Estudios',
+            icon: 'document-text-outline',
+            screen: 'Medico',
+            subScreen: 'StudyResults',
+            requiresPatient: true,
+            params: { id_atencion },
+          },
+        ],
+      }
+    );
+  }
+
+  // --- 2. MENÚ PARA ENFERMERÍA ---
+  if (userRole === 'enfermero') {
+    menuSections.push({
+      section: 'PRINCIPAL',
+      items: [
+        {
+          name: 'Dashboard',
+          icon: 'home-outline',
+          screen: 'Dashboard',
+          requiresPatient: false,
+          params: {},
+        },
+        {
+          name: 'Panel Enfermería',
+          icon: 'medkit-outline',
+          screen: 'Enfermeria',
+          subScreen: 'EnfermeriaList',
+          requiresPatient: false,
+          params: {},
+        },
+      ],
+    });
+
+    // Secciones de enfermería
+    menuSections.push(
+      {
+        section: 'NOTAS DE ENFERMERÍA',
+        items: [
+          {
+            name: 'Signos Vitales',
+            icon: 'heart-outline',
+            screen: 'Enfermeria',
+            subScreen: 'EnfermeriaVitalSigns',
+            requiresPatient: true,
+            params: { id_atencion, Id_exp: pacienteId },
+          },
+          {
+            name: 'Nota de Enfermería',
+            icon: 'document-text-outline',
+            screen: 'Enfermeria',
+            subScreen: 'EnfermeriaNote',
+            requiresPatient: true,
+            params: { id_atencion, Id_exp: pacienteId },
+          },
+          {
+            name: 'Administración Medicamentos',
+            icon: 'medkit-outline',
+            screen: 'Enfermeria',
+            subScreen: 'EnfermeriaMedications',
+            requiresPatient: true,
+            params: { id_atencion, Id_exp: pacienteId },
+          },
+          {
+            name: 'Valoración de Enfermería',
+            icon: 'clipboard-outline',
+            screen: 'Enfermeria',
+            subScreen: 'EnfermeriaAssessment',
+            requiresPatient: true,
+            params: { id_atencion, Id_exp: pacienteId },
+          },
+          {
+            name: 'Balance Hídrico',
+            icon: 'water-outline',
+            screen: 'Enfermeria',
+            subScreen: 'EnfermeriaFluidBalance',
+            requiresPatient: true,
+            params: { id_atencion, Id_exp: pacienteId },
+          },
+          {
+            name: 'Cuidados de Enfermería',
+            icon: 'shield-checkmark-outline',
+            screen: 'Enfermeria',
+            subScreen: 'EnfermeriaCare',
+            requiresPatient: true,
+            params: { id_atencion, Id_exp: pacienteId },
+          },
+        ],
+      },
+      {
+        section: 'DOCUMENTOS',
+        items: [
+          {
+            name: 'Resultados de Estudios',
+            icon: 'document-text-outline',
+            screen: 'Enfermeria',
+            subScreen: 'StudyResults',
+            requiresPatient: true,
+            params: { id_atencion },
+          },
+        ],
+      }
+    );
+  }
+
+  // --- 3. MENÚ PARA ADMIN ---
+  if (userRole === 'admin') {
+    menuSections.push({
+      section: 'ADMINISTRACIÓN',
+      items: [
+        {
+          name: 'Dashboard Admin',
+          icon: 'speedometer-outline',
+          screen: 'Admin',
+          requiresPatient: false,
+          params: {},
+        },
+      ],
+    });
+
+    // Módulo Médico
+    menuSections.push({
+      section: 'MÓDULO MÉDICO',
+      items: [
+        {
+          name: 'Panel Médico',
+          icon: 'medkit-outline',
+          screen: 'Medico',
+          subScreen: 'MedicoList',
+          requiresPatient: false,
+          params: {},
+        },
+        {
+          name: 'Historia Clínica',
+          icon: 'document-text-outline',
+          screen: 'Medico',
+          subScreen: 'HistoriaClinica',
+          requiresPatient: true,
+          params: { id_atencion, Id_exp: pacienteId },
+        },
+        {
+          name: 'Signos Vitales',
+          icon: 'heart-outline',
+          screen: 'Medico',
+          subScreen: 'VitalSigns',
+          requiresPatient: true,
+          params: { id_atencion },
+        },
+        {
+          name: 'Nota Médica (SOAP)',
+          icon: 'document-text-outline',
+          screen: 'Medico',
+          subScreen: 'MedicalNote',
+          requiresPatient: true,
+          params: { id_atencion },
+        },
+        {
+          name: 'Resultados de Estudios',
+          icon: 'document-text-outline',
+          screen: 'Medico',
+          subScreen: 'StudyResults',
+          requiresPatient: true,
+          params: { id_atencion },
+        },
+      ],
+    });
+
+    // Módulo Enfermería
+    menuSections.push({
+      section: 'MÓDULO ENFERMERÍA',
+      items: [
+        {
+          name: 'Panel Enfermería',
+          icon: 'medkit-outline',
+          screen: 'Enfermeria',
+          subScreen: 'EnfermeriaList',
+          requiresPatient: false,
+          params: {},
+        },
+        {
+          name: 'Signos Vitales',
+          icon: 'heart-outline',
+          screen: 'Enfermeria',
+          subScreen: 'EnfermeriaVitalSigns',
+          requiresPatient: true,
+          params: { id_atencion, Id_exp: pacienteId },
+        },
+        {
+          name: 'Nota de Enfermería',
+          icon: 'document-text-outline',
+          screen: 'Enfermeria',
+          subScreen: 'EnfermeriaNote',
+          requiresPatient: true,
+          params: { id_atencion, Id_exp: pacienteId },
+        },
+        {
+          name: 'Administración Medicamentos',
+          icon: 'medkit-outline',
+          screen: 'Enfermeria',
+          subScreen: 'EnfermeriaMedications',
+          requiresPatient: true,
+          params: { id_atencion, Id_exp: pacienteId },
+        },
+        {
+          name: 'Valoración de Enfermería',
+          icon: 'clipboard-outline',
+          screen: 'Enfermeria',
+          subScreen: 'EnfermeriaAssessment',
+          requiresPatient: true,
+          params: { id_atencion, Id_exp: pacienteId },
+        },
+        {
+          name: 'Balance Hídrico',
+          icon: 'water-outline',
+          screen: 'Enfermeria',
+          subScreen: 'EnfermeriaFluidBalance',
+          requiresPatient: true,
+          params: { id_atencion, Id_exp: pacienteId },
+        },
+        {
+          name: 'Cuidados de Enfermería',
+          icon: 'shield-checkmark-outline',
+          screen: 'Enfermeria',
+          subScreen: 'EnfermeriaCare',
+          requiresPatient: true,
+          params: { id_atencion, Id_exp: pacienteId },
+        },
+      ],
+    });
+
+    // Configuración (solo admin)
+    menuSections.push({
+      section: 'CONFIGURACIÓN',
+      items: [
+        {
+          name: 'Configuración General',
+          icon: 'settings-outline',
+          screen: 'Config',
+          requiresPatient: false,
+          params: {},
+        },
+        {
+          name: 'Camas',
+          icon: 'bed-outline',
+          screen: 'Config',
+          subScreen: 'CamasConfig',
+          requiresPatient: false,
+          params: {},
+        },
+        {
+          name: 'Servicios',
+          icon: 'business-outline',
+          screen: 'Config',
+          subScreen: 'ServiciosConfig',
+          requiresPatient: false,
+          params: {},
+        },
+        {
+          name: 'Usuarios',
+          icon: 'people-outline',
+          screen: 'Config',
+          subScreen: 'UsuariosConfig',
           requiresPatient: false,
           params: {},
         },
@@ -66,89 +433,29 @@ const Sidebar = ({ navigation, closeDrawer }) => {
     });
   }
 
-  // Secciones comunes (Historia, Notas, Documentos)
-  const restSections = [
-    {
-      section: 'HISTORIA CLÍNICA',
+  // --- 4. MENÚ PARA ESTUDIOS ---
+  if (userRole === 'estudios') {
+    menuSections.push({
+      section: 'PRINCIPAL',
       items: [
         {
-          name: 'Historia Clínica',
-          icon: 'document-text-outline',
-          screen: 'HistoriaClinica',
-          requiresPatient: true,
-          params: { id_atencion, Id_exp: pacienteId },
-        },
-      ],
-    },
-    {
-      section: 'NOTAS MÉDICAS',
-      items: [
-        {
-          name: 'Signos Vitales',
-          icon: 'heart-outline',
-          screen: 'VitalSigns',
-          requiresPatient: true,
-          params: { id_atencion },
+          name: 'Dashboard',
+          icon: 'home-outline',
+          screen: 'Dashboard',
+          requiresPatient: false,
+          params: {},
         },
         {
-          name: 'Nota Médica (SOAP)',
-          icon: 'document-text-outline',
-          screen: 'MedicalNote',
-          requiresPatient: true,
-          params: { id_atencion },
-        },
-        {
-          name: 'Diagnóstico',
-          icon: 'clipboard-outline',
-          screen: 'Diagnosis',
-          requiresPatient: true,
-          params: { id_atencion },
-        },
-        {
-          name: 'Receta',
-          icon: 'medkit-outline',
-          screen: 'Prescription',
-          requiresPatient: true,
-          params: { id_atencion },
-        },
-        {
-          name: 'Exámenes de Laboratorio',
+          name: 'Panel Estudios',
           icon: 'flask-outline',
-          screen: 'LabExams',
-          requiresPatient: true,
-          params: { id_atencion, Id_exp: pacienteId },
-        },
-        {
-          name: 'Exámenes de Gabinete',
-          icon: 'scan-outline',
-          screen: 'ImagingExams',
-          requiresPatient: true,
-          params: { id_atencion, Id_exp: pacienteId },
+          screen: 'Estudios',
+          subScreen: 'EstudiosList',
+          requiresPatient: false,
+          params: {},
         },
       ],
-    },
-    {
-      section: 'DOCUMENTOS',
-      items: [
-        {
-          name: 'Imprimir Documentos',
-          icon: 'print-outline',
-          screen: 'PrintDocs',
-          requiresPatient: true,
-          params: { id_atencion },
-        },
-        {
-          name: 'Resultados de Estudios',
-          icon: 'document-text-outline',
-          screen: 'StudyResults',
-          requiresPatient: true,
-          params: { id_atencion },
-        },
-      ],
-    },
-  ];
-
-  menuSections.push(...restSections);
+    });
+  }
 
   return (
     <View style={styles.container}>
@@ -163,10 +470,10 @@ const Sidebar = ({ navigation, closeDrawer }) => {
           </View>
           <View style={styles.userTextContainer}>
             <Text style={styles.userName}>
-              Dr. {user?.username || "Usuario"}
+              {userRole === 'enfermero' ? 'Enf.' : 'Dr.'} {user?.username || "Usuario"}
             </Text>
             <View style={styles.roleBadge}>
-              <Text style={styles.roleText}>MÉDICO</Text>
+              <Text style={styles.roleText}>{userRole?.toUpperCase() || 'USUARIO'}</Text>
             </View>
           </View>
         </View>
@@ -177,7 +484,7 @@ const Sidebar = ({ navigation, closeDrawer }) => {
         <View style={styles.selectedPatientContainer}>
           <Ionicons name="person-circle-outline" size={20} color="#48bb78" />
           <Text style={styles.selectedPatientText}>
-            Paciente seleccionado: {pacienteId || "ID"}
+            Paciente: {pacienteId || "ID"}
           </Text>
         </View>
       )}
@@ -199,20 +506,12 @@ const Sidebar = ({ navigation, closeDrawer }) => {
                     isDisabled && styles.menuItemDisabled,
                   ]}
                   onPress={() => {
-                    if (item.isMainScreen) {
-                      // Para pantallas principales (soporta subScreen)
-                      navigateFlexible(item.screen, item.params, item.subScreen);
-                    } else {
-                      // Para pantallas dentro del stack anidado
-                      handleNavigation(
-                        item.screen,
-                        item.requiresPatient,
-                        item.params,
-                        item.subScreen,
-                      );
+                    if (isDisabled) {
+                      Alert.alert('Información', 'Seleccione un paciente primero');
+                      return;
                     }
+                    handleNavigation(item.screen, item.params, item.subScreen);
                   }}
-                  disabled={isDisabled}
                 >
                   <Ionicons
                     name={item.icon}
