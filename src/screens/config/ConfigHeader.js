@@ -6,7 +6,7 @@ import { configStyles as styles } from './ConfigStyles';
 export default function ConfigHeader({ title, navigation }) {
   return (
     <LinearGradient colors={['#667eea', '#764ba2']} style={styles.header}>
-      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+      <TouchableOpacity onPress={() => navigation?.goBack?.()} style={styles.backButton}>
         <Text style={styles.backText}>←</Text>
       </TouchableOpacity>
       <Text style={styles.headerTitle}>{title}</Text>
