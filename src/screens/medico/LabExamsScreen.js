@@ -16,10 +16,9 @@ import { Ionicons } from "@expo/vector-icons";
 import api from "../../services/api";
 import CacheService from "../../services/cacheService";
 import Pagination from "../../components/Pagination";
+import { useLanguage } from "../../context/LanguageContext";
 import moment from "moment";
 import "moment/locale/es";
-
-moment.locale("es");
 
 const CACHE_KEY_CATALOG = "lab_exams_catalog";
 const CACHE_KEY_HISTORY = "lab_exams_history_";
@@ -29,6 +28,8 @@ const HISTORY_ITEMS_PER_PAGE = 5;
 
 const LabExamsScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params;
+  const { t, lang } = useLanguage();
+  moment.locale(lang === 'es' ? 'es' : 'en-gb');
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
@@ -78,9 +79,9 @@ const LabExamsScreen = ({ navigation, route }) => {
       const cachedData = await CacheService.get(CACHE_KEY_CATALOG);
       if (cachedData) {
         setExams(cachedData);
-        Alert.alert("Sin conexión", "Mostrando catálogo guardado previamente");
+        Alert.alert(t('common.noConnection'), t('common.showingCachedData'));
       } else {
-        Alert.alert("Error", "No se pudieron cargar los exámenes");
+        Alert.alert(t('common.error'), t('common.couldNotLoadExams'));
         setExams([]);
       }
     }
@@ -149,7 +150,7 @@ const LabExamsScreen = ({ navigation, route }) => {
     console.log("Exámenes seleccionados antes de enviar:", selectedExams);
 
     if (selectedExams.length === 0) {
-      Alert.alert("Advertencia", "Seleccione al menos un examen");
+      Alert.alert(t('common.warning'), t('common.selectAtLeastOne'));
       return;
     }
 
@@ -173,7 +174,7 @@ const LabExamsScreen = ({ navigation, route }) => {
       console.log("Respuesta del servidor:", response.data);
 
       if (response.data) {
-        Alert.alert("Éxito", "Exámenes solicitados correctamente");
+        Alert.alert(t('common.success'), t('common.exams'));
         setSelectedExams([]);
         setObservations("");
         await loadRequestedExams(true);
@@ -185,8 +186,8 @@ const LabExamsScreen = ({ navigation, route }) => {
     } catch (error) {
       console.error("Error completo:", error.response?.data || error);
       Alert.alert(
-        "Error",
-        error.response?.data?.error || "No se pudieron guardar los exámenes",
+        t('common.error'),
+        error.response?.data?.error || t('common.couldNotSaveExams'),
       );
     } finally {
       setLoading(false);
@@ -223,12 +224,12 @@ const LabExamsScreen = ({ navigation, route }) => {
           <View style={styles.historyInfo}>
             <Text style={styles.historyDate}>
               {moment(item.fecha_solicitud || item.fecha).format(
-                "dddd, D [de] MMMM [de] YYYY [a las] HH:mm",
+                lang === 'es' ? 'dddd, D [de] MMMM [de] YYYY [a las] HH:mm' : 'dddd, D MMMM YYYY HH:mm',
               )}
             </Text>
             <Text style={styles.historyDoctor}>
               <Ionicons name="medkit-outline" size={12} color="#718096" /> Dr.{" "}
-              {item.medico || "No especificado"}
+              {item.medico || t('common.notSpecified')}
             </Text>
           </View>
           <View
@@ -241,13 +242,13 @@ const LabExamsScreen = ({ navigation, route }) => {
             ]}
           >
             <Text style={styles.statusText}>
-              {item.estado === "REALIZADO" ? "REALIZADO" : "PENDIENTE"}
+              {item.estado === "REALIZADO" ? t('common.completed') : t('common.pending')}
             </Text>
           </View>
         </View>
 
         <View style={styles.historyContent}>
-          <Text style={styles.historyExamsLabel}>Exámenes solicitados:</Text>
+          <Text style={styles.historyExamsLabel}>{t('medico.examsRequested')}:</Text>
           {examenesList.length > 0 ? (
             examenesList.map((exam, idx) => (
               <View key={idx} style={styles.historyExam}>
@@ -257,12 +258,12 @@ const LabExamsScreen = ({ navigation, route }) => {
             ))
           ) : (
             <Text style={styles.historyEmptyExams}>
-              No se encontraron exámenes
+              {t('common.noExamsFound')}
             </Text>
           )}
           {item.observaciones && (
             <>
-              <Text style={styles.historyObsLabel}>Observaciones:</Text>
+              <Text style={styles.historyObsLabel}>{t('common.observations')}:</Text>
               <Text style={styles.historyObsText}>{item.observaciones}</Text>
             </>
           )}
@@ -282,8 +283,7 @@ const LabExamsScreen = ({ navigation, route }) => {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          <Ionicons name="flask-outline" size={20} color="#fff" /> Exámenes de
-          Laboratorio
+          <Ionicons name="flask-outline" size={20} color="#fff" /> {t('medico.labExams')}
         </Text>
         <TouchableOpacity
           onPress={() => {
@@ -304,7 +304,7 @@ const LabExamsScreen = ({ navigation, route }) => {
             <Ionicons name="person-circle" size={50} color="#fff" />
           </View>
           <View style={styles.patientDetails}>
-            <Text style={styles.patientName}>Paciente</Text>
+            <Text style={styles.patientName}>{t('medico.patient')}</Text>
             <View style={styles.patientMeta}>
               <Text style={styles.patientMetaItem}>
                 <Ionicons name="card-outline" size={12} color="#4299e1" />
@@ -334,7 +334,7 @@ const LabExamsScreen = ({ navigation, route }) => {
           <View style={styles.cardHeaderContent}>
             <Ionicons name="add-circle-outline" size={22} color="#fff" />
             <Text style={styles.cardHeaderTitle}>
-              Nueva Solicitud de Exámenes
+              {t('medico.newExamRequest')}
             </Text>
           </View>
         </LinearGradient>
@@ -346,7 +346,7 @@ const LabExamsScreen = ({ navigation, route }) => {
               <View style={styles.sectionBadge}>
                 <Ionicons name="flask" size={16} color="#fff" />
               </View>
-              <Text style={styles.sectionTitle}>Exámenes Disponibles</Text>
+              <Text style={styles.sectionTitle}>{t('common.availableExams')}</Text>
               <View style={styles.sectionCount}>
                 <Text style={styles.sectionCountText}>
                   {exams.length} exámenes
@@ -363,7 +363,7 @@ const LabExamsScreen = ({ navigation, route }) => {
                     color="#a0aec0"
                   />
                   <Text style={styles.emptyExamsText}>
-                    No hay exámenes disponibles
+                    {t('common.noExamsAvailable')}
                   </Text>
                 </View>
               ) : (
@@ -422,11 +422,11 @@ const LabExamsScreen = ({ navigation, route }) => {
               >
                 <Ionicons name="create-outline" size={16} color="#fff" />
               </View>
-              <Text style={styles.sectionTitle}>Observaciones</Text>
+              <Text style={styles.sectionTitle}>{t('common.observations')}</Text>
             </View>
             <TextInput
               style={styles.observacionesTextArea}
-              placeholder="Escriba aquí cualquier observación adicional para los exámenes solicitados..."
+              placeholder={t('medico.observationsPlaceholder')}
               placeholderTextColor="#a0aec0"
               multiline
               numberOfLines={4}
@@ -435,8 +435,7 @@ const LabExamsScreen = ({ navigation, route }) => {
               onChangeText={setObservations}
             />
             <Text style={styles.helperText}>
-              <Ionicons name="information-circle-outline" size={12} /> Puede
-              agregar notas específicas para el laboratorio
+              <Ionicons name="information-circle-outline" size={12} /> {t('medico.labHelper')}
             </Text>
           </View>
         </View>
@@ -447,7 +446,7 @@ const LabExamsScreen = ({ navigation, route }) => {
             onPress={() => navigation.goBack()}
           >
             <Ionicons name="close-outline" size={18} color="#718096" />
-            <Text style={styles.cancelButtonText}>Cancelar</Text>
+            <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -460,7 +459,7 @@ const LabExamsScreen = ({ navigation, route }) => {
             ) : (
               <>
                 <Ionicons name="save-outline" size={18} color="#fff" />
-                <Text style={styles.saveButtonText}>Solicitar Exámenes</Text>
+                <Text style={styles.saveButtonText}>{t('medico.requestExams')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -482,11 +481,11 @@ const LabExamsScreen = ({ navigation, route }) => {
           >
             <View style={styles.historyHeaderContent}>
               <Ionicons name="time-outline" size={20} color="#fff" />
-              <Text style={styles.historyTitle}>Historial de Solicitudes</Text>
+              <Text style={styles.historyTitle}>{t('medico.requestsHistory')}</Text>
               {requestedExams.length > 0 && (
                 <View style={styles.historyCount}>
                   <Text style={styles.historyCountText}>
-                    {requestedExams.length} solicitudes
+                    {requestedExams.length} {t('common.requests')}
                   </Text>
                 </View>
               )}
@@ -517,7 +516,7 @@ const LabExamsScreen = ({ navigation, route }) => {
                   color="#cbd5e0"
                 />
                 <Text style={styles.emptyHistoryText}>
-                  No hay solicitudes previas
+                  {t('common.noPreviousRequests')}
                 </Text>
               </View>
             ) : (

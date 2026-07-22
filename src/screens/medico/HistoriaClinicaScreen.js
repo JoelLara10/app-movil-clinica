@@ -14,12 +14,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
 import CacheService from '../../services/cacheService';
+import { useLanguage } from '../../context/LanguageContext';
 
 const CACHE_KEY_PREFIX = 'historia_clinica_';
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 
 const HistoriaClinicaScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params;
+  const { t, lang } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [formData, setFormData] = useState({
@@ -121,7 +123,7 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
           pat_oculares: cachedData.pat_oculares || '',
           pat_cirugias: cachedData.pat_cirugias || '',
         });
-        Alert.alert('Sin conexión', 'Mostrando datos guardados previamente');
+        Alert.alert(t('common.noConnection'), t('common.showingCachedData'));
       }
     } finally {
       setLoadingData(false);
@@ -143,7 +145,7 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
 
   const handleSubmit = async () => {
     if (!formData.motivo_consulta.trim()) {
-      Alert.alert('Advertencia', 'El motivo de consulta es requerido');
+      Alert.alert(t('common.warning'), t('common.requiredReason'));
       return;
     }
 
@@ -163,12 +165,12 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
         const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}_${Id_exp}`;
         await CacheService.set(cacheKey, formData, CACHE_TTL);
         
-        Alert.alert('Éxito', 'Historia clínica guardada correctamente');
+        Alert.alert(t('common.success'), 'Historia clínica guardada correctamente');
         navigation.goBack();
       }
     } catch (error) {
       console.error('Error saving historia clinica:', error);
-      Alert.alert('Error', error.response?.data?.error || 'No se pudo guardar la historia clínica');
+      Alert.alert(t('common.error'), error.response?.data?.error || t('common.couldNotSaveData'));
     } finally {
       setLoading(false);
     }
@@ -215,7 +217,7 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#667eea" />
-        <Text style={styles.loadingText}>Cargando historia clínica...</Text>
+        <Text style={styles.loadingText}>{t('medico.loadingClinicalHistory')}</Text>
       </View>
     );
   }
@@ -227,7 +229,7 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          <Ionicons name="document-text-outline" size={20} color="#fff" /> Historia Clínica
+          <Ionicons name="document-text-outline" size={20} color="#fff" /> {t('medico.clinicalHistory')}
         </Text>
         <TouchableOpacity
           onPress={loadExistingData}
@@ -248,7 +250,7 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
           <View style={styles.cardHeaderContent}>
             <Ionicons name="person-circle-outline" size={22} color="#fff" />
             <Text style={styles.cardHeaderTitle}>
-              Paciente: {Id_exp}
+              {t('medico.patient')}: {Id_exp}
             </Text>
           </View>
         </LinearGradient>
@@ -258,11 +260,11 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
           <View style={styles.section}>
             <View style={styles.sectionTitle}>
               <Ionicons name="help-circle-outline" size={20} color="#667eea" />
-              <Text style={styles.sectionTitleText}>Motivo de consulta</Text>
+              <Text style={styles.sectionTitleText}>{t('medico.reasonForConsultation')}</Text>
             </View>
             <TextInput
               style={[styles.input, styles.textArea]}
-              placeholder="Describa el motivo de la consulta..."
+              placeholder={t('medico.reasonPlaceholder')}
               placeholderTextColor="#a0aec0"
               multiline
               numberOfLines={3}
@@ -273,24 +275,24 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
           </View>
 
           {/* Sintomatología Ocular */}
-          {renderCheckboxGroup('Sintomatología Ocular', sintomasOptions, 'sintomatologia', 'eye-outline')}
+          {renderCheckboxGroup(t('medico.ocularSymptoms'), sintomasOptions, 'sintomatologia', 'eye-outline')}
 
           {/* Antecedentes Heredofamiliares */}
-          {renderCheckboxGroup('Antecedentes Heredofamiliares', heredoOptions, 'heredo', 'people-outline')}
+          {renderCheckboxGroup(t('medico.hereditaryHistory'), heredoOptions, 'heredo', 'people-outline')}
 
           {/* Antecedentes Personales No Patológicos */}
-          {renderCheckboxGroup('Antecedentes Personales No Patológicos', nopatOptions, 'nopat', 'person-outline')}
+          {renderCheckboxGroup(t('medico.personalNonPathological'), nopatOptions, 'nopat', 'person-outline')}
 
           {/* Antecedentes Patológicos */}
           <View style={styles.section}>
             <View style={styles.sectionTitle}>
               <Ionicons name="medkit-outline" size={20} color="#667eea" />
-              <Text style={styles.sectionTitleText}>Antecedentes Patológicos</Text>
+              <Text style={styles.sectionTitleText}>{t('medico.pathologicalHistory')}</Text>
             </View>
             
             <TextInput
               style={styles.input}
-              placeholder="Enfermedades"
+              placeholder={t('medico.diseases')}
               placeholderTextColor="#a0aec0"
               value={formData.pat_enfermedades}
               onChangeText={(text) => handleChange('pat_enfermedades', text)}
@@ -298,7 +300,7 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
             
             <TextInput
               style={styles.input}
-              placeholder="Medicamentos"
+              placeholder={t('medico.medications')}
               placeholderTextColor="#a0aec0"
               value={formData.pat_medicamentos}
               onChangeText={(text) => handleChange('pat_medicamentos', text)}
@@ -306,7 +308,7 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
             
             <TextInput
               style={styles.input}
-              placeholder="Alergias"
+              placeholder={t('medico.allergiesLabel')}
               placeholderTextColor="#a0aec0"
               value={formData.pat_alergias}
               onChangeText={(text) => handleChange('pat_alergias', text)}
@@ -314,7 +316,7 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
             
             <TextInput
               style={styles.input}
-              placeholder="Antecedentes oculares"
+              placeholder={t('medico.ocularHistory')}
               placeholderTextColor="#a0aec0"
               value={formData.pat_oculares}
               onChangeText={(text) => handleChange('pat_oculares', text)}
@@ -322,7 +324,7 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
             
             <TextInput
               style={styles.input}
-              placeholder="Cirugías previas"
+              placeholder={t('medico.previousSurgeries')}
               placeholderTextColor="#a0aec0"
               value={formData.pat_cirugias}
               onChangeText={(text) => handleChange('pat_cirugias', text)}
@@ -336,7 +338,7 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
             onPress={() => navigation.goBack()}
           >
             <Ionicons name="close-outline" size={18} color="#718096" />
-            <Text style={styles.cancelButtonText}>Cancelar</Text>
+            <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -349,7 +351,7 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
             ) : (
               <>
                 <Ionicons name="save-outline" size={18} color="#fff" />
-                <Text style={styles.saveButtonText}>Guardar Historia Clínica</Text>
+                <Text style={styles.saveButtonText}>{t('medico.saveClinicalHistory')}</Text>
               </>
             )}
           </TouchableOpacity>

@@ -15,13 +15,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../services/api';
+import { useLanguage } from '../../context/LanguageContext';
 import moment from 'moment';
 import 'moment/locale/es';
 
-moment.locale('es');
-
 const VitalSignsListScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params;
+  const { t, lang } = useLanguage();
+  moment.locale(lang === 'es' ? 'es' : 'en-gb');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [signos, setSignos] = useState([]);
@@ -45,7 +46,7 @@ const VitalSignsListScreen = ({ navigation, route }) => {
       
     } catch (error) {
       console.error('Error loading data:', error);
-      Alert.alert('Error', 'No se pudieron cargar los datos');
+      Alert.alert(t('common.error'), t('common.couldNotLoadResults'));
     } finally {
       setLoading(false);
     }
@@ -61,7 +62,7 @@ const VitalSignsListScreen = ({ navigation, route }) => {
     try {
       const token = await AsyncStorage.getItem('@ineo_token');
       if (!token) {
-        Alert.alert('Sesión', 'No se encontró sesión activa');
+        Alert.alert(t('common.sessionExpired'), t('common.sessionExpired'));
         return;
       }
 
@@ -70,11 +71,11 @@ const VitalSignsListScreen = ({ navigation, route }) => {
 
       Linking.openURL(pdfUrl).catch((err) => {
         console.error('Error opening PDF:', err);
-        Alert.alert('Error', 'No se pudo abrir el PDF');
+        Alert.alert(t('common.error'), t('common.couldNotOpenPdf'));
       });
     } catch (error) {
       console.error('Error generating PDF URL:', error);
-      Alert.alert('Error', 'No se pudo generar el documento');
+      Alert.alert(t('common.error'), t('common.couldNotGenerate'));
     }
   };
 
@@ -85,16 +86,16 @@ const VitalSignsListScreen = ({ navigation, route }) => {
           <View style={styles.emptyStateIcon}>
             <Ionicons name="heart-outline" size={50} color="#fff" />
           </View>
-          <Text style={styles.emptyStateTitle}>No hay signos vitales registrados</Text>
+          <Text style={styles.emptyStateTitle}>{t('common.noVitalsRegistered')}</Text>
           <Text style={styles.emptyStateText}>
-            Aún no se han registrado signos vitales para este paciente.
+            {t('common.noVitalsYet')}
           </Text>
           <TouchableOpacity
             style={styles.emptyButton}
             onPress={() => navigation.navigate('VitalSigns', { id_atencion, Id_exp })}
           >
             <Ionicons name="add-circle-outline" size={20} color="#fff" />
-            <Text style={styles.emptyButtonText}>Registrar Primeros Signos</Text>
+            <Text style={styles.emptyButtonText}>{t('common.registerFirstVitals')}</Text>
           </TouchableOpacity>
         </View>
       );
@@ -163,7 +164,7 @@ const VitalSignsListScreen = ({ navigation, route }) => {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#667eea" />
-        <Text style={styles.loadingText}>Cargando signos vitales...</Text>
+        <Text style={styles.loadingText}>{t('medico.loadingVitals')}</Text>
       </View>
     );
   }
@@ -179,7 +180,7 @@ const VitalSignsListScreen = ({ navigation, route }) => {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          <Ionicons name="heart-outline" size={20} color="#fff" /> Signos Vitales
+          <Ionicons name="heart-outline" size={20} color="#fff" /> {t('medico.vitalSigns')}
         </Text>
         <View style={{ width: 40 }} />
       </LinearGradient>
@@ -192,7 +193,7 @@ const VitalSignsListScreen = ({ navigation, route }) => {
           </View>
           <View style={styles.patientDetails}>
             <Text style={styles.patientName}>
-              {paciente?.papell || ''} {paciente?.nom_pac || 'Paciente'}
+              {paciente?.papell || ''} {paciente?.nom_pac || t('medico.patient')}
             </Text>
             <View style={styles.patientMeta}>
               <Text style={styles.patientMetaItem}>
@@ -213,7 +214,7 @@ const VitalSignsListScreen = ({ navigation, route }) => {
           onPress={() => navigation.navigate('VitalSigns', { id_atencion, Id_exp })}
         >
           <Ionicons name="add-circle-outline" size={20} color="#fff" />
-          <Text style={styles.newButtonText}>Nuevo Registro</Text>
+          <Text style={styles.newButtonText}>{t('common.newRecord')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -227,9 +228,9 @@ const VitalSignsListScreen = ({ navigation, route }) => {
         >
           <View style={styles.cardHeaderContent}>
             <Ionicons name="time-outline" size={20} color="#fff" />
-            <Text style={styles.cardHeaderTitle}>Historial de Signos Vitales</Text>
+            <Text style={styles.cardHeaderTitle}>{t('medico.vitalsHistory')}</Text>
             <View style={styles.badge}>
-              <Text style={styles.badgeText}>{signos.length} registro(s)</Text>
+              <Text style={styles.badgeText}>{signos.length} {t('common.records')}</Text>
             </View>
           </View>
         </LinearGradient>

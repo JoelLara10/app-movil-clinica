@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import { useLanguage } from "../../context/LanguageContext";
 import api from "../../services/api";
 import CacheService from "../../services/cacheService";
 import Pagination from "../../components/Pagination";
@@ -24,6 +25,7 @@ const HISTORY_ITEMS_PER_PAGE = 5;
 
 const EnfermeriaVitalSignsScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params || {};
+  const { t, lang } = useLanguage();
 
   // ==================== DEBUG ====================
   useEffect(() => {
@@ -100,7 +102,7 @@ const EnfermeriaVitalSignsScreen = ({ navigation, route }) => {
   const handleSubmit = async () => {
     const hasData = Object.values(formData).some((value) => value !== "");
     if (!hasData) {
-      Alert.alert("Advertencia", "Ingrese al menos un signo vital");
+      Alert.alert(t('common.warning'), t('common.enterAtLeastOneVital'));
       return;
     }
 
@@ -124,13 +126,13 @@ const EnfermeriaVitalSignsScreen = ({ navigation, route }) => {
     try {
       const response = await api.post(`/appointments/${id_atencion}/vital-signs`, dataToSend);
       if (response.data) {
-        Alert.alert("Éxito", "Signos vitales guardados correctamente");
+        Alert.alert(t('common.success'), t('enfermeria.saveVitals'));
         setFormData({ ta: "", fc: "", fr: "", temp: "", spo2: "", peso: "", talla: "" });
         await loadVitalSignsHistory(true);
       }
     } catch (error) {
       console.error("Error saving vital signs:", error);
-      Alert.alert("Error", error.response?.data?.error || "No se pudieron guardar los signos vitales");
+      Alert.alert(t('common.error'), error.response?.data?.error || t('common.couldNotSaveData'));
     } finally {
       setLoading(false);
     }
@@ -177,13 +179,13 @@ const EnfermeriaVitalSignsScreen = ({ navigation, route }) => {
         )}
         {item.peso !== undefined && item.peso !== null && (
           <View style={styles.historyField}>
-            <Text style={styles.historyLabel}>Peso</Text>
+            <Text style={styles.historyLabel}>{t('enfermeria.weight')}</Text>
             <Text style={styles.historyValue}>{item.peso}kg</Text>
           </View>
         )}
         {item.talla !== undefined && item.talla !== null && (
           <View style={styles.historyField}>
-            <Text style={styles.historyLabel}>Talla</Text>
+            <Text style={styles.historyLabel}>{t('enfermeria.height')}</Text>
             <Text style={styles.historyValue}>{item.talla}m</Text>
           </View>
         )}
@@ -208,7 +210,7 @@ const EnfermeriaVitalSignsScreen = ({ navigation, route }) => {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#667eea" />
-        <Text style={styles.loadingText}>Cargando historial...</Text>
+        <Text style={styles.loadingText}>{t('enfermeria.loadingVitalsList')}</Text>
       </View>
     );
   }
@@ -221,7 +223,7 @@ const EnfermeriaVitalSignsScreen = ({ navigation, route }) => {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          <Ionicons name="heart-outline" size={20} color="#fff" /> Signos Vitales
+          <Ionicons name="heart-outline" size={20} color="#fff" /> {t('enfermeria.vitalSigns')}
         </Text>
         <TouchableOpacity
           onPress={() => loadVitalSignsHistory(true)}
@@ -239,7 +241,7 @@ const EnfermeriaVitalSignsScreen = ({ navigation, route }) => {
             <Ionicons name="person-circle" size={50} color="#fff" />
           </View>
           <View style={styles.patientDetails}>
-            <Text style={styles.patientName}>Paciente</Text>
+            <Text style={styles.patientName}>{t('enfermeria.patient')}</Text>
             <View style={styles.patientMeta}>
               <Text style={styles.patientMetaItem}>
                 <Ionicons name="card-outline" size={12} /> Exp: {Id_exp || "N/A"}
@@ -260,7 +262,7 @@ const EnfermeriaVitalSignsScreen = ({ navigation, route }) => {
           <View style={styles.cardHeaderContent}>
             <Ionicons name="heart-outline" size={22} color="#fff" />
             <Text style={styles.cardHeaderTitle}>
-              Nuevo Registro de Signos Vitales
+              {t('enfermeria.newVitalRecord')}
             </Text>
           </View>
         </LinearGradient>
@@ -271,7 +273,7 @@ const EnfermeriaVitalSignsScreen = ({ navigation, route }) => {
             <View style={styles.formGroup}>
               <View style={styles.formLabel}>
                 <Ionicons name="heart-outline" size={16} color="#f56565" />
-                <Text style={styles.formLabelText}>Presión arterial (TA)</Text>
+                <Text style={styles.formLabelText}>{t('enfermeria.bloodPressure')}</Text>
               </View>
               <TextInput
                 style={styles.formInput}
@@ -287,7 +289,7 @@ const EnfermeriaVitalSignsScreen = ({ navigation, route }) => {
               <View style={styles.formLabel}>
                 <Ionicons name="heart-outline" size={16} color="#f56565" />
                 <Text style={styles.formLabelText}>
-                  Frecuencia cardíaca (FC)
+                  {t('enfermeria.heartRate')}
                 </Text>
               </View>
               <TextInput
@@ -305,7 +307,7 @@ const EnfermeriaVitalSignsScreen = ({ navigation, route }) => {
               <View style={styles.formLabel}>
                 <Ionicons name="pulse-outline" size={16} color="#f56565" />
                 <Text style={styles.formLabelText}>
-                  Frecuencia respiratoria (FR)
+                  {t('enfermeria.respiratoryRate')}
                 </Text>
               </View>
               <TextInput
@@ -326,7 +328,7 @@ const EnfermeriaVitalSignsScreen = ({ navigation, route }) => {
                   size={16}
                   color="#f56565"
                 />
-                <Text style={styles.formLabelText}>Temperatura (°C)</Text>
+                <Text style={styles.formLabelText}>{t('enfermeria.temperature')} (°C)</Text>
               </View>
               <TextInput
                 style={styles.formInput}
@@ -342,7 +344,7 @@ const EnfermeriaVitalSignsScreen = ({ navigation, route }) => {
             <View style={styles.formGroup}>
               <View style={styles.formLabel}>
                 <Ionicons name="water-outline" size={16} color="#f56565" />
-                <Text style={styles.formLabelText}>SpO₂ (%)</Text>
+                <Text style={styles.formLabelText}>{t('enfermeria.oxygenSaturation')} (%)</Text>
               </View>
               <TextInput
                 style={styles.formInput}
@@ -358,7 +360,7 @@ const EnfermeriaVitalSignsScreen = ({ navigation, route }) => {
             <View style={styles.formGroup}>
               <View style={styles.formLabel}>
                 <Ionicons name="scale-outline" size={16} color="#f56565" />
-                <Text style={styles.formLabelText}>Peso (kg)</Text>
+                <Text style={styles.formLabelText}>{t('enfermeria.weight')} (kg)</Text>
               </View>
               <TextInput
                 style={styles.formInput}
@@ -374,7 +376,7 @@ const EnfermeriaVitalSignsScreen = ({ navigation, route }) => {
             <View style={styles.formGroup}>
               <View style={styles.formLabel}>
                 <Ionicons name="resize-outline" size={16} color="#f56565" />
-                <Text style={styles.formLabelText}>Talla (m)</Text>
+                <Text style={styles.formLabelText}>{t('enfermeria.height')} (m)</Text>
               </View>
               <TextInput
                 style={styles.formInput}
@@ -394,7 +396,7 @@ const EnfermeriaVitalSignsScreen = ({ navigation, route }) => {
             onPress={() => navigation.goBack()}
           >
             <Ionicons name="arrow-back-outline" size={18} color="#718096" />
-            <Text style={styles.cancelButtonText}>Regresar</Text>
+            <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -408,7 +410,7 @@ const EnfermeriaVitalSignsScreen = ({ navigation, route }) => {
               <>
                 <Ionicons name="save-outline" size={18} color="#fff" />
                 <Text style={styles.saveButtonText}>
-                  Guardar signos vitales
+                  {t('enfermeria.saveVitals')}
                 </Text>
               </>
             )}
@@ -426,11 +428,11 @@ const EnfermeriaVitalSignsScreen = ({ navigation, route }) => {
         >
           <View style={styles.historyHeaderContent}>
             <Ionicons name="time-outline" size={20} color="#fff" />
-            <Text style={styles.historyTitle}>Historial de Signos Vitales</Text>
+            <Text style={styles.historyTitle}>{t('enfermeria.vitalsHistory')}</Text>
             {history.length > 0 && (
               <View style={styles.historyCount}>
                 <Text style={styles.historyCountText}>
-                  {history.length} registros
+                  {history.length} {t('common.records')}
                 </Text>
               </View>
             )}
@@ -447,7 +449,7 @@ const EnfermeriaVitalSignsScreen = ({ navigation, route }) => {
           <View style={styles.emptyHistory}>
             <Ionicons name="document-text-outline" size={48} color="#cbd5e0" />
             <Text style={styles.emptyHistoryText}>
-              No hay registros previos
+              {t('enfermeria.noVitalsYet')}
             </Text>
           </View>
         ) : (

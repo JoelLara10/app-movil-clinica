@@ -4,6 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { PatientProvider } from './src/context/PatientContext';
+import { LanguageProvider } from './src/context/LanguageContext';
 import AuthNavigator from './src/navigation/AuthNavigator';
 import MainNavigator from './src/navigation/MainNavigator';
 
@@ -24,11 +25,13 @@ function AppContent() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <PatientProvider>
-          <AppContent />
-        </PatientProvider>
-      </AuthProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <PatientProvider>
+            <AppContent />
+          </PatientProvider>
+        </AuthProvider>
+      </LanguageProvider>
     </SafeAreaProvider>
   );
 }

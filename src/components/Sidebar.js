@@ -12,10 +12,21 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext";
 import { usePatient } from "../context/PatientContext";
+import { useLanguage } from "../context/LanguageContext";
+
+const roleLabels = {
+  admin: { es: "ADMIN", en: "ADMIN" },
+  administrativo: { es: "ADMINISTRATIVO", en: "ADMINISTRATIVE" },
+  medico: { es: "MEDICO", en: "MEDICAL" },
+  enfermero: { es: "ENFERMERIA", en: "NURSING" },
+  enfermeria: { es: "ENFERMERIA", en: "NURSING" },
+  estudios: { es: "ESTUDIOS", en: "STUDIES" },
+};
 
 const Sidebar = ({ navigation }) => {
   const { user, logout } = useAuth();
   const { selectedPatient } = usePatient();
+  const { lang, setLanguage, t } = useLanguage();
 
   const id_atencion = selectedPatient?.id_atencion;
   const pacienteId = selectedPatient?.Id_exp;
@@ -23,8 +34,7 @@ const Sidebar = ({ navigation }) => {
 
   const handleNavigation = (screen, params = {}, subScreen) => {
     navigation.closeDrawer();
-    
-    // Si la pantalla está dentro de un Stack, navegamos al Stack y luego a la pantalla
+
     const stackNavigators = {
       'Medico': 'Medico',
       'Enfermeria': 'Enfermeria',
@@ -34,25 +44,26 @@ const Sidebar = ({ navigation }) => {
     };
 
     if (subScreen) {
-      // Navegar a la pantalla anidada
       navigation.navigate('MainStack', {
         screen: screen,
         params: { screen: subScreen, params }
       });
     } else if (stackNavigators[screen]) {
-      // Navegar a la pantalla principal del stack
       navigation.navigate('MainStack', { screen });
     } else {
-      // Navegar a una pantalla directa del stack
       navigation.navigate('MainStack', { screen, params });
     }
   };
 
   const handleLogout = () => {
-    Alert.alert("Cerrar sesión", "¿Estás seguro de que deseas salir?", [
-      { text: "Cancelar", style: "cancel" },
-      { text: "Salir", onPress: () => logout() },
+    Alert.alert(t('sidebar.logoutConfirm'), t('sidebar.logoutMessage'), [
+      { text: t('sidebar.cancel'), style: "cancel" },
+      { text: t('sidebar.exit'), onPress: () => logout() },
     ]);
+  };
+
+  const toggleLanguage = () => {
+    setLanguage(lang === 'es' ? 'en' : 'es');
   };
 
   // =====================================================
@@ -63,17 +74,17 @@ const Sidebar = ({ navigation }) => {
   // --- 1. MENÚ PARA MÉDICO ---
   if (userRole === 'medico') {
     menuSections.push({
-      section: 'PRINCIPAL',
+      section: t('sidebar.principal'),
       items: [
         {
-          name: 'Dashboard',
+          name: t('sidebar.dashboard'),
           icon: 'home-outline',
           screen: 'Dashboard',
           requiresPatient: false,
           params: {},
         },
         {
-          name: 'Panel Médico',
+          name: t('sidebar.medicalPanel'),
           icon: 'speedometer-outline',
           screen: 'Medico',
           subScreen: 'MedicoList',
@@ -83,13 +94,12 @@ const Sidebar = ({ navigation }) => {
       ],
     });
 
-    // Secciones médicas (Historia, Notas, Documentos)
     menuSections.push(
       {
-        section: 'HISTORIA CLÍNICA',
+        section: t('sidebar.history'),
         items: [
           {
-            name: 'Historia Clínica',
+            name: t('sidebar.clinicalHistory'),
             icon: 'document-text-outline',
             screen: 'Medico',
             subScreen: 'HistoriaClinica',
@@ -99,10 +109,10 @@ const Sidebar = ({ navigation }) => {
         ],
       },
       {
-        section: 'NOTAS MÉDICAS',
+        section: t('sidebar.medicalNotes'),
         items: [
           {
-            name: 'Signos Vitales',
+            name: t('sidebar.vitalSigns'),
             icon: 'heart-outline',
             screen: 'Medico',
             subScreen: 'VitalSigns',
@@ -110,7 +120,7 @@ const Sidebar = ({ navigation }) => {
             params: { id_atencion },
           },
           {
-            name: 'Nota Médica (SOAP)',
+            name: t('sidebar.medicalNote'),
             icon: 'document-text-outline',
             screen: 'Medico',
             subScreen: 'MedicalNote',
@@ -118,7 +128,7 @@ const Sidebar = ({ navigation }) => {
             params: { id_atencion },
           },
           {
-            name: 'Diagnóstico',
+            name: t('sidebar.diagnosis'),
             icon: 'clipboard-outline',
             screen: 'Medico',
             subScreen: 'Diagnosis',
@@ -126,7 +136,7 @@ const Sidebar = ({ navigation }) => {
             params: { id_atencion },
           },
           {
-            name: 'Receta',
+            name: t('sidebar.prescription'),
             icon: 'medkit-outline',
             screen: 'Medico',
             subScreen: 'Prescription',
@@ -134,7 +144,7 @@ const Sidebar = ({ navigation }) => {
             params: { id_atencion },
           },
           {
-            name: 'Exámenes de Laboratorio',
+            name: t('sidebar.labExams'),
             icon: 'flask-outline',
             screen: 'Medico',
             subScreen: 'LabExams',
@@ -142,7 +152,7 @@ const Sidebar = ({ navigation }) => {
             params: { id_atencion, Id_exp: pacienteId },
           },
           {
-            name: 'Exámenes de Gabinete',
+            name: t('sidebar.imagingExams'),
             icon: 'scan-outline',
             screen: 'Medico',
             subScreen: 'ImagingExams',
@@ -152,10 +162,10 @@ const Sidebar = ({ navigation }) => {
         ],
       },
       {
-        section: 'DOCUMENTOS',
+        section: t('sidebar.documents'),
         items: [
           {
-            name: 'Imprimir Documentos',
+            name: t('sidebar.printDocs'),
             icon: 'print-outline',
             screen: 'Medico',
             subScreen: 'PrintDocs',
@@ -163,7 +173,7 @@ const Sidebar = ({ navigation }) => {
             params: { id_atencion },
           },
           {
-            name: 'Resultados de Estudios',
+            name: t('sidebar.studyResults'),
             icon: 'document-text-outline',
             screen: 'Medico',
             subScreen: 'StudyResults',
@@ -178,17 +188,17 @@ const Sidebar = ({ navigation }) => {
   // --- 2. MENÚ PARA ENFERMERÍA ---
   if (userRole === 'enfermero') {
     menuSections.push({
-      section: 'PRINCIPAL',
+      section: t('sidebar.principal'),
       items: [
         {
-          name: 'Dashboard',
+          name: t('sidebar.dashboard'),
           icon: 'home-outline',
           screen: 'Dashboard',
           requiresPatient: false,
           params: {},
         },
         {
-          name: 'Panel Enfermería',
+          name: t('sidebar.nursingPanel'),
           icon: 'medkit-outline',
           screen: 'Enfermeria',
           subScreen: 'EnfermeriaList',
@@ -198,13 +208,12 @@ const Sidebar = ({ navigation }) => {
       ],
     });
 
-    // Secciones de enfermería
     menuSections.push(
       {
-        section: 'NOTAS DE ENFERMERÍA',
+        section: t('sidebar.nursingNotes'),
         items: [
           {
-            name: 'Signos Vitales',
+            name: t('sidebar.vitalSigns'),
             icon: 'heart-outline',
             screen: 'Enfermeria',
             subScreen: 'EnfermeriaVitalSigns',
@@ -212,7 +221,7 @@ const Sidebar = ({ navigation }) => {
             params: { id_atencion, Id_exp: pacienteId },
           },
           {
-            name: 'Nota de Enfermería',
+            name: t('sidebar.nursingNote'),
             icon: 'document-text-outline',
             screen: 'Enfermeria',
             subScreen: 'EnfermeriaNote',
@@ -220,7 +229,7 @@ const Sidebar = ({ navigation }) => {
             params: { id_atencion, Id_exp: pacienteId },
           },
           {
-            name: 'Administración Medicamentos',
+            name: t('sidebar.medicationAdmin'),
             icon: 'medkit-outline',
             screen: 'Enfermeria',
             subScreen: 'EnfermeriaMedications',
@@ -228,7 +237,7 @@ const Sidebar = ({ navigation }) => {
             params: { id_atencion, Id_exp: pacienteId },
           },
           {
-            name: 'Valoración de Enfermería',
+            name: t('sidebar.nursingAssessment'),
             icon: 'clipboard-outline',
             screen: 'Enfermeria',
             subScreen: 'EnfermeriaAssessment',
@@ -236,7 +245,7 @@ const Sidebar = ({ navigation }) => {
             params: { id_atencion, Id_exp: pacienteId },
           },
           {
-            name: 'Balance Hídrico',
+            name: t('sidebar.fluidBalance'),
             icon: 'water-outline',
             screen: 'Enfermeria',
             subScreen: 'EnfermeriaFluidBalance',
@@ -244,7 +253,7 @@ const Sidebar = ({ navigation }) => {
             params: { id_atencion, Id_exp: pacienteId },
           },
           {
-            name: 'Cuidados de Enfermería',
+            name: t('sidebar.nursingCare'),
             icon: 'shield-checkmark-outline',
             screen: 'Enfermeria',
             subScreen: 'EnfermeriaCare',
@@ -254,10 +263,10 @@ const Sidebar = ({ navigation }) => {
         ],
       },
       {
-        section: 'DOCUMENTOS',
+        section: t('sidebar.documents'),
         items: [
           {
-            name: 'Resultados de Estudios',
+            name: t('sidebar.studyResults'),
             icon: 'document-text-outline',
             screen: 'Enfermeria',
             subScreen: 'StudyResults',
@@ -272,10 +281,10 @@ const Sidebar = ({ navigation }) => {
   // --- 3. MENÚ PARA ADMIN ---
   if (userRole === 'admin') {
     menuSections.push({
-      section: 'ADMINISTRACIÓN',
+      section: t('sidebar.administration'),
       items: [
         {
-          name: 'Dashboard Admin',
+          name: `${t('dashboard.administrative')} ${t('sidebar.dashboard')}`,
           icon: 'speedometer-outline',
           screen: 'Admin',
           requiresPatient: false,
@@ -284,12 +293,11 @@ const Sidebar = ({ navigation }) => {
       ],
     });
 
-    // Módulo Médico
     menuSections.push({
-      section: 'MÓDULO MÉDICO',
+      section: t('sidebar.medicalModule'),
       items: [
         {
-          name: 'Panel Médico',
+          name: t('sidebar.medicalPanel'),
           icon: 'medkit-outline',
           screen: 'Medico',
           subScreen: 'MedicoList',
@@ -297,7 +305,7 @@ const Sidebar = ({ navigation }) => {
           params: {},
         },
         {
-          name: 'Historia Clínica',
+          name: t('sidebar.clinicalHistory'),
           icon: 'document-text-outline',
           screen: 'Medico',
           subScreen: 'HistoriaClinica',
@@ -305,7 +313,7 @@ const Sidebar = ({ navigation }) => {
           params: { id_atencion, Id_exp: pacienteId },
         },
         {
-          name: 'Signos Vitales',
+          name: t('sidebar.vitalSigns'),
           icon: 'heart-outline',
           screen: 'Medico',
           subScreen: 'VitalSigns',
@@ -313,7 +321,7 @@ const Sidebar = ({ navigation }) => {
           params: { id_atencion },
         },
         {
-          name: 'Nota Médica (SOAP)',
+          name: t('sidebar.medicalNote'),
           icon: 'document-text-outline',
           screen: 'Medico',
           subScreen: 'MedicalNote',
@@ -321,7 +329,7 @@ const Sidebar = ({ navigation }) => {
           params: { id_atencion },
         },
         {
-          name: 'Resultados de Estudios',
+          name: t('sidebar.studyResults'),
           icon: 'document-text-outline',
           screen: 'Medico',
           subScreen: 'StudyResults',
@@ -331,12 +339,11 @@ const Sidebar = ({ navigation }) => {
       ],
     });
 
-    // Módulo Enfermería
     menuSections.push({
-      section: 'MÓDULO ENFERMERÍA',
+      section: t('sidebar.nursingModule'),
       items: [
         {
-          name: 'Panel Enfermería',
+          name: t('sidebar.nursingPanel'),
           icon: 'medkit-outline',
           screen: 'Enfermeria',
           subScreen: 'EnfermeriaList',
@@ -344,7 +351,7 @@ const Sidebar = ({ navigation }) => {
           params: {},
         },
         {
-          name: 'Signos Vitales',
+          name: t('sidebar.vitalSigns'),
           icon: 'heart-outline',
           screen: 'Enfermeria',
           subScreen: 'EnfermeriaVitalSigns',
@@ -352,7 +359,7 @@ const Sidebar = ({ navigation }) => {
           params: { id_atencion, Id_exp: pacienteId },
         },
         {
-          name: 'Nota de Enfermería',
+          name: t('sidebar.nursingNote'),
           icon: 'document-text-outline',
           screen: 'Enfermeria',
           subScreen: 'EnfermeriaNote',
@@ -360,7 +367,7 @@ const Sidebar = ({ navigation }) => {
           params: { id_atencion, Id_exp: pacienteId },
         },
         {
-          name: 'Administración Medicamentos',
+          name: t('sidebar.medicationAdmin'),
           icon: 'medkit-outline',
           screen: 'Enfermeria',
           subScreen: 'EnfermeriaMedications',
@@ -368,7 +375,7 @@ const Sidebar = ({ navigation }) => {
           params: { id_atencion, Id_exp: pacienteId },
         },
         {
-          name: 'Valoración de Enfermería',
+          name: t('sidebar.nursingAssessment'),
           icon: 'clipboard-outline',
           screen: 'Enfermeria',
           subScreen: 'EnfermeriaAssessment',
@@ -376,7 +383,7 @@ const Sidebar = ({ navigation }) => {
           params: { id_atencion, Id_exp: pacienteId },
         },
         {
-          name: 'Balance Hídrico',
+          name: t('sidebar.fluidBalance'),
           icon: 'water-outline',
           screen: 'Enfermeria',
           subScreen: 'EnfermeriaFluidBalance',
@@ -384,7 +391,7 @@ const Sidebar = ({ navigation }) => {
           params: { id_atencion, Id_exp: pacienteId },
         },
         {
-          name: 'Cuidados de Enfermería',
+          name: t('sidebar.nursingCare'),
           icon: 'shield-checkmark-outline',
           screen: 'Enfermeria',
           subScreen: 'EnfermeriaCare',
@@ -394,19 +401,18 @@ const Sidebar = ({ navigation }) => {
       ],
     });
 
-    // Configuración (solo admin)
     menuSections.push({
-      section: 'CONFIGURACIÓN',
+      section: t('sidebar.configSection'),
       items: [
         {
-          name: 'Configuración General',
+          name: t('sidebar.generalConfig'),
           icon: 'settings-outline',
           screen: 'Config',
           requiresPatient: false,
           params: {},
         },
         {
-          name: 'Camas',
+          name: t('sidebar.beds'),
           icon: 'bed-outline',
           screen: 'Config',
           subScreen: 'CamasConfig',
@@ -414,7 +420,7 @@ const Sidebar = ({ navigation }) => {
           params: {},
         },
         {
-          name: 'Servicios',
+          name: t('sidebar.services'),
           icon: 'business-outline',
           screen: 'Config',
           subScreen: 'ServiciosConfig',
@@ -422,7 +428,7 @@ const Sidebar = ({ navigation }) => {
           params: {},
         },
         {
-          name: 'Usuarios',
+          name: t('sidebar.users'),
           icon: 'people-outline',
           screen: 'Config',
           subScreen: 'UsuariosConfig',
@@ -436,17 +442,17 @@ const Sidebar = ({ navigation }) => {
   // --- 4. MENÚ PARA ESTUDIOS ---
   if (userRole === 'estudios') {
     menuSections.push({
-      section: 'PRINCIPAL',
+      section: t('sidebar.principal'),
       items: [
         {
-          name: 'Dashboard',
+          name: t('sidebar.dashboard'),
           icon: 'home-outline',
           screen: 'Dashboard',
           requiresPatient: false,
           params: {},
         },
         {
-          name: 'Panel Estudios',
+          name: t('sidebar.studiesPanel'),
           icon: 'flask-outline',
           screen: 'Estudios',
           subScreen: 'EstudiosList',
@@ -457,12 +463,19 @@ const Sidebar = ({ navigation }) => {
     });
   }
 
+  const roleLabel = roleLabels[userRole]?.[lang] || (lang === 'es' ? 'USUARIO' : 'USER');
+
   return (
     <View style={styles.container}>
       <LinearGradient colors={["#667eea", "#764ba2"]} style={styles.header}>
         <View style={styles.brandContainer}>
           <Text style={styles.brandTitle}>INEO</Text>
-          <Text style={styles.brandVersion}>v2.0</Text>
+          <View style={styles.brandRight}>
+            <TouchableOpacity style={styles.langToggle} onPress={toggleLanguage}>
+              <Ionicons name="globe-outline" size={14} color="#fff" />
+              <Text style={styles.langToggleText}>{lang === 'es' ? 'EN' : 'ES'}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
         <View style={styles.userInfo}>
           <View style={styles.userAvatar}>
@@ -470,21 +483,20 @@ const Sidebar = ({ navigation }) => {
           </View>
           <View style={styles.userTextContainer}>
             <Text style={styles.userName}>
-              {userRole === 'enfermero' ? 'Enf.' : 'Dr.'} {user?.username || "Usuario"}
+              {userRole === 'enfermero' ? 'Enf.' : 'Dr.'} {user?.username || (lang === 'es' ? 'Usuario' : 'User')}
             </Text>
             <View style={styles.roleBadge}>
-              <Text style={styles.roleText}>{userRole?.toUpperCase() || 'USUARIO'}</Text>
+              <Text style={styles.roleText}>{roleLabel}</Text>
             </View>
           </View>
         </View>
       </LinearGradient>
 
-      {/* Mostrar paciente seleccionado */}
       {id_atencion && (
         <View style={styles.selectedPatientContainer}>
           <Ionicons name="person-circle-outline" size={20} color="#48bb78" />
           <Text style={styles.selectedPatientText}>
-            Paciente: {pacienteId || "ID"}
+            {t('sidebar.patient')}: {pacienteId || "ID"}
           </Text>
         </View>
       )}
@@ -507,7 +519,7 @@ const Sidebar = ({ navigation }) => {
                   ]}
                   onPress={() => {
                     if (isDisabled) {
-                      Alert.alert('Información', 'Seleccione un paciente primero');
+                      Alert.alert(t('sidebar.info'), t('sidebar.selectPatient'));
                       return;
                     }
                     handleNavigation(item.screen, item.params, item.subScreen);
@@ -536,7 +548,7 @@ const Sidebar = ({ navigation }) => {
 
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Ionicons name="log-out-outline" size={20} color="#e53e3e" />
-        <Text style={styles.logoutText}>Cerrar sesión</Text>
+        <Text style={styles.logoutText}>{t('sidebar.logout')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -565,9 +577,25 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#fff",
   },
-  brandVersion: {
+  brandRight: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  langToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.2)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+  },
+  langToggleText: {
+    color: "#fff",
     fontSize: 12,
-    color: "rgba(255,255,255,0.7)",
+    fontWeight: "600",
+    marginLeft: 4,
   },
   userInfo: {
     flexDirection: "row",

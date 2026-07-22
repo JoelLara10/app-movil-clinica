@@ -13,12 +13,11 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import api from '../../services/api';
 import CacheService from '../../services/cacheService';
 import moment from 'moment';
 import 'moment/locale/es';
-
-moment.locale('es');
 
 const CACHE_KEY_CONSULTA = 'enfermeria_consulta';
 const CACHE_KEY_URGENCIAS = 'enfermeria_urgencias';
@@ -29,6 +28,7 @@ const ITEMS_PER_PAGE = 6; // Por área
 
 const EnfermeriaScreen = ({ navigation }) => {
   const { user } = useAuth();
+  const { t, lang } = useLanguage();
   const [consulta, setConsulta] = useState([]);
   const [urgencias, setUrgencias] = useState([]);
   const [hospitalizados, setHospitalizados] = useState([]);
@@ -37,6 +37,10 @@ const EnfermeriaScreen = ({ navigation }) => {
   const [pageConsulta, setPageConsulta] = useState(1);
   const [pageUrgencias, setPageUrgencias] = useState(1);
   const [pageHospitalizados, setPageHospitalizados] = useState(1);
+
+  useEffect(() => {
+    moment.locale(lang === 'es' ? 'es' : 'en-gb');
+  }, [lang]);
 
   useEffect(() => {
     loadPatients();
@@ -99,9 +103,9 @@ const EnfermeriaScreen = ({ navigation }) => {
         setConsulta(cachedConsulta);
         setUrgencias(cachedUrgencias);
         setHospitalizados(cachedHospitalizados);
-        Alert.alert('Sin conexión', 'Mostrando datos guardados previamente');
+        Alert.alert(t('common.noConnection'), t('common.showingCachedData'));
       } else {
-        Alert.alert('Error', 'No se pudieron cargar los pacientes');
+        Alert.alert(t('common.error'), t('common.couldNotLoad'));
       }
     } finally {
       setLoading(false);
@@ -132,18 +136,18 @@ const EnfermeriaScreen = ({ navigation }) => {
       return `${item.papell} ${item.nom_pac}`;
     }
     if (item.nom_pac) return item.nom_pac;
-    return 'Paciente';
+    return t('common.patient');
   };
 
   const getAreaColor = (area) => {
-    if (area === 'Urgencias') return '#f56565';
-    if (area === 'Hospitalizado') return '#ed8936';
+    if (area === t('medico.emergencies')) return '#f56565';
+    if (area === t('medico.hospitalized')) return '#ed8936';
     return '#4299e1';
   };
 
   const renderPatientCard = (item, index, area, areaColor) => {
     const isOccupied = item.estatus === 'OCUPADA' && item.tiene_atencion;
-    const displayName = isOccupied ? getPatientName(item) : '—';
+    const displayName = isOccupied ? getPatientName(item) : '\u2014';
     
     return (
       <TouchableOpacity
@@ -156,7 +160,7 @@ const EnfermeriaScreen = ({ navigation }) => {
               Id_exp: item.Id_exp
             });
           } else {
-            Alert.alert('Información', 'Cama disponible');
+            Alert.alert(t('common.attention'), t('medico.bedAvailable'));
           }
         }}
       >
@@ -170,7 +174,7 @@ const EnfermeriaScreen = ({ navigation }) => {
         <Text style={styles.bedNumber}>{item.num_cama}</Text>
         <Text style={styles.patientName} numberOfLines={1}>{displayName}</Text>
         <View style={[styles.statusBadge, { backgroundColor: isOccupied ? areaColor : '#a0aec0' }]}>
-          <Text style={styles.statusText}>{isOccupied ? 'OCUPADO' : 'DISPONIBLE'}</Text>
+          <Text style={styles.statusText}>{isOccupied ? t('medico.occupied') : t('medico.available')}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -199,7 +203,7 @@ const EnfermeriaScreen = ({ navigation }) => {
           ) : (
             <View style={styles.emptyState}>
               <Text style={styles.emptyEmoji}>{emptyEmoji}</Text>
-              <Text style={styles.emptyText}>No hay pacientes en {title.toLowerCase()}</Text>
+              <Text style={styles.emptyText}>{t('common.noExamsFound')}</Text>
             </View>
           )}
         </View>
@@ -235,7 +239,7 @@ const EnfermeriaScreen = ({ navigation }) => {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#667eea" />
-        <Text style={styles.loadingText}>Cargando pacientes...</Text>
+        <Text style={styles.loadingText}>{t('medico.loadingPatients')}</Text>
       </View>
     );
   }
@@ -252,7 +256,7 @@ const EnfermeriaScreen = ({ navigation }) => {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          <Ionicons name="medkit-outline" size={20} color="#fff" /> Módulo de Enfermería
+          <Ionicons name="medkit-outline" size={20} color="#fff" /> {t('enfermeria.moduleTitle')}
         </Text>
         <TouchableOpacity onPress={onRefresh} style={styles.refreshButton}>
           <Ionicons name="refresh-outline" size={24} color="#fff" />
@@ -262,9 +266,9 @@ const EnfermeriaScreen = ({ navigation }) => {
       {/* Bienvenida */}
       <View style={styles.welcomeCard}>
         <View>
-          <Text style={styles.welcomeTitle}>¡Hola, Enf. {user?.username}!</Text>
+          <Text style={styles.welcomeTitle}>Hola, Enf. {user?.username}!</Text>
           <Text style={styles.welcomeSubtitle}>
-            {moment().format('dddd, D [de] MMMM [de] YYYY')}
+            {moment().format(lang === 'es' ? 'dddd, D [de] MMMM [de] YYYY' : 'dddd, D MMMM YYYY')}
           </Text>
         </View>
         <View style={styles.statsPill}>
@@ -276,42 +280,42 @@ const EnfermeriaScreen = ({ navigation }) => {
 
       {/* CONSULTA EXTERNA */}
       {renderSection(
-        'Consulta Externa',
+        t('medico.outPatient'),
         consulta,
         pageConsulta,
         setPageConsulta,
         'people-outline',
         '#4299e1',
-        '🏥'
+        '\uD83C\uDFE5'
       )}
 
       {/* URGENCIAS */}
       {renderSection(
-        'Urgencias',
+        t('medico.emergencies'),
         urgencias,
         pageUrgencias,
         setPageUrgencias,
         'alert-circle-outline',
         '#f56565',
-        '🚨'
+        '\uD83D\uDEA8'
       )}
 
       {/* HOSPITALIZADOS */}
       {renderSection(
-        'Hospitalizados',
+        t('medico.hospitalized'),
         hospitalizados,
         pageHospitalizados,
         setPageHospitalizados,
         'bed-outline',
         '#48bb78',
-        '🛏️'
+        '\uD83D\uDECF\uFE0F'
       )}
 
       {/* Footer */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>
           <Ionicons name="shield-checkmark-outline" size={12} color="rgba(0,0,0,0.4)" />
-          {' '}INEO v2.0 - Sistema de Gestión Hospitalaria
+          {' '}INEO v2.0 - Sistema de Gesti\u00f3n Hospitalaria
         </Text>
       </View>
     </ScrollView>

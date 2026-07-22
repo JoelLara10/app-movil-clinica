@@ -14,12 +14,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { usePatient } from '../../context/PatientContext';
+import { useLanguage } from '../../context/LanguageContext';
 import api from '../../services/api';
 import CacheService from '../../services/cacheService';
 import moment from 'moment';
 import 'moment/locale/es';
-
-moment.locale('es');
 
 const CACHE_KEY_CONSULTA = 'medico_consulta';
 const CACHE_KEY_URGENCIAS = 'medico_urgencias';
@@ -31,6 +30,7 @@ const ITEMS_PER_PAGE = 6; // Por área
 const MedicoScreen = ({ navigation }) => {
   const { user } = useAuth();
   const { selectPatient } = usePatient();
+  const { t, lang } = useLanguage();
   const [consulta, setConsulta] = useState([]);
   const [urgencias, setUrgencias] = useState([]);
   const [hospitalizados, setHospitalizados] = useState([]);
@@ -39,6 +39,10 @@ const MedicoScreen = ({ navigation }) => {
   const [pageConsulta, setPageConsulta] = useState(1);
   const [pageUrgencias, setPageUrgencias] = useState(1);
   const [pageHospitalizados, setPageHospitalizados] = useState(1);
+
+  useEffect(() => {
+    moment.locale(lang === 'es' ? 'es' : 'en-gb');
+  }, [lang]);
 
   useEffect(() => {
     loadPatients();
@@ -101,9 +105,9 @@ const MedicoScreen = ({ navigation }) => {
         setConsulta(cachedConsulta);
         setUrgencias(cachedUrgencias);
         setHospitalizados(cachedHospitalizados);
-        Alert.alert('Sin conexión', 'Mostrando datos guardados previamente');
+        Alert.alert(t('common.noConnection'), t('common.showingCachedData'));
       } else {
-        Alert.alert('Error', 'No se pudieron cargar los pacientes');
+        Alert.alert(t('common.error'), t('common.couldNotLoad'));
       }
     } finally {
       setLoading(false);
@@ -134,7 +138,7 @@ const MedicoScreen = ({ navigation }) => {
       return `${item.papell} ${item.nom_pac}`;
     }
     if (item.nom_pac) return item.nom_pac;
-    return 'Paciente';
+    return t('common.patient');
   };
 
   const renderPatientCard = (item, index, area, areaColor) => {
@@ -156,7 +160,7 @@ const MedicoScreen = ({ navigation }) => {
               Id_exp: item.Id_exp
             });
           } else {
-            Alert.alert('Información', 'Cama disponible');
+            Alert.alert(t('medico.bedAvailable'), t('medico.bedAvailable'));
           }
         }}
       >
@@ -170,7 +174,7 @@ const MedicoScreen = ({ navigation }) => {
         <Text style={styles.bedNumber}>{item.num_cama}</Text>
         <Text style={styles.patientName} numberOfLines={1}>{displayName}</Text>
         <View style={[styles.statusBadge, { backgroundColor: isOccupied ? areaColor : '#a0aec0' }]}>
-          <Text style={styles.statusText}>{isOccupied ? 'OCUPADO' : 'DISPONIBLE'}</Text>
+          <Text style={styles.statusText}>{isOccupied ? t('medico.occupied') : t('medico.available')}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -235,7 +239,7 @@ const MedicoScreen = ({ navigation }) => {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#667eea" />
-        <Text style={styles.loadingText}>Cargando pacientes...</Text>
+        <Text style={styles.loadingText}>{t('medico.loadingPatients')}</Text>
       </View>
     );
   }
@@ -252,7 +256,7 @@ const MedicoScreen = ({ navigation }) => {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          <Ionicons name="medkit-outline" size={20} color="#fff" /> Módulo Médico
+          <Ionicons name="medkit-outline" size={20} color="#fff" /> {t('medico.moduleTitle')}
         </Text>
         <TouchableOpacity onPress={onRefresh} style={styles.refreshButton}>
           <Ionicons name="refresh-outline" size={24} color="#fff" />
@@ -264,7 +268,7 @@ const MedicoScreen = ({ navigation }) => {
         <View>
           <Text style={styles.welcomeTitle}>¡Hola, Dr. {user?.username}!</Text>
           <Text style={styles.welcomeSubtitle}>
-            {moment().format('dddd, D [de] MMMM [de] YYYY')}
+            {moment().format(lang === 'es' ? 'dddd, D [de] MMMM [de] YYYY' : 'dddd, D MMMM YYYY')}
           </Text>
         </View>
         <View style={styles.statsPill}>
@@ -276,7 +280,7 @@ const MedicoScreen = ({ navigation }) => {
 
       {/* CONSULTA EXTERNA */}
       {renderSection(
-        'Consulta Externa',
+        t('medico.outPatient'),
         consulta,
         pageConsulta,
         setPageConsulta,
@@ -287,7 +291,7 @@ const MedicoScreen = ({ navigation }) => {
 
       {/* URGENCIAS */}
       {renderSection(
-        'Urgencias',
+        t('medico.emergencies'),
         urgencias,
         pageUrgencias,
         setPageUrgencias,
@@ -298,7 +302,7 @@ const MedicoScreen = ({ navigation }) => {
 
       {/* HOSPITALIZADOS */}
       {renderSection(
-        'Hospitalizados',
+        t('medico.hospitalized'),
         hospitalizados,
         pageHospitalizados,
         setPageHospitalizados,

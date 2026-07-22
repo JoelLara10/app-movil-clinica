@@ -11,16 +11,17 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
+import { useLanguage } from "../../context/LanguageContext";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../../services/api";
 import moment from "moment";
 import "moment/locale/es";
-
-moment.locale("es");
+import "moment/locale/en-gb";
 
 const DashboardScreen = ({ navigation }) => {
   const { user, logout } = useAuth();
+  const { lang, t } = useLanguage();
   const { width: screenWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
@@ -32,8 +33,9 @@ const DashboardScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
+    moment.locale(lang === 'es' ? 'es' : 'en-gb');
     loadDashboardData();
-  }, []);
+  }, [lang]);
 
   const loadDashboardData = async () => {
     try {
@@ -64,75 +66,75 @@ const DashboardScreen = ({ navigation }) => {
     if (role === "admin" || role === "administrativo") {
       options.push(
         {
-          name: "Administrativo",
+          name: t('dashboard.administrative'),
           icon: "business-outline",
           screen: "Admin",
           color: "#667eea",
-          description: "Gestión de pacientes y cuentas",
+          description: t('dashboard.administrativeDesc'),
         },
         {
-          name: "Enfermería",
+          name: t('dashboard.nursing'),
           icon: "medkit-outline",
           screen: "Enfermeria",
           color: "#f56565",
-          description: "Atención y cuidados de enfermería",
+          description: t('dashboard.nursingDesc'),
         },
         {
-          name: "Médico",
+          name: t('dashboard.medical'),
           icon: "pulse-outline",
           screen: "Medico",
           color: "#48bb78",
-          description: "Atención médica y recetas",
+          description: t('dashboard.medicalDesc'),
         },
         {
-          name: "Estudios",
+          name: t('dashboard.studies'),
           icon: "flask-outline",
           screen: "Estudios",
           color: "#ed8936",
-          description: "Gestión de exámenes",
+          description: t('dashboard.studiesDesc'),
           badge: pendingStudies.total,
         },
         {
-          name: "Configuración",
+          name: t('dashboard.config'),
           icon: "settings-outline",
           screen: "Config",
           color: "#718096",
-          description: "Configuración del sistema",
+          description: t('dashboard.configDesc'),
         },
       );
     } else if (role === "admin" || role === "enfermero") {
       options.push({
-        name: "Enfermería",
+        name: t('dashboard.nursing'),
         icon: "medkit-outline",
         screen: "Enfermeria",
         color: "#9f7aea",
-        description: "Atención de enfermería y signos vitales",
+        description: t('dashboard.nursingDashboard'),
       });
     } else if (role === "medico") {
       options.push(
         {
-          name: "Médico",
+          name: t('dashboard.medical'),
           icon: "pulse-outline",
           screen: "Medico",
           color: "#48bb78",
-          description: "Atención médica",
+          description: t('dashboard.medicalDashboard'),
         },
         {
-          name: "Estudios",
+          name: t('dashboard.studies'),
           icon: "flask-outline",
           screen: "Estudios",
           color: "#ed8936",
-          description: "Resultados",
+          description: t('dashboard.results'),
           badge: pendingStudies.total,
         },
       );
     } else if (role === "estudios") {
       options.push({
-        name: "Estudios",
+        name: t('dashboard.studies'),
         icon: "flask-outline",
         screen: "Estudios",
         color: "#ed8936",
-        description: "Gestión de exámenes",
+        description: t('dashboard.studiesDesc'),
         badge: pendingStudies.total,
       });
     }
@@ -141,7 +143,14 @@ const DashboardScreen = ({ navigation }) => {
   };
 
   const isLargeScreen = screenWidth > 700;
-  const menuOptions = getMenuOptions(); // ← Importante: llamar la función
+  const menuOptions = getMenuOptions();
+
+  const formatDate = () => {
+    const format = lang === 'es'
+      ? "dddd, D [de] MMMM [de] YYYY"
+      : "dddd, D MMMM YYYY";
+    return moment().format(format);
+  };
 
   return (
     <ScrollView
@@ -158,10 +167,10 @@ const DashboardScreen = ({ navigation }) => {
         <View style={styles.headerContent}>
           <View>
             <Text style={styles.greeting}>
-              ¡Hola, {user?.username || "Usuario"}!
+              {t('dashboard.greeting')}, {user?.username || ""}!
             </Text>
             <Text style={styles.date}>
-              {moment().format("dddd, D [de] MMMM [de] YYYY")}
+              {formatDate()}
             </Text>
           </View>
           <TouchableOpacity onPress={logout} style={styles.logoutButton}>
@@ -182,7 +191,7 @@ const DashboardScreen = ({ navigation }) => {
           <Text style={styles.statNumber}>
             {stats.active_patients?.total || 0}
           </Text>
-          <Text style={styles.statLabel}>Pacientes Activos</Text>
+          <Text style={styles.statLabel}>{t('dashboard.activePatients')}</Text>
         </View>
 
         <View style={styles.statCard}>
@@ -190,18 +199,18 @@ const DashboardScreen = ({ navigation }) => {
           <Text style={styles.statNumber}>
             {stats.bed_occupancy?.occupied || 0}
           </Text>
-          <Text style={styles.statLabel}>Camas Ocupadas</Text>
+          <Text style={styles.statLabel}>{t('dashboard.occupiedBeds')}</Text>
         </View>
 
         <View style={styles.statCard}>
           <Ionicons name="flask-outline" size={32} color="#ed8936" />
           <Text style={styles.statNumber}>{pendingStudies.total || 0}</Text>
-          <Text style={styles.statLabel}>Estudios Pendientes</Text>
+          <Text style={styles.statLabel}>{t('dashboard.pendingStudies')}</Text>
         </View>
       </View>
 
       <View style={styles.menuContainer}>
-        <Text style={styles.menuTitle}>Módulos del Sistema</Text>
+        <Text style={styles.menuTitle}>{t('dashboard.systemModules')}</Text>
         <View style={[styles.menuGrid, isLargeScreen && styles.menuGridLarge]}>
           {menuOptions.map((option, index) => (
             <TouchableOpacity
@@ -230,7 +239,6 @@ const DashboardScreen = ({ navigation }) => {
         </View>
       </View>
 
-      {/* Espacio extra para scroll en web */}
       <View style={{ height: Platform.OS === "web" ? 260 : 200 }} />
     </ScrollView>
   );

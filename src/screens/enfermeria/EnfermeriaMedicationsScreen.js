@@ -17,12 +17,14 @@ import api from '../../services/api';
 import CacheService from '../../services/cacheService';
 import Pagination from '../../components/Pagination';
 import moment from 'moment';
+import { useLanguage } from '../../context/LanguageContext';
 
 const CACHE_KEY_PREFIX = 'enfermeria_medications_';
 const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
 const HISTORY_ITEMS_PER_PAGE = 5;
 
 const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
+  const { t, lang } = useLanguage();
   const { id_atencion, Id_exp } = route.params;
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
@@ -88,7 +90,7 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
 
   const removeMedication = (id) => {
     if (medications.length === 1) {
-      Alert.alert('Advertencia', 'Debe tener al menos un medicamento');
+      Alert.alert(t('common.warning'), t('enfermeria.noMedicationsYet'));
       return;
     }
     setMedications(medications.filter(med => med.id !== id));
@@ -103,7 +105,7 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
   const handleSubmit = async () => {
     const hasValidMed = medications.some(med => med.nombre.trim() !== '');
     if (!hasValidMed) {
-      Alert.alert('Advertencia', 'Debe agregar al menos un medicamento');
+      Alert.alert(t('common.warning'), t('enfermeria.noMedications'));
       return;
     }
 
@@ -113,7 +115,7 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
         medicamentos: medications.filter(med => med.nombre.trim() !== '')
       });
       if (response.data) {
-        Alert.alert('Éxito', 'Administración de medicamentos registrada');
+        Alert.alert(t('common.success'), t('enfermeria.administrationRecord'));
         // Limpiar formulario
         setMedications([
           { id: 0, nombre: '', dosis: '', frecuencia: '', via: '', fecha_aplicacion: '' }
@@ -123,7 +125,7 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
       }
     } catch (error) {
       console.error('Error saving medications:', error);
-      Alert.alert('Error', error.response?.data?.error || 'No se pudo guardar la administración');
+      Alert.alert(t('common.error'), error.response?.data?.error || t('enfermeria.couldNotLoad'));
     } finally {
       setLoading(false);
     }
@@ -142,7 +144,7 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
             {moment(item.fecha_registro).format('dddd, D [de] MMMM [de] YYYY [a las] HH:mm')}
           </Text>
           <Text style={styles.historyDoctor}>
-            <Ionicons name="medkit-outline" size={12} color="#718096" /> Enf. {item.enfermero_nombre || 'No especificado'}
+            <Ionicons name="medkit-outline" size={12} color="#718096" /> Enf. {item.enfermero_nombre || t('common.notSpecified')}
           </Text>
         </View>
       </View>
@@ -158,25 +160,25 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
               {med.dosis && (
                 <View style={styles.historyMedDetail}>
                   <Ionicons name="scale-outline" size={10} color="#a0aec0" />
-                  <Text style={styles.historyMedDetailText}>Dosis: {med.dosis}</Text>
+                  <Text style={styles.historyMedDetailText}>{t('enfermeria.dose')}: {med.dosis}</Text>
                 </View>
               )}
               {med.frecuencia && (
                 <View style={styles.historyMedDetail}>
                   <Ionicons name="time-outline" size={10} color="#a0aec0" />
-                  <Text style={styles.historyMedDetailText}>Frecuencia: {med.frecuencia}</Text>
+                  <Text style={styles.historyMedDetailText}>{t('enfermeria.frequency')}: {med.frecuencia}</Text>
                 </View>
               )}
               {med.via && (
                 <View style={styles.historyMedDetail}>
                   <Ionicons name="medical-outline" size={10} color="#a0aec0" />
-                  <Text style={styles.historyMedDetailText}>Vía: {med.via}</Text>
+                  <Text style={styles.historyMedDetailText}>{t('enfermeria.route')}: {med.via}</Text>
                 </View>
               )}
               {med.fecha_aplicacion && (
                 <View style={styles.historyMedDetail}>
                   <Ionicons name="calendar-outline" size={10} color="#a0aec0" />
-                  <Text style={styles.historyMedDetailText}>Fecha: {med.fecha_aplicacion}</Text>
+                  <Text style={styles.historyMedDetailText}>{t('common.date')}: {med.fecha_aplicacion}</Text>
                 </View>
               )}
             </View>
@@ -207,7 +209,7 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          <Ionicons name="medkit-outline" size={20} color="#fff" /> Administración de Medicamentos
+          <Ionicons name="medkit-outline" size={20} color="#fff" /> {t('enfermeria.medications')}
         </Text>
         <TouchableOpacity
           onPress={() => loadMedicationsHistory(true)}
@@ -225,7 +227,7 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
             <Ionicons name="person-circle" size={50} color="#fff" />
           </View>
           <View style={styles.patientDetails}>
-            <Text style={styles.patientName}>Paciente</Text>
+            <Text style={styles.patientName}>{t('enfermeria.patient')}</Text>
             <View style={styles.patientMeta}>
               <Text style={styles.patientMetaItem}>
                 <Ionicons name="card-outline" size={12} color="#48bb78" />
@@ -250,7 +252,7 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
         >
           <View style={styles.cardHeaderContent}>
             <Ionicons name="add-circle-outline" size={22} color="#fff" />
-            <Text style={styles.cardHeaderTitle}>Registrar Administración</Text>
+            <Text style={styles.cardHeaderTitle}>{t('enfermeria.administrationRecord')}</Text>
           </View>
         </LinearGradient>
 
@@ -259,12 +261,12 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
             <View key={med.id} style={styles.medicationCard}>
               <View style={styles.medicationHeader}>
                 <Text style={styles.medicationTitle}>
-                  <Ionicons name="medkit-outline" size={16} /> Medicamento #{index + 1}
+                  <Ionicons name="medkit-outline" size={16} /> {t('enfermeria.medicationName')} #{index + 1}
                 </Text>
                 {medications.length > 1 && (
                   <TouchableOpacity onPress={() => removeMedication(med.id)} style={styles.deleteButton}>
                     <Ionicons name="trash-outline" size={18} color="#e53e3e" />
-                    <Text style={styles.deleteButtonText}>Eliminar</Text>
+                    <Text style={styles.deleteButtonText}>{t('common.cancel')}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -273,11 +275,11 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
                 <View style={styles.fieldGroup}>
                   <View style={styles.fieldLabel}>
                     <Ionicons name="medkit-outline" size={16} color="#48bb78" />
-                    <Text style={styles.fieldLabelText}>Medicamento *</Text>
+                    <Text style={styles.fieldLabelText}>{t('enfermeria.medicationName')} *</Text>
                   </View>
                   <TextInput
                     style={styles.fieldInput}
-                    placeholder="Nombre del medicamento"
+                    placeholder={t('enfermeria.medicationName')}
                     placeholderTextColor="#a0aec0"
                     value={med.nombre}
                     onChangeText={(text) => updateMedication(med.id, 'nombre', text)}
@@ -288,7 +290,7 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
                   <View style={[styles.fieldGroup, styles.halfField]}>
                     <View style={styles.fieldLabel}>
                       <Ionicons name="scale-outline" size={16} color="#48bb78" />
-                      <Text style={styles.fieldLabelText}>Dosis</Text>
+                      <Text style={styles.fieldLabelText}>{t('enfermeria.dose')}</Text>
                     </View>
                     <TextInput
                       style={styles.fieldInput}
@@ -302,7 +304,7 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
                   <View style={[styles.fieldGroup, styles.halfField]}>
                     <View style={styles.fieldLabel}>
                       <Ionicons name="time-outline" size={16} color="#48bb78" />
-                      <Text style={styles.fieldLabelText}>Frecuencia</Text>
+                      <Text style={styles.fieldLabelText}>{t('enfermeria.frequency')}</Text>
                     </View>
                     <TextInput
                       style={styles.fieldInput}
@@ -318,7 +320,7 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
                   <View style={[styles.fieldGroup, styles.halfField]}>
                     <View style={styles.fieldLabel}>
                       <Ionicons name="medical-outline" size={16} color="#48bb78" />
-                      <Text style={styles.fieldLabelText}>Vía</Text>
+                      <Text style={styles.fieldLabelText}>{t('enfermeria.route')}</Text>
                     </View>
                     <TextInput
                       style={styles.fieldInput}
@@ -332,7 +334,7 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
                   <View style={[styles.fieldGroup, styles.halfField]}>
                     <View style={styles.fieldLabel}>
                       <Ionicons name="calendar-outline" size={16} color="#48bb78" />
-                      <Text style={styles.fieldLabelText}>Fecha aplicación</Text>
+                      <Text style={styles.fieldLabelText}>{t('common.date')}</Text>
                     </View>
                     <TextInput
                       style={styles.fieldInput}
@@ -349,7 +351,7 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
 
           <TouchableOpacity style={styles.addButton} onPress={addMedication}>
             <Ionicons name="add-outline" size={20} color="#48bb78" />
-            <Text style={styles.addButtonText}>Agregar otro Medicamento</Text>
+            <Text style={styles.addButtonText}>{t('enfermeria.newMedication')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -363,7 +365,7 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
           ) : (
             <>
               <Ionicons name="save-outline" size={18} color="#fff" />
-              <Text style={styles.saveButtonText}>Registrar Administración</Text>
+              <Text style={styles.saveButtonText}>{t('enfermeria.saveMedication')}</Text>
             </>
           )}
         </TouchableOpacity>
@@ -384,9 +386,9 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
           >
             <View style={styles.historyHeaderContent}>
               <Ionicons name="time-outline" size={20} color="#fff" />
-              <Text style={styles.historyTitle}>Historial de Administraciones</Text>
+              <Text style={styles.historyTitle}>{t('enfermeria.medicationsHistory')}</Text>
               <View style={styles.historyCount}>
-                <Text style={styles.historyCountText}>{history.length} registros</Text>
+                <Text style={styles.historyCountText}>{history.length} {t('common.records')}</Text>
               </View>
               <Ionicons 
                 name={showHistory ? "chevron-up-outline" : "chevron-down-outline"} 
@@ -404,7 +406,7 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
             ) : history.length === 0 ? (
               <View style={styles.emptyHistory}>
                 <Ionicons name="document-text-outline" size={48} color="#cbd5e0" />
-                <Text style={styles.emptyHistoryText}>No hay administraciones previas</Text>
+                <Text style={styles.emptyHistoryText}>{t('enfermeria.noMedicationsYet')}</Text>
               </View>
             ) : (
               <>

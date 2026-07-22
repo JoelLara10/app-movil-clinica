@@ -16,8 +16,7 @@ import CacheService from "../../services/cacheService";
 import moment from "moment";
 import "moment/locale/es";
 import { usePatient } from "../../context/PatientContext";
-
-moment.locale("es");
+import { useLanguage } from "../../context/LanguageContext";
 
 const CACHE_KEY_PREFIX = 'patient_detail_';
 const CACHE_TTL = 2 * 60 * 1000;
@@ -26,7 +25,12 @@ const PatientDetailScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params || {};
   const [patient, setPatient] = useState(null);
   const [loading, setLoading] = useState(true);
-  const { setSelectedPatient, selectPatient } = usePatient(); // ← Usamos selectPatient si existe
+  const { setSelectedPatient, selectPatient } = usePatient();
+  const { t, lang } = useLanguage();
+
+  useEffect(() => {
+    moment.locale(lang === 'es' ? 'es' : 'en-gb');
+  }, [lang]);
 
   useEffect(() => {
     if (id_atencion && Id_exp) {
@@ -59,7 +63,7 @@ const PatientDetailScreen = ({ navigation, route }) => {
       setPatient(response.data);
     } catch (error) {
       console.error("Error loading patient:", error);
-      Alert.alert("Error", "No se pudo cargar la información del paciente");
+      Alert.alert(t('common.error'), t('common.couldNotLoad'));
     } finally {
       setLoading(false);
     }
@@ -82,35 +86,35 @@ const PatientDetailScreen = ({ navigation, route }) => {
 
   const modules = [
     {
-      title: "Signos Vitales",
+      title: t('medico.vitalSigns'),
       icon: "heart-outline",
       screen: "VitalSigns",
       color: "#e53e3e",
       bgColor: "#fff5f5",
     },
     {
-      title: "Nota Médica",
+      title: t('medico.medicalNote'),
       icon: "document-text-outline",
       screen: "MedicalNote",
       color: "#4299e1",
       bgColor: "#ebf8ff",
     },
     {
-      title: "Diagnóstico",
+      title: t('medico.diagnosis'),
       icon: "medkit-outline",
       screen: "Diagnosis",
       color: "#48bb78",
       bgColor: "#f0fff4",
     },
     {
-      title: "Receta Médica",
+      title: t('medico.prescription'),
       icon: "document-outline",
       screen: "Prescription",
       color: "#ed8936",
       bgColor: "#fffaf0",
     },
     {
-      title: "Estudios",
+      title: t('common.exams'),
       icon: "flask-outline",
       screen: "Exams",
       color: "#9f7aea",
@@ -122,7 +126,7 @@ const PatientDetailScreen = ({ navigation, route }) => {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#667eea" />
-        <Text style={styles.loadingText}>Cargando información del paciente...</Text>
+        <Text style={styles.loadingText}>{t('medico.loadingInfo')}</Text>
       </View>
     );
   }
@@ -130,7 +134,7 @@ const PatientDetailScreen = ({ navigation, route }) => {
   const pacienteData = patient?.paciente || {};
   const familiarData = patient?.familiar || {};
   const medicosData = patient?.medicos || [];
-  const camaData = patient?.cama || { num_cama: "Sin asignar", tipo: "" };
+  const camaData = patient?.cama || { num_cama: t('common.notAssigned'), tipo: "" };
 
   return (
     <ScrollView style={styles.container}>
@@ -140,7 +144,7 @@ const PatientDetailScreen = ({ navigation, route }) => {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          <Ionicons name="person-outline" size={20} color="#fff" /> Detalle del Paciente
+          <Ionicons name="person-outline" size={20} color="#fff" /> {t('medico.patientDetail')}
         </Text>
         <View style={{ width: 40 }} />
       </LinearGradient>
@@ -155,11 +159,11 @@ const PatientDetailScreen = ({ navigation, route }) => {
           <View style={styles.patientInfo}>
             <Text style={styles.patientName}>
               {pacienteData.papell || ""} {pacienteData.sapell || ""}{" "}
-              {pacienteData.nom_pac || "Paciente"}
+              {pacienteData.nom_pac || t('medico.patient')}
             </Text>
             <View style={styles.expBadge}>
               <Text style={styles.expBadgeText}>
-                Expediente: {pacienteData.Id_exp || Id_exp}
+                {t('common.file')}: {pacienteData.Id_exp || Id_exp}
               </Text>
             </View>
           </View>
@@ -168,13 +172,13 @@ const PatientDetailScreen = ({ navigation, route }) => {
         {/* Grid de información */}
         <View style={styles.infoGrid}>
           <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Edad</Text>
+            <Text style={styles.infoLabel}>{t('medico.age')}</Text>
             <Text style={styles.infoValue}>
-              {calculateAge(pacienteData.fecnac)} años
+              {calculateAge(pacienteData.fecnac)} {t('common.years')}
             </Text>
           </View>
           <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Fecha ingreso</Text>
+            <Text style={styles.infoLabel}>{t('medico.admissionDate')}</Text>
             <Text style={styles.infoValue}>
               {pacienteData.fecha
                 ? moment(pacienteData.fecha).format("DD/MM/YYYY")
@@ -182,15 +186,15 @@ const PatientDetailScreen = ({ navigation, route }) => {
             </Text>
           </View>
           <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Cama</Text>
+            <Text style={styles.infoLabel}>{t('medico.bed')}</Text>
             <Text style={styles.infoValue}>
               {camaData.num_cama} - {camaData.tipo || "N/A"}
             </Text>
           </View>
           <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Diagnóstico</Text>
+            <Text style={styles.infoLabel}>{t('medico.diagnosis')}</Text>
             <Text style={styles.infoValue}>
-              {pacienteData.motivo_atn || "Pendiente"}
+              {pacienteData.motivo_atn || t('medico.pending')}
             </Text>
           </View>
         </View>
@@ -200,7 +204,7 @@ const PatientDetailScreen = ({ navigation, route }) => {
           <View style={styles.alergiasContainer}>
             <Text style={styles.alergiasLabel}>
               <Ionicons name="alert-circle-outline" size={14} color="#e53e3e" />{" "}
-              Alergias:
+              {t('medico.allergies')}:
             </Text>
             <Text style={styles.alergiasText}>{pacienteData.alergias}</Text>
           </View>
@@ -211,7 +215,7 @@ const PatientDetailScreen = ({ navigation, route }) => {
           <View style={styles.medicosContainer}>
             <Text style={styles.medicosLabel}>
               <Ionicons name="medkit-outline" size={14} color="#667eea" />{" "}
-              Médicos tratantes:
+              {t('medico.treatingDoctors')}:
             </Text>
             {medicosData.map((med, idx) => (
               <Text key={idx} style={styles.medicosText}>
@@ -226,11 +230,11 @@ const PatientDetailScreen = ({ navigation, route }) => {
           <View style={styles.familiarContainer}>
             <Text style={styles.familiarLabel}>
               <Ionicons name="people-outline" size={14} color="#48bb78" />{" "}
-              Familiar responsable:
+              {t('medico.responsibleFamily')}:
             </Text>
             <Text style={styles.familiarText}>
               {familiarData.nombre} (
-              {familiarData.parentesco || "No especificado"}) - Tel:{" "}
+              {familiarData.parentesco || t('medico.notSpecified')}) - Tel:{" "}
               {familiarData.telefono || "N/A"}
             </Text>
           </View>
@@ -240,7 +244,7 @@ const PatientDetailScreen = ({ navigation, route }) => {
       {/* Acciones médicas */}
       <View style={styles.modulesContainer}>
         <Text style={styles.modulesTitle}>
-          <Ionicons name="flash-outline" size={18} color="#667eea" /> Acciones Médicas
+          <Ionicons name="flash-outline" size={18} color="#667eea" /> {t('medico.medicalModules')}
         </Text>
         <View style={styles.modulesGrid}>
           {modules.map((mod, index) => (

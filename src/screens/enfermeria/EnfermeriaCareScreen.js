@@ -17,6 +17,7 @@ import api from '../../services/api';
 import CacheService from '../../services/cacheService';
 import Pagination from '../../components/Pagination';
 import moment from 'moment';
+import { useLanguage } from '../../context/LanguageContext';
 
 const CACHE_KEY_PREFIX = 'enfermeria_care_';
 const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
@@ -24,6 +25,7 @@ const CARE_STATES = ['EN_PROCESO', 'PENDIENTE', 'COMPLETADO'];
 const HISTORY_ITEMS_PER_PAGE = 5;
 
 const EnfermeriaCareScreen = ({ navigation, route }) => {
+  const { t, lang } = useLanguage();
   const { id_atencion, Id_exp } = route.params;
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
@@ -96,7 +98,7 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
   const handleSubmit = async () => {
     const hasData = Object.values(formData).some(value => value.trim() !== '');
     if (!hasData) {
-      Alert.alert('Advertencia', 'Ingrese al menos un dato en los cuidados de enfermería');
+      Alert.alert(t('common.warning'), t('enfermeria.newCare'));
       return;
     }
 
@@ -104,7 +106,7 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
     try {
       const response = await api.post(`/appointments/${id_atencion}/nursing-care`, formData);
       if (response.data) {
-        Alert.alert('Éxito', 'Cuidados de enfermería guardados correctamente');
+        Alert.alert(t('common.success'), t('enfermeria.nursingCare'));
         setFormData({
           diagnostico_enfermeria: '',
           objetivos: '',
@@ -117,7 +119,7 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
       }
     } catch (error) {
       console.error('Error saving nursing care:', error);
-      Alert.alert('Error', error.response?.data?.error || 'No se pudo guardar el cuidado');
+      Alert.alert(t('common.error'), error.response?.data?.error || t('enfermeria.couldNotLoad'));
     } finally {
       setLoading(false);
     }
@@ -141,7 +143,7 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
               {moment(item.fecha_registro).format('dddd, D [de] MMMM [de] YYYY [a las] HH:mm')}
             </Text>
             <Text style={styles.historyDoctor}>
-              <Ionicons name="medkit-outline" size={12} color="#718096" /> Enf. {item.enfermero_nombre || 'No especificado'}
+              <Ionicons name="medkit-outline" size={12} color="#718096" /> Enf. {item.enfermero_nombre || t('common.notSpecified')}
             </Text>
           </View>
           <View style={[styles.estadoBadge, { backgroundColor: estadoColor + '20' }]}>
@@ -155,35 +157,35 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
           {item.diagnostico_enfermeria && (
             <View style={styles.historyField}>
               <Ionicons name="clipboard-outline" size={14} color="#667eea" />
-              <Text style={styles.historyFieldLabel}>Diagnóstico:</Text>
+              <Text style={styles.historyFieldLabel}>{t('enfermeria.careType')}:</Text>
               <Text style={styles.historyFieldValue}>{item.diagnostico_enfermeria}</Text>
             </View>
           )}
           {item.objetivos && (
             <View style={styles.historyField}>
               <Ionicons name="flag-outline" size={14} color="#48bb78" />
-              <Text style={styles.historyFieldLabel}>Objetivos:</Text>
+              <Text style={styles.historyFieldLabel}>{t('enfermeria.description')}:</Text>
               <Text style={styles.historyFieldValue}>{item.objetivos}</Text>
             </View>
           )}
           {item.intervenciones && (
             <View style={styles.historyField}>
               <Ionicons name="hand-left-outline" size={14} color="#4299e1" />
-              <Text style={styles.historyFieldLabel}>Intervenciones:</Text>
+              <Text style={styles.historyFieldLabel}>{t('enfermeria.interventions')}:</Text>
               <Text style={styles.historyFieldValue}>{item.intervenciones}</Text>
             </View>
           )}
           {item.evaluacion && (
             <View style={styles.historyField}>
               <Ionicons name="analytics-outline" size={14} color="#ed8936" />
-              <Text style={styles.historyFieldLabel}>Evaluación:</Text>
+              <Text style={styles.historyFieldLabel}>{t('enfermeria.evaluation')}:</Text>
               <Text style={styles.historyFieldValue}>{item.evaluacion}</Text>
             </View>
           )}
           {item.observaciones && (
             <View style={styles.historyField}>
               <Ionicons name="document-text-outline" size={14} color="#718096" />
-              <Text style={styles.historyFieldLabel}>Observaciones:</Text>
+              <Text style={styles.historyFieldLabel}>{t('common.observations')}:</Text>
               <Text style={styles.historyFieldValue}>{item.observaciones}</Text>
             </View>
           )}
@@ -213,7 +215,7 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          <Ionicons name="medkit-outline" size={20} color="#fff" /> Cuidados de Enfermería
+          <Ionicons name="medkit-outline" size={20} color="#fff" /> {t('enfermeria.nursingCare')}
         </Text>
         <TouchableOpacity
           onPress={() => loadCareHistory(true)}
@@ -231,7 +233,7 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
             <Ionicons name="person-circle" size={50} color="#fff" />
           </View>
           <View style={styles.patientDetails}>
-            <Text style={styles.patientName}>Paciente</Text>
+            <Text style={styles.patientName}>{t('enfermeria.patient')}</Text>
             <View style={styles.patientMeta}>
               <Text style={styles.patientMetaItem}>
                 <Ionicons name="card-outline" size={12} color="#48bb78" />
@@ -256,7 +258,7 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
         >
           <View style={styles.cardHeaderContent}>
             <Ionicons name="add-circle-outline" size={22} color="#fff" />
-            <Text style={styles.cardHeaderTitle}>Registrar Cuidado</Text>
+            <Text style={styles.cardHeaderTitle}>{t('enfermeria.newCare')}</Text>
           </View>
         </LinearGradient>
 
@@ -265,11 +267,11 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
           <View style={styles.fieldGroup}>
             <View style={styles.fieldLabel}>
               <Ionicons name="clipboard-outline" size={16} color="#48bb78" />
-              <Text style={styles.fieldLabelText}>Diagnóstico de enfermería</Text>
+              <Text style={styles.fieldLabelText}>{t('enfermeria.careType')}</Text>
             </View>
             <TextInput
               style={[styles.fieldInput, styles.textArea]}
-              placeholder="Ej: Deterioro de la movilidad física"
+              placeholder={t('enfermeria.descriptionPlaceholder')}
               placeholderTextColor="#a0aec0"
               multiline
               numberOfLines={3}
@@ -283,11 +285,11 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
           <View style={styles.fieldGroup}>
             <View style={styles.fieldLabel}>
               <Ionicons name="flag-outline" size={16} color="#48bb78" />
-              <Text style={styles.fieldLabelText}>Objetivos</Text>
+              <Text style={styles.fieldLabelText}>{t('enfermeria.description')}</Text>
             </View>
             <TextInput
               style={[styles.fieldInput, styles.textArea]}
-              placeholder="Ej: Paciente deambula con asistencia"
+              placeholder={t('enfermeria.descriptionPlaceholder')}
               placeholderTextColor="#a0aec0"
               multiline
               numberOfLines={3}
@@ -301,11 +303,11 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
           <View style={styles.fieldGroup}>
             <View style={styles.fieldLabel}>
               <Ionicons name="hand-left-outline" size={16} color="#48bb78" />
-              <Text style={styles.fieldLabelText}>Intervenciones</Text>
+              <Text style={styles.fieldLabelText}>{t('enfermeria.description')}</Text>
             </View>
             <TextInput
               style={[styles.fieldInput, styles.textArea]}
-              placeholder="Ej: Asistir en deambulación, fisioterapia"
+              placeholder={t('enfermeria.descriptionPlaceholder')}
               placeholderTextColor="#a0aec0"
               multiline
               numberOfLines={3}
@@ -319,11 +321,11 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
           <View style={styles.fieldGroup}>
             <View style={styles.fieldLabel}>
               <Ionicons name="analytics-outline" size={16} color="#48bb78" />
-              <Text style={styles.fieldLabelText}>Evaluación</Text>
+              <Text style={styles.fieldLabelText}>{t('enfermeria.description')}</Text>
             </View>
             <TextInput
               style={[styles.fieldInput, styles.textArea]}
-              placeholder="Ej: Paciente tolera deambulación con asistencia"
+              placeholder={t('enfermeria.descriptionPlaceholder')}
               placeholderTextColor="#a0aec0"
               multiline
               numberOfLines={3}
@@ -337,7 +339,7 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
           <View style={styles.fieldGroup}>
             <View style={styles.fieldLabel}>
               <Ionicons name="radio-button-on-outline" size={16} color="#48bb78" />
-              <Text style={styles.fieldLabelText}>Estado</Text>
+              <Text style={styles.fieldLabelText}>{t('common.status')}</Text>
             </View>
             <View style={styles.estadoButtons}>
               {CARE_STATES.map((estado) => (
@@ -365,11 +367,11 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
           <View style={styles.fieldGroup}>
             <View style={styles.fieldLabel}>
               <Ionicons name="document-text-outline" size={16} color="#718096" />
-              <Text style={styles.fieldLabelText}>Observaciones</Text>
+              <Text style={styles.fieldLabelText}>{t('common.observations')}</Text>
             </View>
             <TextInput
               style={[styles.fieldInput, styles.textArea]}
-              placeholder="Notas adicionales del cuidado"
+              placeholder={t('enfermeria.observations')}
               placeholderTextColor="#a0aec0"
               multiline
               numberOfLines={3}
@@ -390,7 +392,7 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
           ) : (
             <>
               <Ionicons name="save-outline" size={18} color="#fff" />
-              <Text style={styles.saveButtonText}>Guardar Cuidado</Text>
+              <Text style={styles.saveButtonText}>{t('enfermeria.saveCare')}</Text>
             </>
           )}
         </TouchableOpacity>
@@ -411,9 +413,9 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
           >
             <View style={styles.historyHeaderContent}>
               <Ionicons name="time-outline" size={20} color="#fff" />
-              <Text style={styles.historyTitle}>Historial de Cuidados</Text>
+              <Text style={styles.historyTitle}>{t('enfermeria.careHistory')}</Text>
               <View style={styles.historyCount}>
-                <Text style={styles.historyCountText}>{history.length} registros</Text>
+                <Text style={styles.historyCountText}>{history.length} {t('common.records')}</Text>
               </View>
               <Ionicons 
                 name={showHistory ? "chevron-up-outline" : "chevron-down-outline"} 
@@ -431,7 +433,7 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
             ) : history.length === 0 ? (
               <View style={styles.emptyHistory}>
                 <Ionicons name="document-text-outline" size={48} color="#cbd5e0" />
-                <Text style={styles.emptyHistoryText}>No hay cuidados previos</Text>
+                <Text style={styles.emptyHistoryText}>{t('enfermeria.noCareYet')}</Text>
               </View>
             ) : (
               <>

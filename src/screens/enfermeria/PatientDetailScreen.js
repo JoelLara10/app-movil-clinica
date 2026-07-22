@@ -12,12 +12,11 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { usePatient } from '../../context/PatientContext';
+import { useLanguage } from '../../context/LanguageContext';
 import api from '../../services/api';
 import CacheService from '../../services/cacheService';
 import moment from 'moment';
 import 'moment/locale/es';
-
-moment.locale('es');
 
 const CACHE_KEY_PREFIX = 'enfermeria_patient_detail_';
 const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
@@ -25,8 +24,13 @@ const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
 const PatientDetailScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params;
   const { setSelectedPatient } = usePatient();
+  const { t, lang } = useLanguage();
   const [patient, setPatient] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    moment.locale(lang === 'es' ? 'es' : 'en-gb');
+  }, [lang]);
 
   useEffect(() => {
     loadPatientData();
@@ -53,7 +57,7 @@ const PatientDetailScreen = ({ navigation, route }) => {
       setPatient(response.data);
     } catch (error) {
       console.error('Error loading patient:', error);
-      Alert.alert('Error', 'No se pudo cargar la información del paciente');
+      Alert.alert(t('common.error'), t('common.couldNotLoad'));
     } finally {
       setLoading(false);
     }
@@ -103,42 +107,42 @@ const PatientDetailScreen = ({ navigation, route }) => {
   // ============================================================
   const modules = [
     { 
-      title: 'Signos Vitales', 
+      title: t('enfermeria.vitalSigns'), 
       icon: 'heart-outline', 
       color: '#e53e3e',
       bgColor: '#fff5f5',
       onPress: navigateToVitalSigns
     },
     { 
-      title: 'Nota Enfermería', 
+      title: t('enfermeria.nursingNote'), 
       icon: 'document-text-outline', 
       color: '#4299e1',
       bgColor: '#ebf8ff',
       onPress: navigateToNote
     },
     { 
-      title: 'Medicamentos', 
+      title: t('enfermeria.medications'), 
       icon: 'medkit-outline', 
       color: '#48bb78',
       bgColor: '#f0fff4',
       onPress: navigateToMedications
     },
     {
-      title: 'Valoración de Enfermería',
+      title: t('enfermeria.assessmentTitle'),
       icon: 'clipboard-outline',
       color: '#805ad5',
       bgColor: '#faf5ff',
       onPress: navigateToAssessment
     },
     {
-      title: 'Balance Hídrico',
+      title: t('enfermeria.fluidBalance'),
       icon: 'water-outline',
       color: '#0284c7',
       bgColor: '#f0f9ff',
       onPress: navigateToFluidBalance
     },
     {
-      title: 'Cuidados de Enfermería',
+      title: t('enfermeria.nursingCare'),
       icon: 'shield-checkmark-outline',
       color: '#dd6b20',
       bgColor: '#fffaf0',
@@ -150,7 +154,7 @@ const PatientDetailScreen = ({ navigation, route }) => {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#667eea" />
-        <Text style={styles.loadingText}>Cargando información del paciente...</Text>
+        <Text style={styles.loadingText}>{t('enfermeria.loadingPatient')}</Text>
       </View>
     );
   }
@@ -158,7 +162,7 @@ const PatientDetailScreen = ({ navigation, route }) => {
   const pacienteData = patient?.paciente || {};
   const familiarData = patient?.familiar || {};
   const medicosData = patient?.medicos || [];
-  const camaData = patient?.cama || { num_cama: 'Sin asignar', tipo: '' };
+  const camaData = patient?.cama || { num_cama: t('common.notAssigned'), tipo: '' };
 
   return (
     <ScrollView style={styles.container}>
@@ -167,7 +171,7 @@ const PatientDetailScreen = ({ navigation, route }) => {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          <Ionicons name="person-outline" size={20} color="#fff" /> Detalle del Paciente
+          <Ionicons name="person-outline" size={20} color="#fff" /> {t('enfermeria.patientDetail')}
         </Text>
         <View style={{ width: 40 }} />
       </LinearGradient>
@@ -179,7 +183,7 @@ const PatientDetailScreen = ({ navigation, route }) => {
           </View>
           <View style={styles.patientInfo}>
             <Text style={styles.patientName}>
-              {pacienteData.papell || ''} {pacienteData.sapell || ''} {pacienteData.nom_pac || 'Paciente'}
+              {pacienteData.papell || ''} {pacienteData.sapell || ''} {pacienteData.nom_pac || t('common.patient')}
             </Text>
             <View style={styles.expBadge}>
               <Text style={styles.expBadgeText}>Expediente: {pacienteData.Id_exp || Id_exp}</Text>
@@ -189,29 +193,29 @@ const PatientDetailScreen = ({ navigation, route }) => {
 
         <View style={styles.infoGrid}>
           <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Edad</Text>
-            <Text style={styles.infoValue}>{calculateAge(pacienteData.fecnac)} años</Text>
+            <Text style={styles.infoLabel}>{t('enfermeria.age')}</Text>
+            <Text style={styles.infoValue}>{calculateAge(pacienteData.fecnac)} {t('enfermeria.years')}</Text>
           </View>
           <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Fecha ingreso</Text>
+            <Text style={styles.infoLabel}>{t('enfermeria.admissionDate')}</Text>
             <Text style={styles.infoValue}>
               {pacienteData.fecha ? moment(pacienteData.fecha).format('DD/MM/YYYY') : 'N/A'}
             </Text>
           </View>
           <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Cama</Text>
+            <Text style={styles.infoLabel}>{t('enfermeria.bed')}</Text>
             <Text style={styles.infoValue}>{camaData.num_cama} - {camaData.tipo || 'N/A'}</Text>
           </View>
           <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Diagnóstico</Text>
-            <Text style={styles.infoValue}>{pacienteData.motivo_atn || 'Pendiente'}</Text>
+            <Text style={styles.infoLabel}>{t('enfermeria.diagnosis')}</Text>
+            <Text style={styles.infoValue}>{pacienteData.motivo_atn || t('enfermeria.pending')}</Text>
           </View>
         </View>
 
         {pacienteData.alergias && (
           <View style={styles.alergiasContainer}>
             <Text style={styles.alergiasLabel}>
-              <Ionicons name="alert-circle-outline" size={14} color="#e53e3e" /> Alergias:
+              <Ionicons name="alert-circle-outline" size={14} color="#e53e3e" /> {t('enfermeria.allergies')}:
             </Text>
             <Text style={styles.alergiasText}>{pacienteData.alergias}</Text>
           </View>
@@ -220,7 +224,7 @@ const PatientDetailScreen = ({ navigation, route }) => {
         {medicosData.length > 0 && (
           <View style={styles.medicosContainer}>
             <Text style={styles.medicosLabel}>
-              <Ionicons name="medkit-outline" size={14} color="#667eea" /> Médicos tratantes:
+              <Ionicons name="medkit-outline" size={14} color="#667eea" /> {t('common.treatingDoctors')}:
             </Text>
             {medicosData.map((med, idx) => (
               <Text key={idx} style={styles.medicosText}>• {med.doctor || med.doctor}</Text>
@@ -231,10 +235,10 @@ const PatientDetailScreen = ({ navigation, route }) => {
         {familiarData && familiarData.nombre && (
           <View style={styles.familiarContainer}>
             <Text style={styles.familiarLabel}>
-              <Ionicons name="people-outline" size={14} color="#48bb78" /> Familiar responsable:
+              <Ionicons name="people-outline" size={14} color="#48bb78" /> {t('common.responsibleFamily')}:
             </Text>
             <Text style={styles.familiarText}>
-              {familiarData.nombre} ({familiarData.parentesco || 'No especificado'}) - Tel: {familiarData.telefono || 'N/A'}
+              {familiarData.nombre} ({familiarData.parentesco || t('common.notSpecified')}) - Tel: {familiarData.telefono || 'N/A'}
             </Text>
           </View>
         )}
@@ -242,7 +246,7 @@ const PatientDetailScreen = ({ navigation, route }) => {
 
       <View style={styles.modulesContainer}>
         <Text style={styles.modulesTitle}>
-          <Ionicons name="flash-outline" size={18} color="#667eea" /> Acciones de Enfermería
+          <Ionicons name="flash-outline" size={18} color="#667eea" /> {t('enfermeria.moduleTitle')}
         </Text>
         <View style={styles.modulesGrid}>
           {modules.map((mod, index) => (

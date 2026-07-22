@@ -16,10 +16,9 @@ import { Ionicons } from "@expo/vector-icons";
 import api from "../../services/api";
 import CacheService from "../../services/cacheService";
 import Pagination from "../../components/Pagination";
+import { useLanguage } from "../../context/LanguageContext";
 import moment from "moment";
 import "moment/locale/es";
-
-moment.locale("es");
 
 const CACHE_KEY_CURRENT = "diagnosis_current_";
 const CACHE_KEY_HISTORY = "diagnosis_history_";
@@ -28,6 +27,7 @@ const HISTORY_ITEMS_PER_PAGE = 5;
 
 const DiagnosisScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params;
+  const { t, lang } = useLanguage();
 
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
@@ -42,6 +42,10 @@ const DiagnosisScreen = ({ navigation, route }) => {
     diagnosticos_secundarios: "",
     observaciones: "",
   });
+
+  useEffect(() => {
+    moment.locale(lang === 'es' ? 'es' : 'en-gb');
+  }, [lang]);
 
   // Cargar datos al entrar
   useEffect(() => {
@@ -139,14 +143,14 @@ const DiagnosisScreen = ({ navigation, route }) => {
 
   const handleSubmit = async () => {
     if (!formData.diagnostico_principal.trim()) {
-      Alert.alert("Advertencia", "El diagnóstico principal es requerido");
+      Alert.alert(t('common.warning'), t('common.requiredDiagnosis'));
       return;
     }
 
     setLoading(true);
     try {
       await api.post(`/appointments/${id_atencion}/diagnosis`, formData);
-      Alert.alert("Éxito", "Diagnóstico guardado correctamente");
+      Alert.alert(t('common.success'), "Diagnóstico guardado correctamente");
 
       await Promise.all([
         loadCurrentDiagnosis(true),
@@ -160,8 +164,8 @@ const DiagnosisScreen = ({ navigation, route }) => {
     } catch (error) {
       console.error("Error saving diagnosis:", error);
       Alert.alert(
-        "Error",
-        error.response?.data?.error || "No se pudo guardar el diagnóstico",
+        t('common.error'),
+        error.response?.data?.error || t('common.couldNotSaveData'),
       );
     } finally {
       setLoading(false);
@@ -194,18 +198,18 @@ const DiagnosisScreen = ({ navigation, route }) => {
         <View style={styles.historyInfo}>
           <Text style={styles.historyDate}>
             {moment(item.fecha_registro).format(
-              "dddd, D [de] MMMM [de] YYYY [a las] HH:mm",
+              lang === 'es' ? "dddd, D [de] MMMM [de] YYYY [a las] HH:mm" : "dddd, D MMMM YYYY [at] HH:mm",
             )}
           </Text>
           <Text style={styles.historyDoctor}>
             <Ionicons name="medkit-outline" size={12} color="#718096" />
-            Dr. {item.medico_nombre || "No especificado"}
+            Dr. {item.medico_nombre || t('medico.notSpecified')}
           </Text>
         </View>
       </View>
 
       <View style={styles.historyContent}>
-        <Text style={styles.historyPrincipalLabel}>Diagnóstico principal:</Text>
+        <Text style={styles.historyPrincipalLabel}>{t('medico.principalDiagnosisLabel')}</Text>
         <Text style={styles.historyPrincipalValue}>
           {item.diagnostico_principal}
         </Text>
@@ -213,7 +217,7 @@ const DiagnosisScreen = ({ navigation, route }) => {
         {item.diagnosticos_secundarios && (
           <>
             <Text style={styles.historySecondaryLabel}>
-              Diagnósticos secundarios:
+              {t('medico.secondaryDiagnosesLabel')}
             </Text>
             <Text style={styles.historySecondaryValue}>
               {item.diagnosticos_secundarios}
@@ -223,7 +227,7 @@ const DiagnosisScreen = ({ navigation, route }) => {
 
         {item.observaciones && (
           <>
-            <Text style={styles.historyObservacionesLabel}>Observaciones:</Text>
+            <Text style={styles.historyObservacionesLabel}>{t('medico.observationsLabel')}</Text>
             <Text style={styles.historyObservacionesValue}>
               {item.observaciones}
             </Text>
@@ -237,7 +241,7 @@ const DiagnosisScreen = ({ navigation, route }) => {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#667eea" />
-        <Text style={styles.loadingText}>Cargando diagnóstico...</Text>
+        <Text style={styles.loadingText}>{t('medico.loadingDiagnosis')}</Text>
       </View>
     );
   }
@@ -257,7 +261,7 @@ const DiagnosisScreen = ({ navigation, route }) => {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
           <Ionicons name="clipboard-outline" size={20} color="#fff" />{" "}
-          Diagnóstico Médico
+          {t('medico.diagnosisTitle')}
         </Text>
         <TouchableOpacity
           onPress={() => {
@@ -278,7 +282,7 @@ const DiagnosisScreen = ({ navigation, route }) => {
             <Ionicons name="person-circle" size={50} color="#fff" />
           </View>
           <View style={styles.patientDetails}>
-            <Text style={styles.patientName}>Paciente</Text>
+            <Text style={styles.patientName}>{t('medico.patient')}</Text>
             <View style={styles.patientMeta}>
               <Text style={styles.patientMetaItem}>
                 <Ionicons name="card-outline" size={12} /> Exp:{" "}
@@ -302,7 +306,7 @@ const DiagnosisScreen = ({ navigation, route }) => {
               color="#fff"
             />
             <Text style={styles.cardHeaderTitle}>
-              {currentDiagnosis ? "Editar Diagnóstico" : "Nuevo Diagnóstico"}
+              {currentDiagnosis ? t('medico.editDiagnosis') : t('medico.newDiagnosis')}
             </Text>
           </View>
         </LinearGradient>
@@ -313,11 +317,11 @@ const DiagnosisScreen = ({ navigation, route }) => {
               <View style={styles.sectionBadge}>
                 <Text style={styles.badgeText}>1</Text>
               </View>
-              <Text style={styles.sectionTitle}>Diagnóstico principal *</Text>
+              <Text style={styles.sectionTitle}>{t('medico.principalDiagnosis')}</Text>
             </View>
             <TextInput
               style={styles.input}
-              placeholder="Ej: Diabetes mellitus tipo 2"
+              placeholder={t('medico.principalDiagnosisExample')}
               placeholderTextColor="#a0aec0"
               value={formData.diagnostico_principal}
               onChangeText={(text) =>
@@ -331,11 +335,11 @@ const DiagnosisScreen = ({ navigation, route }) => {
               <View style={styles.sectionBadge}>
                 <Text style={styles.badgeText}>2</Text>
               </View>
-              <Text style={styles.sectionTitle}>Diagnósticos secundarios</Text>
+              <Text style={styles.sectionTitle}>{t('medico.secondaryDiagnoses')}</Text>
             </View>
             <TextInput
               style={[styles.input, styles.textArea]}
-              placeholder="Uno por línea o separados por comas"
+              placeholder={t('medico.secondaryPlaceholder')}
               placeholderTextColor="#a0aec0"
               multiline
               numberOfLines={3}
@@ -351,11 +355,11 @@ const DiagnosisScreen = ({ navigation, route }) => {
               <View style={styles.sectionBadge}>
                 <Text style={styles.badgeText}>3</Text>
               </View>
-              <Text style={styles.sectionTitle}>Observaciones</Text>
+              <Text style={styles.sectionTitle}>{t('medico.observations')}</Text>
             </View>
             <TextInput
               style={[styles.input, styles.textArea]}
-              placeholder="Notas adicionales..."
+              placeholder={t('medico.observationsPlaceholder')}
               placeholderTextColor="#a0aec0"
               multiline
               numberOfLines={4}
@@ -371,7 +375,7 @@ const DiagnosisScreen = ({ navigation, route }) => {
             onPress={() => navigation.goBack()}
           >
             <Ionicons name="close-outline" size={18} color="#718096" />
-            <Text style={styles.cancelButtonText}>Cancelar</Text>
+            <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -386,8 +390,8 @@ const DiagnosisScreen = ({ navigation, route }) => {
                 <Ionicons name="save-outline" size={18} color="#fff" />
                 <Text style={styles.saveButtonText}>
                   {currentDiagnosis
-                    ? "Actualizar Diagnóstico"
-                    : "Guardar Diagnóstico"}
+                    ? t('medico.updateDiagnosis')
+                    : t('medico.saveDiagnosis')}
                 </Text>
               </>
             )}
@@ -408,11 +412,11 @@ const DiagnosisScreen = ({ navigation, route }) => {
           >
             <View style={styles.historyHeaderContent}>
               <Ionicons name="time-outline" size={20} color="#fff" />
-              <Text style={styles.historyTitle}>Historial de Diagnósticos</Text>
+              <Text style={styles.historyTitle}>{t('medico.diagnosisHistory')}</Text>
               {history.length > 0 && (
                 <View style={styles.historyCount}>
                   <Text style={styles.historyCountText}>
-                    {history.length} registros
+                    {history.length} {t('common.records')}
                   </Text>
                 </View>
               )}
@@ -439,7 +443,7 @@ const DiagnosisScreen = ({ navigation, route }) => {
                   color="#cbd5e0"
                 />
                 <Text style={styles.emptyHistoryText}>
-                  No hay diagnósticos previos
+                  {t('common.noPreviousDiagnoses')}
                 </Text>
               </View>
             ) : (

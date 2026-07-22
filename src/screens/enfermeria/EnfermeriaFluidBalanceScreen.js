@@ -17,12 +17,14 @@ import api from '../../services/api';
 import CacheService from '../../services/cacheService';
 import Pagination from '../../components/Pagination';
 import moment from 'moment';
+import { useLanguage } from '../../context/LanguageContext';
 
 const CACHE_KEY_PREFIX = 'enfermeria_fluid_balance_';
 const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
 const HISTORY_ITEMS_PER_PAGE = 5;
 
 const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
+  const { t, lang } = useLanguage();
   const { id_atencion, Id_exp } = route.params;
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
@@ -80,7 +82,7 @@ const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
   const handleSubmit = async () => {
     const hasData = Object.values(formData).some(value => value.trim() !== '');
     if (!hasData) {
-      Alert.alert('Advertencia', 'Ingrese al menos un dato en el balance hídrico');
+      Alert.alert(t('common.warning'), t('enfermeria.newFluidRecord'));
       return;
     }
 
@@ -88,7 +90,7 @@ const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
     try {
       const response = await api.post(`/appointments/${id_atencion}/fluid-balance`, formData);
       if (response.data) {
-        Alert.alert('Éxito', 'Balance hídrico guardado correctamente');
+        Alert.alert(t('common.success'), t('enfermeria.fluidBalance'));
         setFormData({
           ingresos_orales: '',
           ingresos_iv: '',
@@ -100,7 +102,7 @@ const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
       }
     } catch (error) {
       console.error('Error saving fluid balance:', error);
-      Alert.alert('Error', error.response?.data?.error || 'No se pudo guardar el balance hídrico');
+      Alert.alert(t('common.error'), error.response?.data?.error || t('enfermeria.couldNotLoad'));
     } finally {
       setLoading(false);
     }
@@ -125,7 +127,7 @@ const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
               {moment(item.fecha_registro).format('dddd, D [de] MMMM [de] YYYY [a las] HH:mm')}
             </Text>
             <Text style={styles.historyDoctor}>
-              <Ionicons name="medkit-outline" size={12} color="#718096" /> Enf. {item.enfermero_nombre || 'No especificado'}
+              <Ionicons name="medkit-outline" size={12} color="#718096" /> Enf. {item.enfermero_nombre || t('common.notSpecified')}
             </Text>
           </View>
         </View>
@@ -133,39 +135,39 @@ const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
         <View style={styles.historyContent}>
           <View style={styles.historyRow}>
             <View style={styles.historyHalf}>
-              <Text style={styles.historyLabel}>Ingresos orales:</Text>
+              <Text style={styles.historyLabel}>{t('enfermeria.oral')}:</Text>
               <Text style={styles.historyValue}>{balance.ingresos_orales || 0} ml</Text>
             </View>
             <View style={styles.historyHalf}>
-              <Text style={styles.historyLabel}>Ingresos IV:</Text>
+              <Text style={styles.historyLabel}>{t('enfermeria.intravenous')}:</Text>
               <Text style={styles.historyValue}>{balance.ingresos_iv || 0} ml</Text>
             </View>
           </View>
           
           <View style={styles.historyRow}>
             <View style={styles.historyHalf}>
-              <Text style={styles.historyLabel}>Egresos orina:</Text>
+              <Text style={styles.historyLabel}>{t('enfermeria.urine')}:</Text>
               <Text style={styles.historyValue}>{balance.egresos_orina || 0} ml</Text>
             </View>
             <View style={styles.historyHalf}>
-              <Text style={styles.historyLabel}>Egresos drenajes:</Text>
+              <Text style={styles.historyLabel}>{t('enfermeria.drainage')}:</Text>
               <Text style={styles.historyValue}>{balance.egresos_drenajes || 0} ml</Text>
             </View>
           </View>
           
           <View style={[styles.historyRow, styles.historyTotalRow]}>
             <View style={styles.historyHalf}>
-              <Text style={styles.historyTotalLabel}>Total ingresos:</Text>
+              <Text style={styles.historyTotalLabel}>{t('enfermeria.totalIntake')}:</Text>
               <Text style={styles.historyTotalValue}>{totalIngresos} ml</Text>
             </View>
             <View style={styles.historyHalf}>
-              <Text style={styles.historyTotalLabel}>Total egresos:</Text>
+              <Text style={styles.historyTotalLabel}>{t('enfermeria.totalOutput')}:</Text>
               <Text style={styles.historyTotalValue}>{totalEgresos} ml</Text>
             </View>
           </View>
           
           <View style={styles.historyBalanceRow}>
-            <Text style={styles.historyBalanceLabel}>Balance neto:</Text>
+            <Text style={styles.historyBalanceLabel}>{t('enfermeria.netBalance')}:</Text>
             <Text style={[
               styles.historyBalanceValue,
               balanceNeto >= 0 ? styles.balancePositive : styles.balanceNegative
@@ -177,7 +179,7 @@ const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
           {balance.observaciones && (
             <View style={styles.historyField}>
               <Ionicons name="document-text-outline" size={14} color="#718096" />
-              <Text style={styles.historyFieldLabel}>Observaciones:</Text>
+              <Text style={styles.historyFieldLabel}>{t('common.observations')}:</Text>
               <Text style={styles.historyFieldValue}>{balance.observaciones}</Text>
             </View>
           )}
@@ -207,7 +209,7 @@ const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          <Ionicons name="water-outline" size={20} color="#fff" /> Balance Hídrico
+          <Ionicons name="water-outline" size={20} color="#fff" /> {t('enfermeria.fluidBalance')}
         </Text>
         <TouchableOpacity
           onPress={() => loadFluidBalanceHistory(true)}
@@ -225,7 +227,7 @@ const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
             <Ionicons name="person-circle" size={50} color="#fff" />
           </View>
           <View style={styles.patientDetails}>
-            <Text style={styles.patientName}>Paciente</Text>
+            <Text style={styles.patientName}>{t('enfermeria.patient')}</Text>
             <View style={styles.patientMeta}>
               <Text style={styles.patientMetaItem}>
                 <Ionicons name="card-outline" size={12} color="#4299e1" />
@@ -250,7 +252,7 @@ const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
         >
           <View style={styles.cardHeaderContent}>
             <Ionicons name="add-circle-outline" size={22} color="#fff" />
-            <Text style={styles.cardHeaderTitle}>Registrar Balance Hídrico</Text>
+            <Text style={styles.cardHeaderTitle}>{t('enfermeria.newFluidRecord')}</Text>
           </View>
         </LinearGradient>
 
@@ -259,7 +261,7 @@ const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
           <View style={styles.fieldGroup}>
             <View style={styles.fieldLabel}>
               <Ionicons name="cafe-outline" size={16} color="#4299e1" />
-              <Text style={styles.fieldLabelText}>Ingresos orales (ml)</Text>
+              <Text style={styles.fieldLabelText}>{t('enfermeria.intakeLabel')} ({t('enfermeria.oral')})</Text>
             </View>
             <TextInput
               style={styles.fieldInput}
@@ -275,7 +277,7 @@ const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
           <View style={styles.fieldGroup}>
             <View style={styles.fieldLabel}>
               <Ionicons name="medical-outline" size={16} color="#4299e1" />
-              <Text style={styles.fieldLabelText}>Ingresos IV (ml)</Text>
+              <Text style={styles.fieldLabelText}>{t('enfermeria.intakeLabel')} ({t('enfermeria.intravenous')})</Text>
             </View>
             <TextInput
               style={styles.fieldInput}
@@ -291,7 +293,7 @@ const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
           <View style={styles.fieldGroup}>
             <View style={styles.fieldLabel}>
               <Ionicons name="water-outline" size={16} color="#4299e1" />
-              <Text style={styles.fieldLabelText}>Egresos orina (ml)</Text>
+              <Text style={styles.fieldLabelText}>{t('enfermeria.outputLabel')} ({t('enfermeria.urine')})</Text>
             </View>
             <TextInput
               style={styles.fieldInput}
@@ -307,7 +309,7 @@ const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
           <View style={styles.fieldGroup}>
             <View style={styles.fieldLabel}>
               <Ionicons name="bandage-outline" size={16} color="#4299e1" />
-              <Text style={styles.fieldLabelText}>Egresos drenajes (ml)</Text>
+              <Text style={styles.fieldLabelText}>{t('enfermeria.outputLabel')} ({t('enfermeria.drainage')})</Text>
             </View>
             <TextInput
               style={styles.fieldInput}
@@ -323,11 +325,11 @@ const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
           <View style={styles.fieldGroup}>
             <View style={styles.fieldLabel}>
               <Ionicons name="document-text-outline" size={16} color="#718096" />
-              <Text style={styles.fieldLabelText}>Observaciones</Text>
+              <Text style={styles.fieldLabelText}>{t('common.observations')}</Text>
             </View>
             <TextInput
               style={[styles.fieldInput, styles.textArea]}
-              placeholder="Notas adicionales del balance hídrico"
+              placeholder={t('enfermeria.observations')}
               placeholderTextColor="#a0aec0"
               multiline
               numberOfLines={4}
@@ -348,7 +350,7 @@ const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
           ) : (
             <>
               <Ionicons name="save-outline" size={18} color="#fff" />
-              <Text style={styles.saveButtonText}>Guardar Balance</Text>
+              <Text style={styles.saveButtonText}>{t('enfermeria.saveEntry')}</Text>
             </>
           )}
         </TouchableOpacity>
@@ -369,9 +371,9 @@ const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
           >
             <View style={styles.historyHeaderContent}>
               <Ionicons name="time-outline" size={20} color="#fff" />
-              <Text style={styles.historyTitle}>Historial de Balances</Text>
+              <Text style={styles.historyTitle}>{t('enfermeria.balanceHistory')}</Text>
               <View style={styles.historyCount}>
-                <Text style={styles.historyCountText}>{history.length} registros</Text>
+                <Text style={styles.historyCountText}>{history.length} {t('common.records')}</Text>
               </View>
               <Ionicons 
                 name={showHistory ? "chevron-up-outline" : "chevron-down-outline"} 
@@ -389,7 +391,7 @@ const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
             ) : history.length === 0 ? (
               <View style={styles.emptyHistory}>
                 <Ionicons name="document-text-outline" size={48} color="#cbd5e0" />
-                <Text style={styles.emptyHistoryText}>No hay balances previos</Text>
+                <Text style={styles.emptyHistoryText}>{t('enfermeria.noFluidYet')}</Text>
               </View>
             ) : (
               <>

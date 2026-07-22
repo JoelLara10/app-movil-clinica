@@ -16,10 +16,9 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
 import CacheService from '../../services/cacheService';
 import Pagination from '../../components/Pagination';
+import { useLanguage } from '../../context/LanguageContext';
 import moment from 'moment';
 import 'moment/locale/es';
-
-moment.locale('es');
 
 const CACHE_KEY_PATIENT = 'study_results_patient_';
 const CACHE_KEY_LAB = 'study_results_lab_';
@@ -29,6 +28,8 @@ const RESULTS_PER_PAGE = 5;
 
 const StudyResultsScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params;
+  const { t, lang } = useLanguage();
+  moment.locale(lang === 'es' ? 'es' : 'en-gb');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [paciente, setPaciente] = useState(null);
@@ -120,7 +121,7 @@ const StudyResultsScreen = ({ navigation, route }) => {
       if (cachedGab) setGabinete(cachedGab);
       
       if (!cachedPatient && !cachedLab && !cachedGab) {
-        Alert.alert('Error', 'No se pudieron cargar los resultados');
+        Alert.alert(t('common.error'), t('common.couldNotLoadResults'));
       }
     } finally {
       setLoading(false);
@@ -182,10 +183,10 @@ const StudyResultsScreen = ({ navigation, route }) => {
             <Ionicons name={iconName} size={40} color="#fff" />
           </View>
           <Text style={styles.emptyStateTitle}>
-            No hay resultados de {isLab ? 'laboratorio' : 'gabinete'}
+            {isLab ? t('medico.labResults') : t('medico.imagingResults')}
           </Text>
           <Text style={styles.emptyStateText}>
-            Aún no se han registrado resultados para este paciente.
+            {t('common.noResultsYet')}
           </Text>
         </View>
       );
@@ -194,10 +195,10 @@ const StudyResultsScreen = ({ navigation, route }) => {
     return (
       <View style={styles.tableContainer}>
         <View style={styles.tableHeader}>
-          <Text style={[styles.headerCell, styles.dateHeader]}>Fecha</Text>
-          <Text style={[styles.headerCell, styles.examsHeader]}>Estudios</Text>
-          <Text style={[styles.headerCell, styles.doctorHeader]}>Médico</Text>
-          <Text style={[styles.headerCell, styles.observationsHeader]}>Observaciones</Text>
+          <Text style={[styles.headerCell, styles.dateHeader]}>{t('common.date')}</Text>
+          <Text style={[styles.headerCell, styles.examsHeader]}>{t('common.exams')}</Text>
+          <Text style={[styles.headerCell, styles.doctorHeader]}>{t('common.doctor')}</Text>
+          <Text style={[styles.headerCell, styles.observationsHeader]}>{t('common.observations')}</Text>
           <Text style={[styles.headerCell, styles.actionHeader]}>Ver</Text>
         </View>
         
@@ -234,7 +235,7 @@ const StudyResultsScreen = ({ navigation, route }) => {
               <View style={[styles.rowCell, styles.doctorCell]}>
                 <View style={styles.medicoInfo}>
                   <Ionicons name="medkit-outline" size={14} color={headerColor} />
-                  <Text style={styles.medicoName}>{item.medico || 'No especificado'}</Text>
+                  <Text style={styles.medicoName}>{item.medico || t('common.notSpecified')}</Text>
                 </View>
               </View>
               
@@ -294,7 +295,7 @@ const StudyResultsScreen = ({ navigation, route }) => {
               end={{ x: 1, y: 0 }}
             >
               <Text style={styles.modalTitle}>
-                Detalle del Estudio
+                {t('medico.studyDetail')}
               </Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
                 <Ionicons name="close-outline" size={28} color="#fff" />
@@ -303,19 +304,19 @@ const StudyResultsScreen = ({ navigation, route }) => {
             
             <ScrollView style={styles.modalBody}>
               <View style={styles.modalInfoRow}>
-                <Text style={styles.modalLabel}>Fecha:</Text>
+                <Text style={styles.modalLabel}>{t('medico.dateLabel')}:</Text>
                 <Text style={styles.modalValue}>
                   {moment(selectedExam.fecha).format('DD/MM/YYYY HH:mm')}
                 </Text>
               </View>
               
               <View style={styles.modalInfoRow}>
-                <Text style={styles.modalLabel}>Médico solicitante:</Text>
-                <Text style={styles.modalValue}>{selectedExam.medico || 'No especificado'}</Text>
+                <Text style={styles.modalLabel}>{t('medico.medicalRequester')}:</Text>
+                <Text style={styles.modalValue}>{selectedExam.medico || t('common.notSpecified')}</Text>
               </View>
               
               <View style={styles.modalSection}>
-                <Text style={styles.modalSectionTitle}>Estudios realizados:</Text>
+                <Text style={styles.modalSectionTitle}>{t('medico.studiesPerformed')}:</Text>
                 {selectedExam.detalles && selectedExam.detalles.map((estudio, idx) => (
                   <View key={idx} style={styles.modalEstudio}>
                     <Ionicons name="document-text-outline" size={16} color={headerColor} />
@@ -325,7 +326,7 @@ const StudyResultsScreen = ({ navigation, route }) => {
                       { backgroundColor: estudio.estado === 'REALIZADO' ? '#48bb78' : '#ed8936' }
                     ]}>
                       <Text style={styles.modalEstadoText}>
-                        {estudio.estado === 'REALIZADO' ? 'REALIZADO' : 'PENDIENTE'}
+                        {estudio.estado === 'REALIZADO' ? t('common.completed') : t('common.pending')}
                       </Text>
                     </View>
                   </View>
@@ -334,14 +335,14 @@ const StudyResultsScreen = ({ navigation, route }) => {
               
               {selectedExam.observaciones && (
                 <View style={styles.modalSection}>
-                  <Text style={styles.modalSectionTitle}>Observaciones:</Text>
+                  <Text style={styles.modalSectionTitle}>{t('common.observations')}:</Text>
                   <Text style={styles.modalObservaciones}>{selectedExam.observaciones}</Text>
                 </View>
               )}
               
               {selectedExam.detalles && selectedExam.detalles.some(d => d.resultado) && (
                 <View style={styles.modalSection}>
-                  <Text style={styles.modalSectionTitle}>Resultados:</Text>
+                  <Text style={styles.modalSectionTitle}>{t('common.resultsLabel')}:</Text>
                   {selectedExam.detalles.map((estudio, idx) => (
                     estudio.resultado && (
                       <View key={idx} style={styles.modalResultado}>
@@ -357,11 +358,11 @@ const StudyResultsScreen = ({ navigation, route }) => {
                 <TouchableOpacity
                   style={styles.downloadButton}
                   onPress={() => {
-                    Alert.alert('Información', 'Funcionalidad de descarga próximamente');
+                    Alert.alert(t('common.attention'), t('common.downloadComingSoon'));
                   }}
                 >
                   <Ionicons name="download-outline" size={20} color="#fff" />
-                  <Text style={styles.downloadButtonText}>Descargar archivo adjunto</Text>
+                  <Text style={styles.downloadButtonText}>{t('common.downloadAttachment')}</Text>
                 </TouchableOpacity>
               )}
             </ScrollView>
@@ -375,7 +376,7 @@ const StudyResultsScreen = ({ navigation, route }) => {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#667eea" />
-        <Text style={styles.loadingText}>Cargando resultados...</Text>
+        <Text style={styles.loadingText}>{t('medico.loadingResults')}</Text>
       </View>
     );
   }
@@ -391,7 +392,7 @@ const StudyResultsScreen = ({ navigation, route }) => {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          <Ionicons name="document-text-outline" size={20} color="#fff" /> Resultados de Estudios
+          <Ionicons name="document-text-outline" size={20} color="#fff" /> {t('medico.studyResults')}
         </Text>
         <View style={{ width: 40 }} />
       </LinearGradient>
@@ -431,9 +432,9 @@ const StudyResultsScreen = ({ navigation, route }) => {
         >
           <View style={styles.cardHeaderContent}>
             <Ionicons name="flask-outline" size={20} color="#fff" />
-            <Text style={styles.cardHeaderTitle}>Resultados de Laboratorio</Text>
+              <Text style={styles.cardHeaderTitle}>{t('medico.labResults')}</Text>
             <View style={[styles.badge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-              <Text style={styles.badgeText}>{laboratorio.length} resultado(s)</Text>
+              <Text style={styles.badgeText}>{laboratorio.length} {t('common.resultsLabel')}</Text>
             </View>
           </View>
         </LinearGradient>
@@ -459,9 +460,9 @@ const StudyResultsScreen = ({ navigation, route }) => {
         >
           <View style={styles.cardHeaderContent}>
             <Ionicons name="scan-outline" size={20} color="#fff" />
-            <Text style={styles.cardHeaderTitle}>Resultados de Gabinete</Text>
+            <Text style={styles.cardHeaderTitle}>{t('medico.imagingResults')}</Text>
             <View style={[styles.badge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-              <Text style={styles.badgeText}>{gabinete.length} resultado(s)</Text>
+              <Text style={styles.badgeText}>{gabinete.length} {t('common.resultsLabel')}</Text>
             </View>
           </View>
         </LinearGradient>

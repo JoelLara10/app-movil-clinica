@@ -14,6 +14,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -25,11 +26,12 @@ const LoginScreen = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
+  const { lang, setLanguage, t } = useLanguage();
   const { width: screenWidth } = useWindowDimensions();
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
-      Alert.alert('Error', 'Por favor ingresa usuario y contraseña');
+      Alert.alert(t('login.error'), t('login.errorCredentials'));
       return;
     }
 
@@ -38,11 +40,14 @@ const LoginScreen = ({ navigation }) => {
     setLoading(false);
 
     if (!result.success) {
-      Alert.alert('Error de autenticación', result.error || 'Credenciales incorrectas');
+      Alert.alert(t('login.errorAuth'), result.error || t('login.errorInvalid'));
     }
   };
 
-  // Ancho máximo del formulario (mejor en web y tablets)
+  const toggleLanguage = () => {
+    setLanguage(lang === 'es' ? 'en' : 'es');
+  };
+
   const formWidth = screenWidth > 600 ? 420 : screenWidth * 0.9;
 
   return (
@@ -54,16 +59,24 @@ const LoginScreen = ({ navigation }) => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.scrollView}
           keyboardShouldPersistTaps="handled"
         >
+          {/* Language Toggle */}
+          <TouchableOpacity style={styles.langToggle} onPress={toggleLanguage}>
+            <Ionicons name="globe-outline" size={18} color="#fff" />
+            <Text style={styles.langToggleText}>
+              {lang === 'es' ? 'EN' : 'ES'}
+            </Text>
+          </TouchableOpacity>
+
           <View style={styles.brandContainer}>
             <View style={styles.iconContainer}>
               <Ionicons name="medical-outline" size={70} color="#fff" />
             </View>
             <Text style={styles.brandTitle}>INEO</Text>
-            <Text style={styles.brandSubtitle}>Sistema de Gestión Hospitalaria</Text>
+            <Text style={styles.brandSubtitle}>{t('login.title')}</Text>
           </View>
 
           <View style={[styles.formContainer, { width: formWidth, alignSelf: 'center' }]}>
@@ -71,7 +84,7 @@ const LoginScreen = ({ navigation }) => {
               <Ionicons name="person-outline" size={22} color="#667eea" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Usuario"
+                placeholder={t('login.username')}
                 placeholderTextColor="#a0aec0"
                 value={username}
                 onChangeText={setUsername}
@@ -86,7 +99,7 @@ const LoginScreen = ({ navigation }) => {
               <Ionicons name="lock-closed-outline" size={22} color="#667eea" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Contraseña"
+                placeholder={t('login.password')}
                 placeholderTextColor="#a0aec0"
                 secureTextEntry={!showPassword}
                 value={password}
@@ -118,7 +131,7 @@ const LoginScreen = ({ navigation }) => {
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
                 <>
-                  <Text style={styles.loginButtonText}>Iniciar Sesión</Text>
+                  <Text style={styles.loginButtonText}>{t('login.button')}</Text>
                   <Ionicons name="arrow-forward-outline" size={22} color="#fff" />
                 </>
               )}
@@ -127,7 +140,7 @@ const LoginScreen = ({ navigation }) => {
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>
-              INEO v2.0 - Sistema de Gestión Hospitalaria
+              {t('login.footer')}
             </Text>
           </View>
         </ScrollView>
@@ -148,6 +161,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 20,
     paddingVertical: 40,
+  },
+  langToggle: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+    zIndex: 10,
+  },
+  langToggleText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 6,
   },
   brandContainer: {
     alignItems: 'center',

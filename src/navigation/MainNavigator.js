@@ -14,6 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext";
 import { usePatient } from "../context/PatientContext";
+import { useLanguage } from "../context/LanguageContext";
 
 import DashboardScreen from "../screens/dashboard/DashboardScreen";
 
@@ -48,7 +49,7 @@ import ImagingExamsScreen from "../screens/medico/ImagingExamsScreen";
 import PrintDocsScreen from "../screens/medico/PrintDocsScreen";
 import StudyResultsScreen from "../screens/medico/StudyResultsScreen";
 
-//Screens Config
+// Screens Config
 import GeneralSettingsScreen from "../screens/config/GeneralSettingsScreen";
 import UsuariosConfigScreen from "../screens/config/UsuariosConfigScreen";
 import CamasConfigScreen from "../screens/config/CamasConfigScreen";
@@ -78,16 +79,26 @@ const getActiveRoutePath = (state, path = []) => {
   return nextPath;
 };
 
+const roleLabels = {
+  admin: { es: "ADMIN", en: "ADMIN" },
+  administrativo: { es: "ADMINISTRATIVO", en: "ADMINISTRATIVE" },
+  medico: { es: "MEDICO", en: "MEDICAL" },
+  enfermero: { es: "ENFERMERIA", en: "NURSING" },
+  enfermeria: { es: "ENFERMERIA", en: "NURSING" },
+  estudios: { es: "ESTUDIOS", en: "STUDIES" },
+};
+
 // Componente de Sidebar personalizado
 const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
   const { user, logout } = useAuth();
   const { selectedPatient } = usePatient();
+  const { lang, setLanguage, t } = useLanguage();
   const activeRoutePath = getActiveRoutePath(navigation.getState?.());
 
   const handleLogout = () => {
-    Alert.alert("Cerrar sesión", "¿Estás seguro de que deseas salir?", [
-      { text: "Cancelar", style: "cancel" },
-      { text: "Salir", onPress: () => logout() },
+    Alert.alert(t('sidebar.logoutConfirm'), t('sidebar.logoutMessage'), [
+      { text: t('sidebar.cancel'), style: "cancel" },
+      { text: t('sidebar.exit'), onPress: () => logout() },
     ]);
   };
 
@@ -122,7 +133,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
 
   const principalItems = [
     {
-      name: "Dashboard",
+      name: t('sidebar.dashboard'),
       icon: "home-outline",
       screen: "Dashboard",
       requiresPatient: false,
@@ -132,7 +143,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
 
   if (isMedicoRole || (isAdminRole && currentModule === "medico")) {
     principalItems.push({
-      name: "Panel Médico",
+      name: t('sidebar.medicalPanel'),
       icon: "speedometer-outline",
       screen: "Medico",
       subScreen: "MedicoList",
@@ -143,7 +154,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
 
   if (isEnfermeriaRole || (isAdminRole && currentModule === "enfermeria")) {
     principalItems.push({
-      name: "Panel Enfermería",
+      name: t('sidebar.nursingPanel'),
       icon: "medkit-outline",
       screen: "Enfermeria",
       subScreen: "EnfermeriaList",
@@ -154,7 +165,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
 
   if (role === "estudios" || (isAdminRole && currentModule === "estudios")) {
     principalItems.push({
-      name: "Panel Estudios",
+      name: t('sidebar.studiesPanel'),
       icon: "flask-outline",
       screen: "Estudios",
       subScreen: "EstudiosList",
@@ -164,21 +175,20 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
   }
 
   if (principalItems.length) {
-    menuSections.push({ title: "PRINCIPAL", items: principalItems });
+    menuSections.push({ title: t('sidebar.principal'), items: principalItems });
   }
 
   if (isMedicoRole || (isAdminRole && currentModule === "medico")) {
-    // Base params para todas las pantallas médicas
     const baseParams = {
       id_atencion: selectedPatient?.id_atencion,
       Id_exp: selectedPatient?.Id_exp || selectedPatient?.id_exp,
     };
 
     menuSections.push({
-      title: "HISTORIA CLÍNICA",
+      title: t('sidebar.history'),
       items: [
         {
-          name: "Historia Clínica",
+          name: t('sidebar.clinicalHistory'),
           icon: "document-text-outline",
           screen: "Medico",
           subScreen: "HistoriaClinica",
@@ -189,10 +199,10 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
     });
 
     menuSections.push({
-      title: "NOTAS MÉDICAS",
+      title: t('sidebar.medicalNotes'),
       items: [
         {
-          name: "Signos Vitales",
+          name: t('sidebar.vitalSigns'),
           icon: "heart-outline",
           screen: "Medico",
           subScreen: "VitalSigns",
@@ -200,7 +210,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
           requiresPatient: true,
         },
         {
-          name: "Nota Médica (SOAP)",
+          name: t('sidebar.medicalNote'),
           icon: "document-text-outline",
           screen: "Medico",
           subScreen: "MedicalNote",
@@ -208,7 +218,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
           requiresPatient: true,
         },
         {
-          name: "Diagnóstico",
+          name: t('sidebar.diagnosis'),
           icon: "clipboard-outline",
           screen: "Medico",
           subScreen: "Diagnosis",
@@ -216,7 +226,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
           requiresPatient: true,
         },
         {
-          name: "Receta",
+          name: t('sidebar.prescription'),
           icon: "medkit-outline",
           screen: "Medico",
           subScreen: "Prescription",
@@ -224,7 +234,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
           requiresPatient: true,
         },
         {
-          name: "Exámenes de Laboratorio",
+          name: t('sidebar.labExams'),
           icon: "flask-outline",
           screen: "Medico",
           subScreen: "LabExams",
@@ -232,7 +242,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
           requiresPatient: true,
         },
         {
-          name: "Exámenes de Gabinete",
+          name: t('sidebar.imagingExams'),
           icon: "scan-outline",
           screen: "Medico",
           subScreen: "ImagingExams",
@@ -243,10 +253,10 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
     });
 
     menuSections.push({
-      title: "DOCUMENTOS",
+      title: t('sidebar.documents'),
       items: [
         {
-          name: "Imprimir Documentos",
+          name: t('sidebar.printDocs'),
           icon: "print-outline",
           screen: "Medico",
           subScreen: "PrintDocs",
@@ -254,7 +264,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
           requiresPatient: true,
         },
         {
-          name: "Resultados de Estudios",
+          name: t('sidebar.studyResults'),
           icon: "document-text-outline",
           screen: "Medico",
           subScreen: "StudyResults",
@@ -272,10 +282,10 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
     };
 
     menuSections.push({
-      title: "NOTAS DE ENFERMERÍA",
+      title: t('sidebar.nursingNotes'),
       items: [
         {
-          name: "Signos Vitales",
+          name: t('sidebar.vitalSigns'),
           icon: "heart-outline",
           screen: "Enfermeria",
           subScreen: "EnfermeriaVitalSigns",
@@ -283,7 +293,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
           requiresPatient: true,
         },
         {
-          name: "Nota de Enfermería",
+          name: t('sidebar.nursingNote'),
           icon: "document-text-outline",
           screen: "Enfermeria",
           subScreen: "EnfermeriaNote",
@@ -291,7 +301,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
           requiresPatient: true,
         },
         {
-          name: "Administración Medicamentos",
+          name: t('sidebar.medicationAdmin'),
           icon: "medkit-outline",
           screen: "Enfermeria",
           subScreen: "EnfermeriaMedications",
@@ -299,7 +309,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
           requiresPatient: true,
         },
         {
-          name: "Valoración de Enfermería",
+          name: t('sidebar.nursingAssessment'),
           icon: "clipboard-outline",
           screen: "Enfermeria",
           subScreen: "EnfermeriaAssessment",
@@ -307,7 +317,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
           requiresPatient: true,
         },
         {
-          name: "Balance Hídrico",
+          name: t('sidebar.fluidBalance'),
           icon: "water-outline",
           screen: "Enfermeria",
           subScreen: "EnfermeriaFluidBalance",
@@ -315,7 +325,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
           requiresPatient: true,
         },
         {
-          name: "Cuidados de Enfermería",
+          name: t('sidebar.nursingCare'),
           icon: "shield-checkmark-outline",
           screen: "Enfermeria",
           subScreen: "EnfermeriaCare",
@@ -332,10 +342,10 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
     (isAdminRole && currentModule === "estudios")
   ) {
     menuSections.push({
-      title: "ESTUDIOS",
+      title: t('sidebar.studiesSection'),
       items: [
         {
-          name: "Solicitudes Lab",
+          name: t('sidebar.labRequests'),
           icon: "flask-outline",
           screen: "Estudios",
           subScreen: "EstudiosList",
@@ -343,7 +353,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
           requiresPatient: false,
         },
         {
-          name: "Solicitudes Gabinete",
+          name: t('sidebar.imagingRequests'),
           icon: "scan-outline",
           screen: "Estudios",
           subScreen: "EstudiosList",
@@ -351,7 +361,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
           requiresPatient: false,
         },
         {
-          name: "Resultados Lab",
+          name: t('sidebar.labResults'),
           icon: "document-text-outline",
           screen: "Estudios",
           subScreen: "EstudiosList",
@@ -359,7 +369,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
           requiresPatient: false,
         },
         {
-          name: "Resultados Gabinete",
+          name: t('sidebar.imagingResults'),
           icon: "folder-open-outline",
           screen: "Estudios",
           subScreen: "EstudiosList",
@@ -374,7 +384,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
 
   if (role === "admin" || role === "administrativo") {
     roleItems.push({
-      name: "Administración",
+      name: t('sidebar.administration'),
       icon: "settings-outline",
       screen: "Admin",
       requiresPatient: false,
@@ -384,7 +394,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
 
   if (role === "estudios" || role === "admin") {
     roleItems.push({
-      name: "Estudios",
+      name: t('sidebar.studies'),
       icon: "flask-outline",
       screen: "Estudios",
       requiresPatient: false,
@@ -394,7 +404,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
 
   if (isAdminRole || isEnfermeriaRole) {
     roleItems.push({
-      name: "Enfermería",
+      name: t('sidebar.nursing'),
       icon: "medkit-outline",
       screen: "Enfermeria",
       subScreen: "EnfermeriaList",
@@ -405,7 +415,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
 
   if (isAdminRole || isMedicoRole) {
     roleItems.push({
-      name: "Médico",
+      name: t('sidebar.medical'),
       icon: "pulse-outline",
       screen: "Medico",
       subScreen: "MedicoList",
@@ -416,7 +426,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
 
   if (role === "admin") {
     roleItems.push({
-      name: "Configuración",
+      name: t('sidebar.config'),
       icon: "options-outline",
       screen: "Config",
       requiresPatient: false,
@@ -425,19 +435,15 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
   }
 
   if (roleItems.length) {
-    menuSections.push({ title: "MÓDULOS", items: roleItems });
+    menuSections.push({ title: t('sidebar.modules'), items: roleItems });
   }
 
-  const roleLabels = {
-    admin: "ADMIN",
-    administrativo: "ADMINISTRATIVO",
-    medico: "MÉDICO",
-    enfermero: "ENFERMERÍA",
-    enfermeria: "ENFERMERÍA",
-    estudios: "ESTUDIOS",
-  };
-  const roleLabel = roleLabels[role] || "USUARIO";
+  const roleLabel = roleLabels[role]?.[lang] || (lang === 'es' ? 'USUARIO' : 'USER');
   const userPrefix = isEnfermeriaRole ? "Enf." : "Dr.";
+
+  const toggleLanguage = () => {
+    setLanguage(lang === 'es' ? 'en' : 'es');
+  };
 
   return (
     <View style={styles.sidebarContainer}>
@@ -447,7 +453,12 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
       >
         <View style={styles.brandContainer}>
           <Text style={styles.brandTitle}>INEO</Text>
-          <Text style={styles.brandVersion}>v2.0</Text>
+          <View style={styles.brandRight}>
+            <TouchableOpacity style={styles.langToggle} onPress={toggleLanguage}>
+              <Ionicons name="globe-outline" size={14} color="#fff" />
+              <Text style={styles.langToggleText}>{lang === 'es' ? 'EN' : 'ES'}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
         <View style={styles.userInfo}>
           <View style={styles.userAvatar}>
@@ -484,8 +495,8 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
                       );
                     } else {
                       Alert.alert(
-                        "Información",
-                        "Seleccione un paciente primero",
+                        t('sidebar.info'),
+                        t('sidebar.selectPatient'),
                       );
                     }
                   }}
@@ -513,7 +524,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
 
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Ionicons name="log-out-outline" size={20} color="#e53e3e" />
-        <Text style={styles.logoutText}>Cerrar sesión</Text>
+        <Text style={styles.logoutText}>{t('sidebar.logout')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -538,7 +549,6 @@ function MedicoStack() {
   );
 }
 
-// ... (El resto del código se mantiene igual)
 function EnfermeriaStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -677,7 +687,6 @@ export default function MainNavigator() {
 }
 
 const styles = StyleSheet.create({
-  // ... (tus estilos se mantienen igual)
   sidebarContainer: { flex: 1, backgroundColor: "#1a202c" },
   sidebarHeader: {
     paddingTop: 50,
@@ -693,7 +702,26 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   brandTitle: { fontSize: 24, fontWeight: "bold", color: "#fff" },
-  brandVersion: { fontSize: 12, color: "rgba(255,255,255,0.7)" },
+  brandRight: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  langToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.2)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+  },
+  langToggleText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
+    marginLeft: 4,
+  },
   userInfo: { flexDirection: "row", alignItems: "center" },
   userAvatar: {
     width: 50,

@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useLanguage } from '../../context/LanguageContext';
 import api from '../../services/api';
 import CacheService from '../../services/cacheService';
 import Pagination from '../../components/Pagination';
@@ -24,6 +25,7 @@ const HISTORY_ITEMS_PER_PAGE = 5;
 
 const EnfermeriaNoteScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params;
+  const { t, lang } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
@@ -80,7 +82,7 @@ const EnfermeriaNoteScreen = ({ navigation, route }) => {
 
   const handleSubmit = async () => {
     if (!formData.nota_enfermeria.trim()) {
-      Alert.alert('Advertencia', 'La nota de enfermería es requerida');
+      Alert.alert(t('common.warning'), t('enfermeria.loadingNote'));
       return;
     }
 
@@ -88,7 +90,7 @@ const EnfermeriaNoteScreen = ({ navigation, route }) => {
     try {
       const response = await api.post(`/appointments/${id_atencion}/nursing-notes`, formData);
       if (response.data) {
-        Alert.alert('Éxito', 'Nota de enfermería guardada correctamente');
+        Alert.alert(t('common.success'), t('enfermeria.saveNote'));
         // Limpiar formulario
         setFormData({ nota_enfermeria: '' });
         // Recargar historial con forceRefresh
@@ -96,7 +98,7 @@ const EnfermeriaNoteScreen = ({ navigation, route }) => {
       }
     } catch (error) {
       console.error('Error saving nursing note:', error);
-      Alert.alert('Error', error.response?.data?.error || 'No se pudo guardar la nota de enfermería');
+      Alert.alert(t('common.error'), error.response?.data?.error || t('common.couldNotSaveData'));
     } finally {
       setLoading(false);
     }
@@ -112,17 +114,17 @@ const EnfermeriaNoteScreen = ({ navigation, route }) => {
         </View>
         <View style={styles.historyInfo}>
           <Text style={styles.historyDate}>
-            {moment(item.fecha_registro).format('dddd, D [de] MMMM [de] YYYY [a las] HH:mm')}
+            {moment(item.fecha_registro).format(lang === 'es' ? 'dddd, D [de] MMMM [de] YYYY [a las] HH:mm' : 'dddd, D MMMM YYYY [at] HH:mm')}
           </Text>
           <Text style={styles.historyDoctor}>
-            <Ionicons name="medkit-outline" size={12} color="#718096" /> Enf. {item.enfermero_nombre || 'No especificado'}
+            <Ionicons name="medkit-outline" size={12} color="#718096" /> Enf. {item.enfermero_nombre || t('common.notSpecified')}
           </Text>
         </View>
       </View>
       
       <View style={styles.historyContent}>
-        <Text style={styles.historyNoteLabel}>Nota:</Text>
-        <Text style={styles.historyNoteText}>{item.nota || 'Sin contenido'}</Text>
+        <Text style={styles.historyNoteLabel}>{t('common.observations')}:</Text>
+        <Text style={styles.historyNoteText}>{item.nota || t('common.notSpecified')}</Text>
       </View>
     </View>
   );
@@ -148,7 +150,7 @@ const EnfermeriaNoteScreen = ({ navigation, route }) => {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          <Ionicons name="document-text-outline" size={20} color="#fff" /> Nota de Enfermería
+          <Ionicons name="document-text-outline" size={20} color="#fff" /> {t('enfermeria.nursingNote')}
         </Text>
         <TouchableOpacity
           onPress={() => loadNursingNotesHistory(true)}
@@ -166,7 +168,7 @@ const EnfermeriaNoteScreen = ({ navigation, route }) => {
             <Ionicons name="person-circle" size={50} color="#fff" />
           </View>
           <View style={styles.patientDetails}>
-            <Text style={styles.patientName}>Paciente</Text>
+            <Text style={styles.patientName}>{t('enfermeria.patient')}</Text>
             <View style={styles.patientMeta}>
               <Text style={styles.patientMetaItem}>
                 <Ionicons name="card-outline" size={12} color="#4299e1" />
@@ -174,7 +176,7 @@ const EnfermeriaNoteScreen = ({ navigation, route }) => {
               </Text>
               <Text style={styles.patientMetaItem}>
                 <Ionicons name="calendar-outline" size={12} color="#4299e1" />
-                <Text style={styles.patientMetaText}>Atención: {id_atencion}</Text>
+                <Text style={styles.patientMetaText}>{t('common.attention')}: {id_atencion}</Text>
               </Text>
             </View>
           </View>
@@ -191,7 +193,7 @@ const EnfermeriaNoteScreen = ({ navigation, route }) => {
         >
           <View style={styles.cardHeaderContent}>
             <Ionicons name="add-circle-outline" size={22} color="#fff" />
-            <Text style={styles.cardHeaderTitle}>Nueva Nota de Enfermería</Text>
+            <Text style={styles.cardHeaderTitle}>{t('enfermeria.newNursingNote')}</Text>
           </View>
         </LinearGradient>
 
@@ -201,11 +203,11 @@ const EnfermeriaNoteScreen = ({ navigation, route }) => {
               <View style={[styles.sectionBadge, styles.badgeN]}>
                 <Text style={styles.badgeText}>N</Text>
               </View>
-              <Text style={styles.sectionTitle}>Nota de Enfermería</Text>
+              <Text style={styles.sectionTitle}>{t('enfermeria.nursingNote')}</Text>
             </View>
             <TextInput
               style={styles.textArea}
-              placeholder="Observaciones del paciente, cuidados realizados, evolución..."
+              placeholder={t('enfermeria.subjectivePlaceholder')}
               placeholderTextColor="#a0aec0"
               multiline
               numberOfLines={6}
@@ -226,7 +228,7 @@ const EnfermeriaNoteScreen = ({ navigation, route }) => {
           ) : (
             <>
               <Ionicons name="save-outline" size={18} color="#fff" />
-              <Text style={styles.saveButtonText}>Guardar Nota</Text>
+              <Text style={styles.saveButtonText}>{t('enfermeria.saveNote')}</Text>
             </>
           )}
         </TouchableOpacity>
@@ -247,9 +249,9 @@ const EnfermeriaNoteScreen = ({ navigation, route }) => {
           >
             <View style={styles.historyHeaderContent}>
               <Ionicons name="time-outline" size={20} color="#fff" />
-              <Text style={styles.historyTitle}>Historial de Notas</Text>
+              <Text style={styles.historyTitle}>{t('enfermeria.notesHistory')}</Text>
               <View style={styles.historyCount}>
-                <Text style={styles.historyCountText}>{history.length} notas</Text>
+                <Text style={styles.historyCountText}>{history.length} {t('common.records')}</Text>
               </View>
               <Ionicons 
                 name={showHistory ? "chevron-up-outline" : "chevron-down-outline"} 
@@ -267,7 +269,7 @@ const EnfermeriaNoteScreen = ({ navigation, route }) => {
             ) : history.length === 0 ? (
               <View style={styles.emptyHistory}>
                 <Ionicons name="document-text-outline" size={48} color="#cbd5e0" />
-                <Text style={styles.emptyHistoryText}>No hay notas previas</Text>
+                <Text style={styles.emptyHistoryText}>{t('enfermeria.noNotesYet')}</Text>
               </View>
             ) : (
               <>

@@ -16,10 +16,9 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
 import CacheService from '../../services/cacheService';
 import Pagination from '../../components/Pagination';
+import { useLanguage } from '../../context/LanguageContext';
 import moment from 'moment';
 import 'moment/locale/es';
-
-moment.locale('es');
 
 const CACHE_KEY_PREFIX = 'prescriptions_';
 const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
@@ -27,6 +26,8 @@ const HISTORY_ITEMS_PER_PAGE = 5;
 
 const PrescriptionScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params;
+  const { t, lang } = useLanguage();
+  moment.locale(lang === 'es' ? 'es' : 'en-gb');
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
@@ -91,7 +92,7 @@ const PrescriptionScreen = ({ navigation, route }) => {
 
   const removeMedication = (id) => {
     if (medications.length === 1) {
-      Alert.alert('Advertencia', 'Debe tener al menos un medicamento');
+      Alert.alert(t('common.warning'), t('common.mustHaveAtLeastOneMed'));
       return;
     }
     setMedications(medications.filter(med => med.id !== id));
@@ -107,7 +108,7 @@ const PrescriptionScreen = ({ navigation, route }) => {
     // Validar que al menos un medicamento tenga nombre
     const hasValidMed = medications.some(med => med.medicamento.trim() !== '');
     if (!hasValidMed) {
-      Alert.alert('Advertencia', 'Debe agregar al menos un medicamento');
+      Alert.alert(t('common.warning'), t('common.addAtLeastOneMed'));
       return;
     }
 
@@ -117,7 +118,7 @@ const PrescriptionScreen = ({ navigation, route }) => {
         medicamentos: medications.filter(med => med.medicamento.trim() !== '')
       });
       if (response.data) {
-        Alert.alert('Éxito', 'Receta médica guardada correctamente');
+        Alert.alert(t('common.success'), t('medico.savePrescription'));
         // Limpiar formulario
         setMedications([
           { id: 0, medicamento: '', dosis: '', frecuencia: '', duracion: '', indicaciones: '' }
@@ -131,7 +132,7 @@ const PrescriptionScreen = ({ navigation, route }) => {
       }
     } catch (error) {
       console.error('Error saving prescription:', error);
-      Alert.alert('Error', error.response?.data?.error || 'No se pudo guardar la receta');
+      Alert.alert(t('common.error'), error.response?.data?.error || t('common.couldNotSaveExams'));
     } finally {
       setLoading(false);
     }
@@ -162,10 +163,10 @@ const PrescriptionScreen = ({ navigation, route }) => {
         </View>
         <View style={styles.historyInfo}>
           <Text style={styles.historyDate}>
-            {moment(item.fecha_registro).format('dddd, D [de] MMMM [de] YYYY [a las] HH:mm')}
+            {moment(item.fecha_registro).format(lang === 'es' ? 'dddd, D [de] MMMM [de] YYYY [a las] HH:mm' : 'dddd, D MMMM YYYY HH:mm')}
           </Text>
           <Text style={styles.historyDoctor}>
-            <Ionicons name="medkit-outline" size={12} color="#718096" /> Dr. {item.medico_nombre || 'No especificado'}
+            <Ionicons name="medkit-outline" size={12} color="#718096" /> Dr. {item.medico_nombre || t('common.notSpecified')}
           </Text>
         </View>
       </View>
@@ -181,25 +182,25 @@ const PrescriptionScreen = ({ navigation, route }) => {
               {med.dosis && (
                 <View style={styles.historyMedDetail}>
                   <Ionicons name="scale-outline" size={10} color="#a0aec0" />
-                  <Text style={styles.historyMedDetailText}>Dosis: {med.dosis}</Text>
+                  <Text style={styles.historyMedDetailText}>{t('medico.prescriptionDetails.dose')}: {med.dosis}</Text>
                 </View>
               )}
               {med.frecuencia && (
                 <View style={styles.historyMedDetail}>
                   <Ionicons name="time-outline" size={10} color="#a0aec0" />
-                  <Text style={styles.historyMedDetailText}>Frecuencia: {med.frecuencia}</Text>
+                  <Text style={styles.historyMedDetailText}>{t('medico.prescriptionDetails.frequency')}: {med.frecuencia}</Text>
                 </View>
               )}
               {med.duracion && (
                 <View style={styles.historyMedDetail}>
                   <Ionicons name="calendar-outline" size={10} color="#a0aec0" />
-                  <Text style={styles.historyMedDetailText}>Duración: {med.duracion}</Text>
+                  <Text style={styles.historyMedDetailText}>{t('medico.prescriptionDetails.duration')}: {med.duracion}</Text>
                 </View>
               )}
               {med.indicaciones && (
                 <View style={styles.historyMedDetail}>
                   <Ionicons name="document-text-outline" size={10} color="#a0aec0" />
-                  <Text style={styles.historyMedDetailText}>Indicaciones: {med.indicaciones}</Text>
+                  <Text style={styles.historyMedDetailText}>{t('medico.prescriptionDetails.indications')}: {med.indicaciones}</Text>
                 </View>
               )}
             </View>
@@ -217,7 +218,7 @@ const PrescriptionScreen = ({ navigation, route }) => {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          <Ionicons name="medkit-outline" size={20} color="#fff" /> Receta Médica
+          <Ionicons name="medkit-outline" size={20} color="#fff" /> {t('medico.prescription')}
         </Text>
         <TouchableOpacity
           onPress={() => loadPrescriptionsHistory(true)}
@@ -235,7 +236,7 @@ const PrescriptionScreen = ({ navigation, route }) => {
             <Ionicons name="person-circle" size={50} color="#fff" />
           </View>
           <View style={styles.patientDetails}>
-            <Text style={styles.patientName}>Paciente</Text>
+            <Text style={styles.patientName}>{t('medico.patient')}</Text>
             <View style={styles.patientMeta}>
               <Text style={styles.patientMetaItem}>
                 <Ionicons name="card-outline" size={12} color="#48bb78" /> 
@@ -260,7 +261,7 @@ const PrescriptionScreen = ({ navigation, route }) => {
         >
           <View style={styles.cardHeaderContent}>
             <Ionicons name="add-circle-outline" size={22} color="#fff" />
-            <Text style={styles.cardHeaderTitle}>Nueva Receta Médica</Text>
+            <Text style={styles.cardHeaderTitle}>{t('medico.newPrescription')}</Text>
           </View>
         </LinearGradient>
 
@@ -269,7 +270,7 @@ const PrescriptionScreen = ({ navigation, route }) => {
             <View key={med.id} style={styles.medicationCard}>
               <View style={styles.medicationHeader}>
                 <Text style={styles.medicationTitle}>
-                  <Ionicons name="medkit-outline" size={16} /> Medicamento #{index + 1}
+                  <Ionicons name="medkit-outline" size={16} /> {t('medico.medication')} #{index + 1}
                 </Text>
                 {medications.length > 1 && (
                   <TouchableOpacity 
@@ -277,7 +278,7 @@ const PrescriptionScreen = ({ navigation, route }) => {
                     style={styles.deleteButton}
                   >
                     <Ionicons name="trash-outline" size={18} color="#e53e3e" />
-                    <Text style={styles.deleteButtonText}>Eliminar</Text>
+                    <Text style={styles.deleteButtonText}>{t('common.cancel')}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -287,11 +288,11 @@ const PrescriptionScreen = ({ navigation, route }) => {
                 <View style={styles.fieldGroup}>
                   <View style={styles.fieldLabel}>
                     <Ionicons name="eyedrop-outline" size={16} color="#48bb78" />
-                    <Text style={styles.fieldLabelText}>Medicamento *</Text>
+                    <Text style={styles.fieldLabelText}>{t('medico.medication')} *</Text>
                   </View>
                   <TextInput
                     style={styles.fieldInput}
-                    placeholder="Nombre del medicamento"
+                    placeholder={t('medico.medication')}
                     placeholderTextColor="#a0aec0"
                     value={med.medicamento}
                     onChangeText={(text) => updateMedication(med.id, 'medicamento', text)}
@@ -302,7 +303,7 @@ const PrescriptionScreen = ({ navigation, route }) => {
                   <View style={[styles.fieldGroup, styles.halfField]}>
                     <View style={styles.fieldLabel}>
                       <Ionicons name="scale-outline" size={16} color="#48bb78" />
-                      <Text style={styles.fieldLabelText}>Dosis</Text>
+                      <Text style={styles.fieldLabelText}>{t('medico.dose')}</Text>
                     </View>
                     <TextInput
                       style={styles.fieldInput}
@@ -316,7 +317,7 @@ const PrescriptionScreen = ({ navigation, route }) => {
                   <View style={[styles.fieldGroup, styles.halfField]}>
                     <View style={styles.fieldLabel}>
                       <Ionicons name="time-outline" size={16} color="#48bb78" />
-                      <Text style={styles.fieldLabelText}>Frecuencia</Text>
+                      <Text style={styles.fieldLabelText}>{t('medico.frequency')}</Text>
                     </View>
                     <TextInput
                       style={styles.fieldInput}
@@ -332,7 +333,7 @@ const PrescriptionScreen = ({ navigation, route }) => {
                   <View style={[styles.fieldGroup, styles.halfField]}>
                     <View style={styles.fieldLabel}>
                       <Ionicons name="calendar-outline" size={16} color="#48bb78" />
-                      <Text style={styles.fieldLabelText}>Duración</Text>
+                      <Text style={styles.fieldLabelText}>{t('medico.duration')}</Text>
                     </View>
                     <TextInput
                       style={styles.fieldInput}
@@ -346,7 +347,7 @@ const PrescriptionScreen = ({ navigation, route }) => {
                   <View style={[styles.fieldGroup, styles.halfField]}>
                     <View style={styles.fieldLabel}>
                       <Ionicons name="document-text-outline" size={16} color="#48bb78" />
-                      <Text style={styles.fieldLabelText}>Indicaciones</Text>
+                      <Text style={styles.fieldLabelText}>{t('medico.indications')}</Text>
                     </View>
                     <TextInput
                       style={styles.fieldInput}
@@ -363,7 +364,7 @@ const PrescriptionScreen = ({ navigation, route }) => {
 
           <TouchableOpacity style={styles.addButton} onPress={addMedication}>
             <Ionicons name="add-outline" size={20} color="#48bb78" />
-            <Text style={styles.addButtonText}>Agregar otro Medicamento</Text>
+            <Text style={styles.addButtonText}>{t('medico.addAnotherMed')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -378,7 +379,7 @@ const PrescriptionScreen = ({ navigation, route }) => {
             ) : (
               <>
                 <Ionicons name="save-outline" size={18} color="#fff" />
-                <Text style={styles.saveButtonText}>Guardar Receta</Text>
+                <Text style={styles.saveButtonText}>{t('medico.savePrescription')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -400,10 +401,10 @@ const PrescriptionScreen = ({ navigation, route }) => {
           >
             <View style={styles.historyHeaderContent}>
               <Ionicons name="time-outline" size={20} color="#fff" />
-              <Text style={styles.historyTitle}>Historial de Recetas</Text>
+              <Text style={styles.historyTitle}>{t('medico.prescriptionsHistory')}</Text>
               {prescriptions.length > 0 && (
                 <View style={styles.historyCount}>
-                  <Text style={styles.historyCountText}>{prescriptions.length} recetas</Text>
+                  <Text style={styles.historyCountText}>{prescriptions.length} {t('common.prescriptions')}</Text>
                 </View>
               )}
               <Ionicons 
@@ -422,7 +423,7 @@ const PrescriptionScreen = ({ navigation, route }) => {
             ) : prescriptions.length === 0 ? (
               <View style={styles.emptyHistory}>
                 <Ionicons name="document-text-outline" size={48} color="#cbd5e0" />
-                <Text style={styles.emptyHistoryText}>No hay recetas previas</Text>
+                <Text style={styles.emptyHistoryText}>{t('common.noPreviousPrescriptions')}</Text>
               </View>
             ) : (
               <>

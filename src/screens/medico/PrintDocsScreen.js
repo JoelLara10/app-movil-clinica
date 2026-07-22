@@ -16,12 +16,14 @@ import { Ionicons } from "@expo/vector-icons";
 import api from "../../services/api";
 import CacheService from "../../services/cacheService";
 import { usePatient } from "../../context/PatientContext";
+import { useLanguage } from "../../context/LanguageContext";
 
 const DOCS_CACHE_TTL = 2 * 60 * 1000;
 
 const PrintDocsScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params;
   const { selectedPatient } = usePatient();
+  const { t, lang } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [patientInfo, setPatientInfo] = useState(null);
 
@@ -65,7 +67,7 @@ const PrintDocsScreen = ({ navigation, route }) => {
     try {
       const token = await AsyncStorage.getItem("@ineo_token");
       if (!token) {
-        Alert.alert("Sesión", "No se encontró sesión activa.");
+        Alert.alert(t('common.sessionExpired'), t('common.sessionExpired'));
         return;
       }
 
@@ -86,7 +88,7 @@ const PrintDocsScreen = ({ navigation, route }) => {
           if (data?.length > 0) {
             url = `${baseUrl}/pdf/vital-signs/${data[0].id_signos}?${queryParams}`;
           } else {
-            Alert.alert("Información", "No hay signos vitales para imprimir");
+            Alert.alert(t('common.attention'), t('medico.vitalSigns'));
             return;
           }
           break;
@@ -99,7 +101,7 @@ const PrintDocsScreen = ({ navigation, route }) => {
           if (data?.length > 0) {
             url = `${baseUrl}/pdf/medical-note/${data[0].id_nota}?${queryParams}`;
           } else {
-            Alert.alert("Información", "No hay notas médicas para imprimir");
+            Alert.alert(t('common.attention'), t('medico.noPreviousNotes') || t('common.noPreviousNotes'));
             return;
           }
           break;
@@ -112,7 +114,7 @@ const PrintDocsScreen = ({ navigation, route }) => {
           if (data?.id_diagnostico) {
             url = `${baseUrl}/pdf/diagnosis/${data.id_diagnostico}?${queryParams}`;
           } else {
-            Alert.alert("Información", "No hay diagnóstico registrado");
+            Alert.alert(t('common.attention'), t('common.noResultsYet'));
             return;
           }
           break;
@@ -125,7 +127,7 @@ const PrintDocsScreen = ({ navigation, route }) => {
           if (data?.length > 0) {
             url = `${baseUrl}/pdf/prescription/${data[0].id_receta}?${queryParams}`;
           } else {
-            Alert.alert("Información", "No hay recetas para imprimir");
+            Alert.alert(t('common.attention'), t('common.noPreviousPrescriptions'));
             return;
           }
           break;
@@ -139,7 +141,7 @@ const PrintDocsScreen = ({ navigation, route }) => {
           if (data?.length > 0) {
             url = `${baseUrl}/pdf/lab/${data[0].id_examen}?${queryParams}`;
           } else {
-            Alert.alert("Información", "No hay exámenes de laboratorio");
+            Alert.alert(t('common.attention'), t('common.noExamsAvailable'));
             return;
           }
           break;
@@ -152,7 +154,7 @@ const PrintDocsScreen = ({ navigation, route }) => {
           if (data?.length > 0) {
             url = `${baseUrl}/pdf/imaging/${data[0].id_examen}?${queryParams}`;
           } else {
-            Alert.alert("Información", "No hay exámenes de gabinete");
+            Alert.alert(t('common.attention'), t('common.noImagingExamsError'));
             return;
           }
           break;
@@ -165,61 +167,61 @@ const PrintDocsScreen = ({ navigation, route }) => {
       await Linking.openURL(url);
     } catch (error) {
       console.error(error);
-      Alert.alert("Error", "No se pudo generar el documento");
+      Alert.alert(t('common.error'), t('common.couldNotGenerate'));
     }
   };
 
   const printItems = [
     {
       id: "vital-signs",
-      title: "Signos Vitales",
+      title: t('medico.printItems.vitalSigns'),
       icon: "heart-outline",
-      description: "Presión arterial, frecuencia cardíaca, temperatura",
+      description: t('medico.printItems.vitalSignsDesc'),
       color: "#f56565",
       bgColor: "#fff5f5",
       gradient: ["#f56565", "#ed8936"],
     },
     {
       id: "medical-note",
-      title: "Nota Médica (SOAP)",
+      title: t('medico.printItems.medicalNote'),
       icon: "document-text-outline",
-      description: "Subjetivo, Objetivo, Evaluación, Plan",
+      description: t('medico.printItems.medicalNoteDesc'),
       color: "#4299e1",
       bgColor: "#ebf8ff",
       gradient: ["#4299e1", "#3182ce"],
     },
     {
       id: "diagnosis",
-      title: "Diagnóstico",
+      title: t('medico.printItems.diagnosis'),
       icon: "medkit-outline",
-      description: "CIE-10 y descripción del diagnóstico",
+      description: t('medico.printItems.diagnosisDesc'),
       color: "#9f7aea",
       bgColor: "#faf5ff",
       gradient: ["#9f7aea", "#805ad5"],
     },
     {
       id: "prescription",
-      title: "Receta Médica",
+      title: t('medico.printItems.prescription'),
       icon: "medkit-outline",
-      description: "Medicamentos, dosis y frecuencia",
+      description: t('medico.printItems.prescriptionDesc'),
       color: "#48bb78",
       bgColor: "#f0fff4",
       gradient: ["#48bb78", "#38a169"],
     },
     {
       id: "lab-exams",
-      title: "Exámenes de Laboratorio",
+      title: t('medico.printItems.labExams'),
       icon: "flask-outline",
-      description: "Análisis clínicos y resultados",
+      description: t('medico.printItems.labExamsDesc'),
       color: "#ed8936",
       bgColor: "#fffaf0",
       gradient: ["#ed8936", "#dd6b20"],
     },
     {
       id: "imaging-exams",
-      title: "Exámenes de Gabinete",
+      title: t('medico.printItems.imagingExams'),
       icon: "scan-outline",
-      description: "Rayos X, ultrasonidos, tomografías",
+      description: t('medico.printItems.imagingExamsDesc'),
       color: "#667eea",
       bgColor: "#ebf8ff",
       gradient: ["#667eea", "#764ba2"],
@@ -230,7 +232,7 @@ const PrintDocsScreen = ({ navigation, route }) => {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#667eea" />
-        <Text style={styles.loadingText}>Cargando información...</Text>
+        <Text style={styles.loadingText}>{t('medico.loadingInfoDots')}</Text>
       </View>
     );
   }
@@ -242,7 +244,7 @@ const PrintDocsScreen = ({ navigation, route }) => {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          <Ionicons name="print-outline" size={20} color="#fff" /> Imprimir Documentos
+          <Ionicons name="print-outline" size={20} color="#fff" /> {t('medico.printDocs')}
         </Text>
         <View style={{ width: 40 }} />
       </LinearGradient>
@@ -254,16 +256,16 @@ const PrintDocsScreen = ({ navigation, route }) => {
           </View>
           <View style={styles.patientDetails}>
             <Text style={styles.patientName}>
-              {patientInfo?.papell || ""} {patientInfo?.nom_pac || "Paciente"}
+              {patientInfo?.papell || ""} {patientInfo?.nom_pac || t('medico.patient')}
             </Text>
             <Text style={styles.patientMeta}>
               <Ionicons name="card-outline" size={12} /> Expediente: {pacienteId || "N/A"} |
-              <Ionicons name="calendar-outline" size={12} /> Atención: {id_atencion}
+              <Ionicons name="calendar-outline" size={12} /> {t('common.date')}: {id_atencion}
             </Text>
           </View>
           <View style={styles.badge}>
             <Ionicons name="document-text-outline" size={14} color="#667eea" />
-            <Text style={styles.badgeText}>Documentos médicos</Text>
+            <Text style={styles.badgeText}>{t('common.medicalDocuments')}</Text>
           </View>
         </View>
       </View>
@@ -277,7 +279,7 @@ const PrintDocsScreen = ({ navigation, route }) => {
         >
           <View style={styles.cardHeaderContent}>
             <Ionicons name="document-text-outline" size={22} color="#fff" />
-            <Text style={styles.cardHeaderTitle}>Selecciona el documento a imprimir</Text>
+            <Text style={styles.cardHeaderTitle}>{t('medico.selectDocumentToPrint')}</Text>
           </View>
         </LinearGradient>
 
@@ -303,7 +305,7 @@ const PrintDocsScreen = ({ navigation, route }) => {
                 </View>
                 <View style={styles.printAction}>
                   <Ionicons name="print-outline" size={20} color={item.color} />
-                  <Text style={[styles.printActionText, { color: item.color }]}>Imprimir</Text>
+                  <Text style={[styles.printActionText, { color: item.color }]}>{t('medico.printDocs')}</Text>
                 </View>
               </TouchableOpacity>
             ))}
@@ -312,7 +314,7 @@ const PrintDocsScreen = ({ navigation, route }) => {
           <View style={styles.infoNote}>
             <Ionicons name="information-circle-outline" size={18} color="#1e40af" />
             <Text style={styles.infoNoteText}>
-              Los documentos se abrirán en el navegador en formato PDF listo para imprimir.
+              {t('common.pdfReady')}
             </Text>
           </View>
         </View>

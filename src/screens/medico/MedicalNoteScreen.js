@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
 import CacheService from '../../services/cacheService';
 import Pagination from '../../components/Pagination';
+import { useLanguage } from '../../context/LanguageContext';
 import moment from 'moment';
 
 const CACHE_KEY_PREFIX = 'medical_notes_';
@@ -24,6 +25,7 @@ const HISTORY_ITEMS_PER_PAGE = 5;
 
 const MedicalNoteScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params;
+  const { t, lang } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [history, setHistory] = useState([]);
@@ -88,7 +90,7 @@ const MedicalNoteScreen = ({ navigation, route }) => {
   const handleSubmit = async () => {
     // Validar campos requeridos
     if (!formData.subjetivo.trim()) {
-      Alert.alert('Advertencia', 'El campo Subjetivo es requerido');
+      Alert.alert(t('common.warning'), t('common.requiredField'));
       return;
     }
 
@@ -96,7 +98,7 @@ const MedicalNoteScreen = ({ navigation, route }) => {
     try {
       const response = await api.post(`/appointments/${id_atencion}/medical-notes`, formData);
       if (response.data) {
-        Alert.alert('Éxito', 'Nota médica guardada correctamente');
+        Alert.alert(t('common.success'), 'Nota médica guardada correctamente');
         // Limpiar formulario
         setFormData({
           subjetivo: '',
@@ -113,7 +115,7 @@ const MedicalNoteScreen = ({ navigation, route }) => {
       }
     } catch (error) {
       console.error('Error saving medical note:', error);
-      Alert.alert('Error', error.response?.data?.error || 'No se pudo guardar la nota médica');
+      Alert.alert(t('common.error'), error.response?.data?.error || t('common.couldNotSaveData'));
     } finally {
       setLoading(false);
     }
@@ -144,10 +146,10 @@ const MedicalNoteScreen = ({ navigation, route }) => {
         </View>
         <View style={styles.historyInfo}>
           <Text style={styles.historyDate}>
-            {moment(item.fecha_registro).format('dddd, D [de] MMMM [de] YYYY [a las] HH:mm')}
+            {moment(item.fecha_registro).format(lang === 'es' ? 'dddd, D [de] MMMM [de] YYYY [a las] HH:mm' : 'dddd, D MMMM YYYY [at] HH:mm')}
           </Text>
           <Text style={styles.historyDoctor}>
-            <Ionicons name="medkit-outline" size={12} color="#718096" /> Dr. {item.id_medico || 'No especificado'}
+            <Ionicons name="medkit-outline" size={12} color="#718096" /> Dr. {item.id_medico || t('medico.notSpecified')}
           </Text>
         </View>
       </View>
@@ -157,9 +159,9 @@ const MedicalNoteScreen = ({ navigation, route }) => {
           <View style={[styles.historyFieldBadge, { backgroundColor: '#4299e1' }]}>
             <Text style={styles.historyFieldBadgeText}>S</Text>
           </View>
-          <Text style={styles.historyFieldLabel}>Subjetivo</Text>
+          <Text style={styles.historyFieldLabel}>{t('medico.subjective')}</Text>
         </View>
-        <Text style={styles.historyFieldValue}>{item.subjetivo || 'No especificado'}</Text>
+        <Text style={styles.historyFieldValue}>{item.subjetivo || t('medico.notSpecified')}</Text>
         
         {item.objetivo && (
           <>
@@ -167,7 +169,7 @@ const MedicalNoteScreen = ({ navigation, route }) => {
               <View style={[styles.historyFieldBadge, { backgroundColor: '#48bb78' }]}>
                 <Text style={styles.historyFieldBadgeText}>O</Text>
               </View>
-              <Text style={styles.historyFieldLabel}>Objetivo</Text>
+              <Text style={styles.historyFieldLabel}>{t('medico.objective')}</Text>
             </View>
             <Text style={styles.historyFieldValue}>{item.objetivo}</Text>
           </>
@@ -179,7 +181,7 @@ const MedicalNoteScreen = ({ navigation, route }) => {
               <View style={[styles.historyFieldBadge, { backgroundColor: '#ed8936' }]}>
                 <Text style={styles.historyFieldBadgeText}>A</Text>
               </View>
-              <Text style={styles.historyFieldLabel}>Análisis</Text>
+              <Text style={styles.historyFieldLabel}>{t('medico.analysis')}</Text>
             </View>
             <Text style={styles.historyFieldValue}>{item.analisis}</Text>
           </>
@@ -191,7 +193,7 @@ const MedicalNoteScreen = ({ navigation, route }) => {
               <View style={[styles.historyFieldBadge, { backgroundColor: '#9f7aea' }]}>
                 <Text style={styles.historyFieldBadgeText}>P</Text>
               </View>
-              <Text style={styles.historyFieldLabel}>Plan</Text>
+              <Text style={styles.historyFieldLabel}>{t('medico.plan')}</Text>
             </View>
             <Text style={styles.historyFieldValue}>{item.plan}</Text>
           </>
@@ -208,7 +210,7 @@ const MedicalNoteScreen = ({ navigation, route }) => {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          <Ionicons name="document-text-outline" size={20} color="#fff" /> Nota Médica SOAP
+          <Ionicons name="document-text-outline" size={20} color="#fff" /> {t('medico.medicalNote')}
         </Text>
         <TouchableOpacity
           onPress={() => loadMedicalNotesHistory(true)}
@@ -226,7 +228,7 @@ const MedicalNoteScreen = ({ navigation, route }) => {
             <Ionicons name="person-circle" size={50} color="#fff" />
           </View>
           <View style={styles.patientDetails}>
-            <Text style={styles.patientName}>Paciente</Text>
+            <Text style={styles.patientName}>{t('medico.patient')}</Text>
             <View style={styles.patientMeta}>
               <Text style={styles.patientMetaItem}>
                 <Ionicons name="card-outline" size={12} /> Exp: {Id_exp || 'N/A'}
@@ -246,7 +248,7 @@ const MedicalNoteScreen = ({ navigation, route }) => {
         >
           <View style={styles.cardHeaderContent}>
             <Ionicons name="add-circle-outline" size={22} color="#fff" />
-            <Text style={styles.cardHeaderTitle}>Nueva Nota Médica</Text>
+            <Text style={styles.cardHeaderTitle}>{t('medico.newMedicalNote')}</Text>
           </View>
         </LinearGradient>
 
@@ -257,11 +259,11 @@ const MedicalNoteScreen = ({ navigation, route }) => {
               <View style={[styles.sectionBadge, styles.badgeS]}>
                 <Text style={styles.badgeText}>S</Text>
               </View>
-              <Text style={styles.sectionTitle}>Subjetivo</Text>
+              <Text style={styles.sectionTitle}>{t('medico.subjective')}</Text>
             </View>
             <TextInput
               style={styles.textArea}
-              placeholder="Describa los síntomas y percepciones del paciente..."
+              placeholder={t('medico.subjectivePlaceholder')}
               placeholderTextColor="#a0aec0"
               multiline
               numberOfLines={4}
@@ -277,11 +279,11 @@ const MedicalNoteScreen = ({ navigation, route }) => {
               <View style={[styles.sectionBadge, styles.badgeO]}>
                 <Text style={styles.badgeText}>O</Text>
               </View>
-              <Text style={styles.sectionTitle}>Objetivo</Text>
+              <Text style={styles.sectionTitle}>{t('medico.objective')}</Text>
             </View>
             <TextInput
               style={styles.textArea}
-              placeholder="Describa los hallazgos físicos y resultados de exploración..."
+              placeholder={t('medico.objectivePlaceholder')}
               placeholderTextColor="#a0aec0"
               multiline
               numberOfLines={4}
@@ -297,11 +299,11 @@ const MedicalNoteScreen = ({ navigation, route }) => {
               <View style={[styles.sectionBadge, styles.badgeA]}>
                 <Text style={styles.badgeText}>A</Text>
               </View>
-              <Text style={styles.sectionTitle}>Análisis</Text>
+              <Text style={styles.sectionTitle}>{t('medico.analysis')}</Text>
             </View>
             <TextInput
               style={styles.textArea}
-              placeholder="Diagnóstico diferencial y análisis de la información..."
+              placeholder={t('medico.analysisPlaceholder')}
               placeholderTextColor="#a0aec0"
               multiline
               numberOfLines={4}
@@ -317,11 +319,11 @@ const MedicalNoteScreen = ({ navigation, route }) => {
               <View style={[styles.sectionBadge, styles.badgeP]}>
                 <Text style={styles.badgeText}>P</Text>
               </View>
-              <Text style={styles.sectionTitle}>Plan</Text>
+              <Text style={styles.sectionTitle}>{t('medico.plan')}</Text>
             </View>
             <TextInput
               style={styles.textArea}
-              placeholder="Tratamiento, estudios, referencias y seguimiento..."
+              placeholder={t('medico.planPlaceholder')}
               placeholderTextColor="#a0aec0"
               multiline
               numberOfLines={4}
@@ -343,7 +345,7 @@ const MedicalNoteScreen = ({ navigation, route }) => {
             ) : (
               <>
                 <Ionicons name="save-outline" size={18} color="#fff" />
-                <Text style={styles.saveButtonText}>Guardar Nota</Text>
+                <Text style={styles.saveButtonText}>{t('medico.saveNote')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -365,10 +367,10 @@ const MedicalNoteScreen = ({ navigation, route }) => {
           >
             <View style={styles.historyHeaderContent}>
               <Ionicons name="time-outline" size={20} color="#fff" />
-              <Text style={styles.historyTitle}>Historial de Notas Médicas</Text>
+              <Text style={styles.historyTitle}>{t('medico.medicalNotesHistory')}</Text>
               {history.length > 0 && (
                 <View style={styles.historyCount}>
-                  <Text style={styles.historyCountText}>{history.length} registros</Text>
+                  <Text style={styles.historyCountText}>{history.length} {t('common.records')}</Text>
                 </View>
               )}
               <Ionicons 
@@ -387,7 +389,7 @@ const MedicalNoteScreen = ({ navigation, route }) => {
             ) : history.length === 0 ? (
               <View style={styles.emptyHistory}>
                 <Ionicons name="document-text-outline" size={48} color="#cbd5e0" />
-                <Text style={styles.emptyHistoryText}>No hay notas médicas previas</Text>
+                <Text style={styles.emptyHistoryText}>{t('common.noPreviousNotes')}</Text>
               </View>
             ) : (
               <>
