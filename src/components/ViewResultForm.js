@@ -9,7 +9,6 @@ import {
   Alert,
   Image,
   Dimensions,
-  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { File, Paths } from 'expo-file-system';
@@ -27,7 +26,7 @@ export default function ViewResultForm({ navigation, route }) {
   const [error, setError] = useState('');
   const [downloading, setDownloading] = useState(false);
 
-  const baseUrl = api.defaults.baseURL?.replace('/api/v1', '') || 'http://192.168.1.67:5000';
+  const baseUrl = api.defaults.baseURL?.replace('/api/v1', '') || 'http://192.168.1.73:5000';
 
   useEffect(() => {
     const loadFiles = async () => {
@@ -42,8 +41,8 @@ export default function ViewResultForm({ navigation, route }) {
         }
         setError('');
       } catch (err) {
-        console.error('Error cargando archivos:', err);
-        setError('No se pudieron cargar los archivos.');
+        console.error('Error loading files:', err);
+        setError('Could not load files.');
       } finally {
         setLoading(false);
       }
@@ -69,28 +68,28 @@ export default function ViewResultForm({ navigation, route }) {
 
       if (downloadedFile.exists) {
         Alert.alert(
-          'Descargar o Compartir',
-          '¿Deseas abrir el archivo?',
+          'Download or Share',
+          'Do you want to open the file?',
           [
-            { text: 'Cancelar', style: 'cancel' },
+            { text: 'Cancel', style: 'cancel' },
             {
-              text: 'Abrir',
+              text: 'Open',
               onPress: async () => {
                 if (await Sharing.isAvailableAsync()) {
                   await Sharing.shareAsync(downloadedFile.uri);
                 } else {
-                  Alert.alert('Error', 'No se puede compartir en este dispositivo');
+                  Alert.alert('Error', 'Cannot share on this device');
                 }
               },
             },
           ]
         );
       } else {
-        Alert.alert('Error', 'No se pudo descargar el archivo.');
+        Alert.alert('Error', 'Could not download the file.');
       }
     } catch (err) {
-      console.error('Error al descargar:', err);
-      Alert.alert('Error', 'No se pudo descargar el archivo.');
+      console.error('Error downloading:', err);
+      Alert.alert('Error', 'Could not download the file.');
     } finally {
       setDownloading(false);
     }
@@ -101,9 +100,9 @@ export default function ViewResultForm({ navigation, route }) {
       return (
         <View style={styles.previewPlaceholder}>
           <Ionicons name="document-text-outline" size={64} color="#cbd5e0" />
-          <Text style={styles.placeholderText}>Selecciona un archivo</Text>
+          <Text style={styles.placeholderText}>Select a file</Text>
           <Text style={styles.placeholderSubtext}>
-            Toca un archivo de la lista para previsualizarlo
+            Tap a file from the list to preview it
           </Text>
         </View>
       );
@@ -113,7 +112,6 @@ export default function ViewResultForm({ navigation, route }) {
     const fileUrl = `${baseUrl}${selectedFile.url}`;
 
     if (ext === 'pdf') {
-      // Vista simplificada: solo icono y nombre
       return (
         <View style={styles.pdfPreviewContainer}>
           <View style={styles.pdfIconWrapper}>
@@ -126,13 +124,18 @@ export default function ViewResultForm({ navigation, route }) {
             <Text style={styles.pdfTypeText}>PDF</Text>
           </View>
           <TouchableOpacity
-            style={styles.downloadPdfButton}
+            style={styles.downloadButton}
             onPress={handleDownload}
             disabled={downloading}
           >
-            <Text style={styles.downloadPdfText}>
-              {downloading ? 'Descargando...' : '📥 Descargar PDF'}
-            </Text>
+            {downloading ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <>
+                <Ionicons name="download-outline" size={20} color="#fff" />
+                <Text style={styles.downloadText}>Download PDF</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
       );
@@ -143,7 +146,7 @@ export default function ViewResultForm({ navigation, route }) {
             source={{ uri: fileUrl }}
             style={styles.previewImage}
             resizeMode="contain"
-            onError={() => Alert.alert('Error', 'No se pudo cargar la imagen')}
+            onError={() => Alert.alert('Error', 'Could not load image')}
           />
         </View>
       );
@@ -151,18 +154,23 @@ export default function ViewResultForm({ navigation, route }) {
       return (
         <View style={styles.previewPlaceholder}>
           <Ionicons name="document-outline" size={48} color="#a0aec0" />
-          <Text style={styles.placeholderText}>Formato no soportado</Text>
+          <Text style={styles.placeholderText}>Unsupported format</Text>
           <Text style={styles.placeholderSubtext}>
-            No se puede mostrar vista previa de este tipo de archivo.
+            Preview not available for this file type.
           </Text>
           <TouchableOpacity
-            style={styles.downloadPdfButton}
+            style={styles.downloadButton}
             onPress={handleDownload}
             disabled={downloading}
           >
-            <Text style={styles.downloadPdfText}>
-              {downloading ? 'Descargando...' : '📥 Descargar archivo'}
-            </Text>
+            {downloading ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <>
+                <Ionicons name="download-outline" size={20} color="#fff" />
+                <Text style={styles.downloadText}>Download file</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
       );
@@ -173,7 +181,7 @@ export default function ViewResultForm({ navigation, route }) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#667eea" />
-        <Text style={styles.loadingText}>Cargando archivos...</Text>
+        <Text style={styles.loadingText}>Loading files...</Text>
       </View>
     );
   }
@@ -184,7 +192,7 @@ export default function ViewResultForm({ navigation, route }) {
         <Ionicons name="alert-circle-outline" size={48} color="#e53e3e" />
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.retryText}>Regresar</Text>
+          <Text style={styles.retryText}>Go Back</Text>
         </TouchableOpacity>
       </View>
     );
@@ -194,25 +202,48 @@ export default function ViewResultForm({ navigation, route }) {
     <View style={styles.container}>
       <LinearGradient colors={['#667eea', '#764ba2']} style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={28} color="#fff" />
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Ver Resultados</Text>
-        <View style={{ width: 40 }} />
+        <Text style={styles.headerTitle}>
+          <Ionicons name="eye-outline" size={20} color="#fff" /> View Results
+        </Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.refreshButton}>
+          <Ionicons name="close-outline" size={24} color="#fff" />
+        </TouchableOpacity>
       </LinearGradient>
 
+      {/* Summary Card */}
+      <View style={styles.summaryCard}>
+        <View>
+          <Text style={styles.summaryTitle}>
+            {tipo === 'LABORATORIO' ? 'Laboratory Results' : 'Imaging Results'}
+          </Text>
+          <Text style={styles.summarySubtitle}>
+            {archivos.length} file{archivos.length !== 1 ? 's' : ''} available
+          </Text>
+        </View>
+        <View style={styles.statsPill}>
+          <Ionicons name="folder-outline" size={16} color="#667eea" />
+          <Text style={styles.statsPillText}>{archivos.length}</Text>
+        </View>
+      </View>
+
+      {/* Main content: list and preview */}
       <View style={styles.mainContainer}>
-        {/* Lista de archivos */}
         <View style={styles.listContainer}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="folder-outline" size={20} color="#4a5568" />
-            <Text style={styles.sectionTitle}>Archivos disponibles</Text>
+            <Ionicons name="list-outline" size={20} color="#4a5568" />
+            <Text style={styles.sectionTitle}>Available Files</Text>
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{archivos.length}</Text>
             </View>
           </View>
           <ScrollView style={styles.fileList} showsVerticalScrollIndicator={false}>
             {archivos.length === 0 ? (
-              <Text style={styles.emptyText}>No hay archivos registrados.</Text>
+              <View style={styles.emptyState}>
+                <Ionicons name="document-outline" size={40} color="#cbd5e0" />
+                <Text style={styles.emptyText}>No files registered</Text>
+              </View>
             ) : (
               archivos.map((file, index) => (
                 <TouchableOpacity
@@ -235,6 +266,9 @@ export default function ViewResultForm({ navigation, route }) {
                     <View style={styles.fileBadge}>
                       <Text style={styles.fileBadgeText}>{file.tipo.toUpperCase()}</Text>
                     </View>
+                    {selectedFile?.nombre === file.nombre && (
+                      <Ionicons name="checkmark-circle" size={18} color="#48bb78" style={styles.checkIcon} />
+                    )}
                   </View>
                 </TouchableOpacity>
               ))
@@ -242,30 +276,21 @@ export default function ViewResultForm({ navigation, route }) {
           </ScrollView>
         </View>
 
-        {/* Vista previa */}
         <View style={styles.previewContainer}>
           <View style={styles.sectionHeader}>
             <Ionicons name="eye-outline" size={20} color="#4a5568" />
-            <Text style={styles.sectionTitle}>Vista previa</Text>
+            <Text style={styles.sectionTitle}>Preview</Text>
           </View>
           <View style={styles.previewBox}>{renderPreview()}</View>
-          {selectedFile && selectedFile.tipo !== 'pdf' && (
-            <TouchableOpacity
-              style={[styles.downloadButton, downloading && styles.disabledButton]}
-              onPress={handleDownload}
-              disabled={downloading}
-            >
-              {downloading ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <>
-                  <Ionicons name="download-outline" size={20} color="#fff" />
-                  <Text style={styles.downloadText}>Descargar o Compartir</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          )}
         </View>
+      </View>
+
+      {/* Footer */}
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>
+          <Ionicons name="shield-checkmark-outline" size={12} color="rgba(0,0,0,0.4)" />
+          {' '}INEO v2.0 - Hospital Management System
+        </Text>
       </View>
     </View>
   );
@@ -286,7 +311,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     color: '#718096',
-    fontSize: 16,
+    fontSize: 14,
   },
   errorText: {
     color: '#e53e3e',
@@ -309,24 +334,65 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 48,
+    paddingTop: 60,
     paddingBottom: 16,
     paddingHorizontal: 20,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
   },
   backButton: {
     padding: 8,
   },
+  refreshButton: {
+    padding: 8,
+  },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#fff',
+  },
+  summaryCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  summaryTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2d3748',
+  },
+  summarySubtitle: {
+    fontSize: 12,
+    color: '#718096',
+    marginTop: 4,
+  },
+  statsPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#667eea20',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  statsPillText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#667eea',
+    marginLeft: 6,
   },
   mainContainer: {
     flex: 1,
     flexDirection: 'row',
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingTop: 12,
     gap: 12,
   },
   listContainer: {
@@ -361,13 +427,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#2d3748',
     marginLeft: 8,
+    flex: 1,
   },
   badge: {
     backgroundColor: '#e8f4fd',
     borderRadius: 12,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    marginLeft: 8,
   },
   badgeText: {
     fontSize: 12,
@@ -423,11 +489,17 @@ const styles = StyleSheet.create({
     color: '#4a5568',
     fontWeight: '600',
   },
+  checkIcon: {
+    marginLeft: 6,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 30,
+  },
   emptyText: {
     color: '#a0aec0',
     fontSize: 14,
-    textAlign: 'center',
-    paddingVertical: 20,
+    marginTop: 8,
   },
   previewBox: {
     flex: 1,
@@ -471,30 +543,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 10,
+    paddingHorizontal: 20,
     borderRadius: 10,
-    marginTop: 12,
+    marginTop: 16,
+    alignSelf: 'center',
     gap: 8,
+    shadowColor: '#667eea',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   downloadText: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
-  },
-  disabledButton: {
-    opacity: 0.6,
-  },
-  downloadPdfButton: {
-    backgroundColor: '#667eea',
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    borderRadius: 10,
-    marginTop: 16,
-    alignSelf: 'center',
-  },
-  downloadPdfText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
   },
   pdfPreviewContainer: {
     flex: 1,
@@ -534,5 +597,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#4a5568',
+  },
+  footer: {
+    marginTop: 10,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: 11,
+    color: 'rgba(0,0,0,0.4)',
   },
 });
