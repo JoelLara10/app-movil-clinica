@@ -14,6 +14,7 @@ export default function ConfigScreen({ navigation }) {
     { titleKey: 'services', descKey: 'servicesDesc', badgeKey: 'badgeCatalog', emoji: '+', color: '#f56565', screen: 'ServiciosConfig' },
     { titleKey: 'backups', descKey: 'backupsDesc', badgeKey: 'badgeAdmin', emoji: '🛡️', color: '#805ad5', screen: 'BackupConfig' },
     { titleKey: 'automation', descKey: 'automationDesc', badgeKey: 'badgeAdmin', emoji: '⏱️', color: '#38b2ac', screen: 'AutomationConfig' },
+    { titleKey: 'profile', descKey: 'profileDesc', badgeKey: 'badgeProfile', emoji: '👤', color: '#667eea', screen: 'ProfileConfig' },
   ];
 
   return (

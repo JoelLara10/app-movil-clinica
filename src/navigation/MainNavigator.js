@@ -97,18 +97,26 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
   const activeRoutePath = getActiveRoutePath(navigation.getState?.());
 
   const handleLogout = () => {
-    Alert.alert(t('sidebar.logoutConfirm'), t('sidebar.logoutMessage'), [
-      { text: t('sidebar.cancel'), style: "cancel" },
-      { text: t('sidebar.exit'), onPress: () => logout() },
+    Alert.alert(t("sidebar.logoutConfirm"), t("sidebar.logoutMessage"), [
+      { text: t("sidebar.cancel"), style: "cancel" },
+      { text: t("sidebar.exit"), onPress: () => logout() },
     ]);
   };
 
   const handleNavigation = (screen, params = {}, subScreen) => {
     if (subScreen) {
-      navigation.navigate("MainStack", {
-        screen,
-        params: { screen: subScreen, params },
-      });
+      // Si es Config, navegar al stack Config
+      if (screen === 'Config') {
+        navigation.navigate("MainStack", {
+          screen: "Config",
+          params: { screen: subScreen, params },
+        });
+      } else {
+        navigation.navigate("MainStack", {
+          screen,
+          params: { screen: subScreen, params },
+        });
+      }
     } else {
       navigation.navigate("MainStack", { screen, params });
     }
@@ -134,7 +142,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
 
   const principalItems = [
     {
-      name: t('sidebar.dashboard'),
+      name: t("sidebar.dashboard"),
       icon: "home-outline",
       screen: "Dashboard",
       requiresPatient: false,
@@ -144,7 +152,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
 
   if (isMedicoRole || (isAdminRole && currentModule === "medico")) {
     principalItems.push({
-      name: t('sidebar.medicalPanel'),
+      name: t("sidebar.medicalPanel"),
       icon: "speedometer-outline",
       screen: "Medico",
       subScreen: "MedicoList",
@@ -155,7 +163,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
 
   if (isEnfermeriaRole || (isAdminRole && currentModule === "enfermeria")) {
     principalItems.push({
-      name: t('sidebar.nursingPanel'),
+      name: t("sidebar.nursingPanel"),
       icon: "medkit-outline",
       screen: "Enfermeria",
       subScreen: "EnfermeriaList",
@@ -166,7 +174,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
 
   if (role === "estudios" || (isAdminRole && currentModule === "estudios")) {
     principalItems.push({
-      name: t('sidebar.studiesPanel'),
+      name: t("sidebar.studiesPanel"),
       icon: "flask-outline",
       screen: "Estudios",
       subScreen: "EstudiosList",
@@ -176,7 +184,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
   }
 
   if (principalItems.length) {
-    menuSections.push({ title: t('sidebar.principal'), items: principalItems });
+    menuSections.push({ title: t("sidebar.principal"), items: principalItems });
   }
 
   if (isMedicoRole || (isAdminRole && currentModule === "medico")) {
@@ -186,10 +194,10 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
     };
 
     menuSections.push({
-      title: t('sidebar.history'),
+      title: t("sidebar.history"),
       items: [
         {
-          name: t('sidebar.clinicalHistory'),
+          name: t("sidebar.clinicalHistory"),
           icon: "document-text-outline",
           screen: "Medico",
           subScreen: "HistoriaClinica",
@@ -200,10 +208,10 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
     });
 
     menuSections.push({
-      title: t('sidebar.medicalNotes'),
+      title: t("sidebar.medicalNotes"),
       items: [
         {
-          name: t('sidebar.vitalSigns'),
+          name: t("sidebar.vitalSigns"),
           icon: "heart-outline",
           screen: "Medico",
           subScreen: "VitalSigns",
@@ -211,7 +219,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
           requiresPatient: true,
         },
         {
-          name: t('sidebar.medicalNote'),
+          name: t("sidebar.medicalNote"),
           icon: "document-text-outline",
           screen: "Medico",
           subScreen: "MedicalNote",
@@ -219,7 +227,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
           requiresPatient: true,
         },
         {
-          name: t('sidebar.diagnosis'),
+          name: t("sidebar.diagnosis"),
           icon: "clipboard-outline",
           screen: "Medico",
           subScreen: "Diagnosis",
@@ -227,7 +235,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
           requiresPatient: true,
         },
         {
-          name: t('sidebar.prescription'),
+          name: t("sidebar.prescription"),
           icon: "medkit-outline",
           screen: "Medico",
           subScreen: "Prescription",
@@ -235,7 +243,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
           requiresPatient: true,
         },
         {
-          name: t('sidebar.labExams'),
+          name: t("sidebar.labExams"),
           icon: "flask-outline",
           screen: "Medico",
           subScreen: "LabExams",
@@ -243,7 +251,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
           requiresPatient: true,
         },
         {
-          name: t('sidebar.imagingExams'),
+          name: t("sidebar.imagingExams"),
           icon: "scan-outline",
           screen: "Medico",
           subScreen: "ImagingExams",
@@ -254,10 +262,10 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
     });
 
     menuSections.push({
-      title: t('sidebar.documents'),
+      title: t("sidebar.documents"),
       items: [
         {
-          name: t('sidebar.printDocs'),
+          name: t("sidebar.printDocs"),
           icon: "print-outline",
           screen: "Medico",
           subScreen: "PrintDocs",
@@ -265,7 +273,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
           requiresPatient: true,
         },
         {
-          name: t('sidebar.studyResults'),
+          name: t("sidebar.studyResults"),
           icon: "document-text-outline",
           screen: "Medico",
           subScreen: "StudyResults",
@@ -283,10 +291,10 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
     };
 
     menuSections.push({
-      title: t('sidebar.nursingNotes'),
+      title: t("sidebar.nursingNotes"),
       items: [
         {
-          name: t('sidebar.vitalSigns'),
+          name: t("sidebar.vitalSigns"),
           icon: "heart-outline",
           screen: "Enfermeria",
           subScreen: "EnfermeriaVitalSigns",
@@ -294,7 +302,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
           requiresPatient: true,
         },
         {
-          name: t('sidebar.nursingNote'),
+          name: t("sidebar.nursingNote"),
           icon: "document-text-outline",
           screen: "Enfermeria",
           subScreen: "EnfermeriaNote",
@@ -302,7 +310,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
           requiresPatient: true,
         },
         {
-          name: t('sidebar.medicationAdmin'),
+          name: t("sidebar.medicationAdmin"),
           icon: "medkit-outline",
           screen: "Enfermeria",
           subScreen: "EnfermeriaMedications",
@@ -310,7 +318,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
           requiresPatient: true,
         },
         {
-          name: t('sidebar.nursingAssessment'),
+          name: t("sidebar.nursingAssessment"),
           icon: "clipboard-outline",
           screen: "Enfermeria",
           subScreen: "EnfermeriaAssessment",
@@ -318,7 +326,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
           requiresPatient: true,
         },
         {
-          name: t('sidebar.fluidBalance'),
+          name: t("sidebar.fluidBalance"),
           icon: "water-outline",
           screen: "Enfermeria",
           subScreen: "EnfermeriaFluidBalance",
@@ -326,7 +334,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
           requiresPatient: true,
         },
         {
-          name: t('sidebar.nursingCare'),
+          name: t("sidebar.nursingCare"),
           icon: "shield-checkmark-outline",
           screen: "Enfermeria",
           subScreen: "EnfermeriaCare",
@@ -343,10 +351,10 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
     (isAdminRole && currentModule === "estudios")
   ) {
     menuSections.push({
-      title: t('sidebar.studiesSection'),
+      title: t("sidebar.studiesSection"),
       items: [
         {
-          name: t('sidebar.labRequests'),
+          name: t("sidebar.labRequests"),
           icon: "flask-outline",
           screen: "Estudios",
           subScreen: "EstudiosList",
@@ -354,7 +362,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
           requiresPatient: false,
         },
         {
-          name: t('sidebar.imagingRequests'),
+          name: t("sidebar.imagingRequests"),
           icon: "scan-outline",
           screen: "Estudios",
           subScreen: "EstudiosList",
@@ -362,7 +370,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
           requiresPatient: false,
         },
         {
-          name: t('sidebar.labResults'),
+          name: t("sidebar.labResults"),
           icon: "document-text-outline",
           screen: "Estudios",
           subScreen: "EstudiosList",
@@ -370,7 +378,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
           requiresPatient: false,
         },
         {
-          name: t('sidebar.imagingResults'),
+          name: t("sidebar.imagingResults"),
           icon: "folder-open-outline",
           screen: "Estudios",
           subScreen: "EstudiosList",
@@ -385,7 +393,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
 
   if (role === "admin" || role === "administrativo") {
     roleItems.push({
-      name: t('sidebar.administration'),
+      name: t("sidebar.administration"),
       icon: "settings-outline",
       screen: "Admin",
       requiresPatient: false,
@@ -395,9 +403,10 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
 
   if (role === "estudios" || role === "admin") {
     roleItems.push({
-      name: t('sidebar.studies'),
+      name: t("sidebar.studies"),
       icon: "flask-outline",
       screen: "Estudios",
+      subScreen: "EstudiosList",
       requiresPatient: false,
       params: {},
     });
@@ -405,7 +414,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
 
   if (isAdminRole || isEnfermeriaRole) {
     roleItems.push({
-      name: t('sidebar.nursing'),
+      name: t("sidebar.nursing"),
       icon: "medkit-outline",
       screen: "Enfermeria",
       subScreen: "EnfermeriaList",
@@ -416,7 +425,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
 
   if (isAdminRole || isMedicoRole) {
     roleItems.push({
-      name: t('sidebar.medical'),
+      name: t("sidebar.medical"),
       icon: "pulse-outline",
       screen: "Medico",
       subScreen: "MedicoList",
@@ -430,20 +439,22 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
       name: t('sidebar.config'),
       icon: "options-outline",
       screen: "Config",
+      subScreen: "ConfigMain", // Pantalla principal de Config
       requiresPatient: false,
       params: {},
     });
   }
 
   if (roleItems.length) {
-    menuSections.push({ title: t('sidebar.modules'), items: roleItems });
+    menuSections.push({ title: t("sidebar.modules"), items: roleItems });
   }
 
-  const roleLabel = roleLabels[role]?.[lang] || (lang === 'es' ? 'USUARIO' : 'USER');
+  const roleLabel =
+    roleLabels[role]?.[lang] || (lang === "es" ? "USUARIO" : "USER");
   const userPrefix = isEnfermeriaRole ? "Enf." : "Dr.";
 
   const toggleLanguage = () => {
-    setLanguage(lang === 'es' ? 'en' : 'es');
+    setLanguage(lang === "es" ? "en" : "es");
   };
 
   return (
@@ -455,9 +466,14 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
         <View style={styles.brandContainer}>
           <Text style={styles.brandTitle}>INEO</Text>
           <View style={styles.brandRight}>
-            <TouchableOpacity style={styles.langToggle} onPress={toggleLanguage}>
+            <TouchableOpacity
+              style={styles.langToggle}
+              onPress={toggleLanguage}
+            >
               <Ionicons name="globe-outline" size={14} color="#fff" />
-              <Text style={styles.langToggleText}>{lang === 'es' ? 'EN' : 'ES'}</Text>
+              <Text style={styles.langToggleText}>
+                {lang === "es" ? "EN" : "ES"}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -466,7 +482,9 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
             <Ionicons name="person-circle-outline" size={44} color="#fff" />
           </View>
           <View style={styles.userTextContainer}>
-            <Text style={styles.userName}>{userPrefix} {user?.username}</Text>
+            <Text style={styles.userName}>
+              {userPrefix} {user?.username}
+            </Text>
             <View style={styles.roleBadge}>
               <Text style={styles.roleText}>{roleLabel}</Text>
             </View>
@@ -496,8 +514,8 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
                       );
                     } else {
                       Alert.alert(
-                        t('sidebar.info'),
-                        t('sidebar.selectPatient'),
+                        t("sidebar.info"),
+                        t("sidebar.selectPatient"),
                       );
                     }
                   }}
@@ -525,7 +543,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
 
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Ionicons name="log-out-outline" size={20} color="#e53e3e" />
-        <Text style={styles.logoutText}>{t('sidebar.logout')}</Text>
+        <Text style={styles.logoutText}>{t("sidebar.logout")}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -575,10 +593,7 @@ function EnfermeriaStack() {
         name="EnfermeriaFluidBalance"
         component={EnfermeriaFluidBalance}
       />
-      <Stack.Screen
-        name="EnfermeriaCare"
-        component={EnfermeriaCare}
-      />
+      <Stack.Screen name="EnfermeriaCare" component={EnfermeriaCare} />
     </Stack.Navigator>
   );
 }
@@ -598,6 +613,29 @@ function EstudiosStack() {
         name="EditarResultadoGab"
         component={EditarResultadoGabScreen}
       />
+    </Stack.Navigator>
+  );
+}
+
+// Stack para configuración
+function ConfigStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="ConfigMain" component={ConfigScreen} />
+      <Stack.Screen name="GeneralSettings" component={GeneralSettingsScreen} />
+      <Stack.Screen name="UsuariosConfig" component={UsuariosConfigScreen} />
+      <Stack.Screen name="CamasConfig" component={CamasConfigScreen} />
+      <Stack.Screen name="ServiciosConfig" component={ServiciosConfigScreen} />
+      <Stack.Screen
+        name="DiagnosticosConfig"
+        component={DiagnosticosConfigScreen}
+      />
+      <Stack.Screen
+        name="AutomationConfig"
+        component={AutomationConfigScreen}
+      />
+      <Stack.Screen name="BackupConfig" component={BackupConfigScreen} />
+      <Stack.Screen name="ProfileConfig" component={ProfileConfigScreen} />
     </Stack.Navigator>
   );
 }
@@ -645,32 +683,7 @@ function MainStack() {
       )}
 
       {role === "admin" && (
-        <>
-          <Stack.Screen name="Config" component={ConfigScreen} />
-          <Stack.Screen
-            name="GeneralSettings"
-            component={GeneralSettingsScreen}
-          />
-          <Stack.Screen
-            name="UsuariosConfig"
-            component={UsuariosConfigScreen}
-          />
-          <Stack.Screen name="CamasConfig" component={CamasConfigScreen} />
-          <Stack.Screen
-            name="ServiciosConfig"
-            component={ServiciosConfigScreen}
-          />
-          <Stack.Screen
-            name="DiagnosticosConfig"
-            component={DiagnosticosConfigScreen}
-          />
-          <Stack.Screen
-            name="AutomationConfig"
-            component={AutomationConfigScreen}
-          />
-          <Stack.Screen name="BackupConfig" component={BackupConfigScreen} />
-          <Stack.Screen name="ProfileConfig" component={ProfileConfigScreen} />
-        </>
+        <Stack.Screen name="Config" component={ConfigStack} />
       )}
     </Stack.Navigator>
   );

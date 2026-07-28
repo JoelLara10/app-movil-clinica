@@ -35,22 +35,22 @@ const Sidebar = ({ navigation }) => {
   const handleNavigation = (screen, params = {}, subScreen) => {
     navigation.closeDrawer();
 
-    const stackNavigators = {
-      'Medico': 'Medico',
-      'Enfermeria': 'Enfermeria',
-      'Estudios': 'Estudios',
-      'Admin': 'Admin',
-      'Config': 'Config'
-    };
-
+    // Si hay una subpantalla
     if (subScreen) {
-      navigation.navigate('MainStack', {
-        screen: screen,
-        params: { screen: subScreen, params }
-      });
-    } else if (stackNavigators[screen]) {
-      navigation.navigate('MainStack', { screen });
+      // Si es Config, navegar al stack Config
+      if (screen === 'Config') {
+        navigation.navigate('MainStack', {
+          screen: 'Config',
+          params: { screen: subScreen, params }
+        });
+      } else {
+        navigation.navigate('MainStack', {
+          screen: screen,
+          params: { screen: subScreen, params }
+        });
+      }
     } else {
+      // Navegación directa
       navigation.navigate('MainStack', { screen, params });
     }
   };
@@ -401,6 +401,7 @@ const Sidebar = ({ navigation }) => {
       ],
     });
 
+    // SECCIÓN DE CONFIGURACIÓN
     menuSections.push({
       section: t('sidebar.configSection'),
       items: [
@@ -408,6 +409,7 @@ const Sidebar = ({ navigation }) => {
           name: t('sidebar.generalConfig'),
           icon: 'settings-outline',
           screen: 'Config',
+          subScreen: 'GeneralSettings', // Cambiado de 'ConfiguracionGeneral' a 'GeneralSettings'
           requiresPatient: false,
           params: {},
         },
@@ -432,6 +434,38 @@ const Sidebar = ({ navigation }) => {
           icon: 'people-outline',
           screen: 'Config',
           subScreen: 'UsuariosConfig',
+          requiresPatient: false,
+          params: {},
+        },
+        {
+          name: t('sidebar.diagnostics'),
+          icon: 'clipboard-outline',
+          screen: 'Config',
+          subScreen: 'DiagnosticosConfig',
+          requiresPatient: false,
+          params: {},
+        },
+        {
+          name: t('sidebar.backups'),
+          icon: 'shield-checkmark-outline',
+          screen: 'Config',
+          subScreen: 'BackupConfig',
+          requiresPatient: false,
+          params: {},
+        },
+        {
+          name: t('sidebar.automation'),
+          icon: 'time-outline',
+          screen: 'Config',
+          subScreen: 'AutomationConfig',
+          requiresPatient: false,
+          params: {},
+        },
+        {
+          name: t('sidebar.profile'),
+          icon: 'person-outline',
+          screen: 'Config',
+          subScreen: 'ProfileConfig',
           requiresPatient: false,
           params: {},
         },
