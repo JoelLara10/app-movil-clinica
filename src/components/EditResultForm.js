@@ -15,8 +15,10 @@ import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import api from '../services/api';
 import { getCache, setCache, CacheKeys, invalidateCachePrefix, removeCache } from '../services/EstudiosCache';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function EditResultForm({ navigation, route }) {
+  const { t } = useLanguage();
   const { id_examen, tipo } = route.params;
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -51,13 +53,13 @@ export default function EditResultForm({ navigation, route }) {
         setError('');
       } catch (err) {
         console.error('Error loading info:', err);
-        setError('Could not load information.');
+        setError(t('studies.couldNotLoadInfo'));
       } finally {
         setLoading(false);
       }
     };
     loadInfo();
-  }, [id_examen, tipo]);
+  }, [id_examen, tipo, t]);
 
   // ============================================================
   //  FILE SELECTION
@@ -105,7 +107,7 @@ export default function EditResultForm({ navigation, route }) {
       });
     } catch (err) {
       console.error('Error selecting files:', err);
-      Alert.alert('Error', 'Could not select files.');
+      Alert.alert(t('studies.error'), t('studies.selectFilesError'));
     }
   };
 
@@ -126,14 +128,14 @@ export default function EditResultForm({ navigation, route }) {
   const handleSubmit = async () => {
     const archivosExistentes = info.archivos.filter(nombre => !archivosAEliminar[nombre]);
     if (archivosExistentes.length === 0 && nuevosArchivos.length === 0) {
-      Alert.alert('Error', 'You must keep at least one file or add a new one.');
+      Alert.alert(t('studies.error'), t('studies.keepOneFile'));
       return;
     }
 
     const MAX_SIZE = 25 * 1024 * 1024;
     for (const file of nuevosArchivos) {
       if (file.size > MAX_SIZE) {
-        Alert.alert('Error', `File "${file.name}" exceeds 25MB.`);
+        Alert.alert(t('studies.error'), t('studies.fileTooLarge', { file: file.name }));
         return;
       }
     }
@@ -173,18 +175,18 @@ export default function EditResultForm({ navigation, route }) {
       await removeCache(CacheKeys.examenInfo(id_examen));
       await removeCache(CacheKeys.examenEditInfo(id_examen, tipo));
 
-      Alert.alert('Success', 'Changes saved successfully.', [
+      Alert.alert(t('studies.success'), t('studies.changesSaved'), [
         { text: 'OK', onPress: () => navigation.goBack() }
       ]);
     } catch (err) {
       console.error('Error updating:', err);
-      let msg = 'Error updating results.';
+      let msg = t('studies.updateError');
       if (err.response?.data?.error) {
         msg = err.response.data.error;
       } else if (err.message) {
         msg = err.message;
       }
-      Alert.alert('Error', msg);
+      Alert.alert(t('studies.error'), msg);
     } finally {
       setSubmitting(false);
     }
@@ -197,7 +199,7 @@ export default function EditResultForm({ navigation, route }) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#667eea" />
-        <Text style={styles.loadingText}>Loading data...</Text>
+        <Text style={styles.loadingText}>{t('studies.loadingData')}</Text>
       </View>
     );
   }
@@ -208,7 +210,7 @@ export default function EditResultForm({ navigation, route }) {
         <Ionicons name="alert-circle-outline" size={48} color="#e53e3e" />
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.retryText}>Go Back</Text>
+          <Text style={styles.retryText}>{t('studies.goBack')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -221,7 +223,7 @@ export default function EditResultForm({ navigation, route }) {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          <Ionicons name="create-outline" size={20} color="#fff" /> Edit Results
+          <Ionicons name="create-outline" size={20} color="#fff" /> {t('studies.editResults')}
         </Text>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
           <Ionicons name="close-outline" size={24} color="#fff" />
@@ -233,7 +235,7 @@ export default function EditResultForm({ navigation, route }) {
         <View>
           <Text style={styles.summaryTitle}>{info.paciente}</Text>
           <Text style={styles.summarySubtitle}>
-            <Ionicons name="bed-outline" size={14} color="#718096" /> Room: {info.habitacion}
+            <Ionicons name="bed-outline" size={14} color="#718096" /> {t('studies.room')}: {info.habitacion}
           </Text>
         </View>
         <View style={styles.statsPill}>
@@ -244,11 +246,11 @@ export default function EditResultForm({ navigation, route }) {
 
       {/* Existing Files Card */}
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Existing Files</Text>
+        <Text style={styles.sectionTitle}>{t('studies.existingFiles')}</Text>
         {info.archivos.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="document-outline" size={32} color="#cbd5e0" />
-            <Text style={styles.emptyText}>No files registered.</Text>
+            <Text style={styles.emptyText}>{t('studies.noFilesRegistered')}</Text>
           </View>
         ) : (
           info.archivos.map((nombre, index) => (
@@ -258,7 +260,7 @@ export default function EditResultForm({ navigation, route }) {
                 <Text style={styles.fileName} numberOfLines={1}>{nombre}</Text>
               </View>
               <View style={styles.switchContainer}>
-                <Text style={styles.switchLabel}>Delete</Text>
+                <Text style={styles.switchLabel}>{t('studies.delete')}</Text>
                 <Switch
                   value={archivosAEliminar[nombre] || false}
                   onValueChange={() => toggleEliminar(nombre)}
@@ -273,10 +275,10 @@ export default function EditResultForm({ navigation, route }) {
 
       {/* Add New Files Card */}
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Add New Files</Text>
+        <Text style={styles.sectionTitle}>{t('studies.addNewFiles')}</Text>
         <TouchableOpacity style={styles.pickButton} onPress={pickDocuments}>
           <Ionicons name="attach-outline" size={20} color="#4dabf7" />
-          <Text style={styles.pickButtonText}>Select files</Text>
+          <Text style={styles.pickButtonText}>{t('studies.selectFiles')}</Text>
         </TouchableOpacity>
 
         {nuevosArchivos.length > 0 && (
@@ -297,17 +299,17 @@ export default function EditResultForm({ navigation, route }) {
             ))}
           </View>
         )}
-        <Text style={styles.hint}>Formats: PDF, PNG, JPG, JPEG (max 25MB)</Text>
+        <Text style={styles.hint}>{t('studies.formatsHint')}</Text>
       </View>
 
       {/* Observations Card */}
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Observations</Text>
+        <Text style={styles.sectionTitle}>{t('studies.observations')}</Text>
         <TextInput
           style={styles.textArea}
           multiline
           numberOfLines={4}
-          placeholder="Relevant observations..."
+          placeholder={t('studies.observationsPlaceholder')}
           placeholderTextColor="#a0aec0"
           value={info.observaciones}
           onChangeText={(text) => setInfo({ ...info, observaciones: text })}
@@ -324,7 +326,7 @@ export default function EditResultForm({ navigation, route }) {
         ) : (
           <>
             <Ionicons name="save-outline" size={20} color="#fff" />
-            <Text style={styles.submitText}>Save Changes</Text>
+            <Text style={styles.submitText}>{t('studies.saveChanges')}</Text>
           </>
         )}
       </TouchableOpacity>
@@ -332,7 +334,7 @@ export default function EditResultForm({ navigation, route }) {
       <View style={styles.footer}>
         <Text style={styles.footerText}>
           <Ionicons name="shield-checkmark-outline" size={12} color="rgba(0,0,0,0.4)" />
-          {' '}INEO v2.0 - Hospital Management System
+          {' '}{t('studies.hospitalFooter')}
         </Text>
       </View>
     </ScrollView>

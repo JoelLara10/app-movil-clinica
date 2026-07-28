@@ -14,14 +14,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import api from '../../services/api';
 import { getCache, setCache, CacheKeys, invalidateCachePrefix, removeCache } from '../../services/EstudiosCache';
 
 const SECTIONS = [
-  { id: 'solicitudes_lab', label: 'Lab Requests', icon: 'flask-outline' },
-  { id: 'solicitudes_gab', label: 'Imaging Requests', icon: 'scan-outline' },
-  { id: 'resultados_lab', label: 'Lab Results', icon: 'document-text-outline' },
-  { id: 'resultados_gab', label: 'Imaging Results', icon: 'image-outline' },
+  { id: 'solicitudes_lab', labelKey: 'labRequests', icon: 'flask-outline' },
+  { id: 'solicitudes_gab', labelKey: 'imagingRequests', icon: 'scan-outline' },
+  { id: 'resultados_lab', labelKey: 'labResults', icon: 'document-text-outline' },
+  { id: 'resultados_gab', labelKey: 'imagingResults', icon: 'image-outline' },
 ];
 
 const SECTION_CONFIG = {
@@ -52,6 +53,7 @@ const FETCH_ALL_LIMIT = 9999;
 
 const EstudiosScreen = ({ navigation, route }) => {
   const { user } = useAuth();
+  const { lang, t } = useLanguage();
   const [selectedSection, setSelectedSection] = useState('solicitudes_lab');
   const [allItems, setAllItems] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -74,23 +76,23 @@ const EstudiosScreen = ({ navigation, route }) => {
     id_examen: item.id_examen ?? item._id ?? '',
     paciente: typeof item.paciente === 'string'
       ? item.paciente
-      : item.paciente?.nombre || item.nombre_paciente || 'Patient',
+      : item.paciente?.nombre || item.nombre_paciente || t('studies.patient'),
     medico: typeof item.medico === 'string'
       ? item.medico
-      : item.medico?.nombre || item.nombre_medico || 'Not assigned',
+      : item.medico?.nombre || item.nombre_medico || t('studies.notAssigned'),
     estudios: Array.isArray(item.estudios)
       ? item.estudios.join(', ')
-      : item.estudios || 'No studies',
+      : item.estudios || t('studies.noStudies'),
     fecha: item.fecha_solicitud || item.fecha || null,
     fecha_realizado: item.fecha_realizado || null,
-    habitacion: item.habitacion || item.numero_habitacion || item.cama || 'No info',
+    habitacion: item.habitacion || item.numero_habitacion || item.cama || t('studies.noInfo'),
   });
 
   const loadAllData = useCallback(async (force = false) => {
     const config = SECTION_CONFIG[selectedSection];
     if (!config) {
       setAllItems([]);
-      setError('Invalid section');
+      setError(t('studies.invalidSection'));
       return;
     }
 
@@ -136,13 +138,13 @@ const EstudiosScreen = ({ navigation, route }) => {
       setAllItems(normalized);
       setCurrentPage(1);
     } catch (err) {
-      const errorMsg = err.response?.data?.error || 'Could not load studies.';
+      const errorMsg = err.response?.data?.error || t('studies.loadError');
       setError(errorMsg);
       setAllItems([]);
     } finally {
       setLoading(false);
     }
-  }, [selectedSection]);
+  }, [selectedSection, t]);
 
   const loadCounts = useCallback(async (force = false) => {
     try {
@@ -221,12 +223,12 @@ const EstudiosScreen = ({ navigation, route }) => {
   const handleDelete = (id_examen) => {
     const tipo = selectedSection.includes('lab') ? 'laboratorio' : 'gabinete';
     Alert.alert(
-      'Confirm deletion',
-      `Are you sure you want to delete this result from ${tipo}? This action cannot be undone.`,
+      t('studies.confirmDeletion'),
+      t('studies.deleteWarning', { type: tipo === 'laboratorio' ? t('studies.laboratory') : t('studies.imaging') }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('studies.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('studies.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -236,7 +238,7 @@ const EstudiosScreen = ({ navigation, route }) => {
               await loadAllData(true);
               await loadCounts(true);
             } catch (error) {
-              Alert.alert('Error', 'Could not delete result. Please try again.');
+              Alert.alert(t('studies.error'), t('studies.deleteError'));
             }
           },
         },
@@ -283,14 +285,14 @@ const EstudiosScreen = ({ navigation, route }) => {
           <View style={styles.infoRow}>
             <Ionicons name="calendar-outline" size={16} color="#4a5568" style={styles.infoIcon} />
             <Text style={styles.dateText}>
-              {`Requested: ${item.fecha ? new Date(item.fecha).toLocaleDateString() : 'Date not available'}`}
+              {`${t('studies.requested')} ${item.fecha ? new Date(item.fecha).toLocaleDateString(lang === 'en' ? 'en-US' : 'es-MX') : t('studies.dateUnavailable')}`}
             </Text>
           </View>
           {!isPending && item.fecha_realizado && (
             <View style={styles.infoRow}>
               <Ionicons name="time-outline" size={16} color="#4a5568" style={styles.infoIcon} />
               <Text style={styles.dateText}>
-                {`Performed: ${new Date(item.fecha_realizado).toLocaleDateString()}`}
+                {`${t('studies.performed')} ${new Date(item.fecha_realizado).toLocaleDateString(lang === 'en' ? 'en-US' : 'es-MX')}`}
               </Text>
             </View>
           )}
@@ -300,21 +302,21 @@ const EstudiosScreen = ({ navigation, route }) => {
           {isPending ? (
             <TouchableOpacity style={[styles.actionButton, styles.uploadButton]} onPress={() => handleUpload(item.id_examen)}>
               <Ionicons name="cloud-upload-outline" size={18} color="#fff" />
-              <Text style={styles.actionText}>Upload</Text>
+              <Text style={styles.actionText}>{t('studies.upload')}</Text>
             </TouchableOpacity>
           ) : (
             <>
               <TouchableOpacity style={[styles.actionButton, styles.viewButton]} onPress={() => handleView(item.id_examen)}>
                 <Ionicons name="eye-outline" size={18} color="#fff" />
-                <Text style={styles.actionText}>View</Text>
+                <Text style={styles.actionText}>{t('studies.view')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.actionButton, styles.editButton]} onPress={() => handleEdit(item.id_examen)}>
                 <Ionicons name="create-outline" size={18} color="#fff" />
-                <Text style={styles.actionText}>Edit</Text>
+                <Text style={styles.actionText}>{t('studies.edit')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.actionButton, styles.deleteButton]} onPress={() => handleDelete(item.id_examen)}>
                 <Ionicons name="trash-outline" size={18} color="#fff" />
-                <Text style={styles.actionText}>Delete</Text>
+                <Text style={styles.actionText}>{t('studies.delete')}</Text>
               </TouchableOpacity>
             </>
           )}
@@ -329,10 +331,10 @@ const EstudiosScreen = ({ navigation, route }) => {
       <View style={styles.emptyState}>
         <Ionicons name={isPending ? "document-text-outline" : "checkbox-outline"} size={64} color="#cbd5e0" />
         <Text style={styles.emptyText}>
-          {isPending ? 'No pending requests' : 'No results registered'}
+          {isPending ? t('studies.noPendingRequests') : t('studies.noResults')}
         </Text>
         <Text style={styles.emptySubtext}>
-          {isPending ? 'All studies are completed' : 'No results have been uploaded yet'}
+          {isPending ? t('studies.allRequestsCompleted') : t('studies.noResultsUploaded')}
         </Text>
       </View>
     );
@@ -348,7 +350,7 @@ const EstudiosScreen = ({ navigation, route }) => {
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Ionicons name="flask-outline" size={22} color="#fff" />
-          <Text style={styles.headerTitle}>Studies Module</Text>
+          <Text style={styles.headerTitle}>{t('studies.module')}</Text>
         </View>
         <TouchableOpacity onPress={onRefresh} style={styles.refreshButton}>
           <Ionicons name="refresh-outline" size={24} color="#fff" />
@@ -357,14 +359,14 @@ const EstudiosScreen = ({ navigation, route }) => {
 
       <View style={styles.welcomeCard}>
         <View>
-          <Text style={styles.welcomeTitle}>Hello, Dr. {user?.username || 'User'}!</Text>
+          <Text style={styles.welcomeTitle}>{t('studies.helloDoctor', { user: user?.username || t('studies.user') })}</Text>
           <Text style={styles.welcomeSubtitle}>
-            {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            {new Date().toLocaleDateString(lang === 'en' ? 'en-US' : 'es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </Text>
         </View>
         <View style={styles.statsPill}>
           <Ionicons name="clipboard-outline" size={16} color="#667eea" />
-          <Text style={styles.statsPillText}>Total: {counts.total}</Text>
+          <Text style={styles.statsPillText}>{t('studies.total')}: {counts.total}</Text>
         </View>
       </View>
 
@@ -387,7 +389,7 @@ const EstudiosScreen = ({ navigation, route }) => {
               >
                 <Ionicons name={section.icon} size={18} color={isActive ? '#fff' : '#718096'} />
                 <Text style={[styles.tabText, isActive && styles.activeTabText]}>
-                  {section.label}
+                  {t(`studies.${section.labelKey}`)}
                 </Text>
                 {isActive && <View style={[styles.activeIndicator, { backgroundColor: color }]} />}
               </TouchableOpacity>
@@ -415,7 +417,7 @@ const EstudiosScreen = ({ navigation, route }) => {
                 loading ? (
                   <View style={styles.loadingBox}>
                     <ActivityIndicator size="large" color="#667eea" />
-                    <Text style={styles.loadingText}>Loading studies...</Text>
+                    <Text style={styles.loadingText}>{t('studies.loadingStudies')}</Text>
                   </View>
                 ) : (
                   renderEmpty()
@@ -451,7 +453,7 @@ const EstudiosScreen = ({ navigation, route }) => {
       <View style={styles.footer}>
         <Text style={styles.footerText}>
           <Ionicons name="shield-checkmark-outline" size={12} color="rgba(0,0,0,0.4)" />
-          {' '}INEO v2.0 - Hospital Management System
+          {' '}{t('studies.hospitalFooter')}
         </Text>
       </View>
     </View>

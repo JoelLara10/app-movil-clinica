@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { languages } from '../i18n';
@@ -44,7 +44,7 @@ export const LanguageProvider = ({ children }) => {
     } catch (_) {}
   };
 
-  const t = (key) => {
+  const t = useCallback((key, params = {}) => {
     const keys = key.split('.');
     let value = languages[lang];
     for (const k of keys) {
@@ -54,8 +54,14 @@ export const LanguageProvider = ({ children }) => {
         return key;
       }
     }
-    return value || key;
-  };
+    if (typeof value !== 'string') return value || key;
+
+    return Object.entries(params).reduce(
+      (text, [name, replacement]) =>
+        text.replaceAll(`{{${name}}}`, String(replacement)),
+      value
+    );
+  }, [lang]);
 
   return (
     <LanguageContext.Provider value={{ lang, setLanguage, t, ready }}>

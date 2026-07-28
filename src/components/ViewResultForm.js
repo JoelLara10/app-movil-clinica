@@ -15,10 +15,12 @@ import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../services/api';
+import { useLanguage } from '../context/LanguageContext';
 
 const { width, height } = Dimensions.get('window');
 
 export default function ViewResultForm({ navigation, route }) {
+  const { t } = useLanguage();
   const { id_examen, tipo } = route.params;
   const [loading, setLoading] = useState(true);
   const [archivos, setArchivos] = useState([]);
@@ -26,7 +28,7 @@ export default function ViewResultForm({ navigation, route }) {
   const [error, setError] = useState('');
   const [downloading, setDownloading] = useState(false);
 
-  const baseUrl = api.defaults.baseURL?.replace('/api/v1', '') || 'http://192.168.1.67:5000';
+  const baseUrl = api.defaults.baseURL?.replace('/api/v1', '') || 'http://192.168.1.73:5000';
 
   useEffect(() => {
     const loadFiles = async () => {
@@ -42,13 +44,13 @@ export default function ViewResultForm({ navigation, route }) {
         setError('');
       } catch (err) {
         console.error('Error loading files:', err);
-        setError('Could not load files.');
+        setError(t('studies.couldNotLoadFiles'));
       } finally {
         setLoading(false);
       }
     };
     loadFiles();
-  }, [id_examen, tipo]);
+  }, [id_examen, tipo, t]);
 
   const handleSelectFile = (file) => {
     setSelectedFile(file);
@@ -68,28 +70,28 @@ export default function ViewResultForm({ navigation, route }) {
 
       if (downloadedFile.exists) {
         Alert.alert(
-          'Download or Share',
-          'Do you want to open the file?',
+          t('studies.downloadOrShare'),
+          t('studies.openFileQuestion'),
           [
-            { text: 'Cancel', style: 'cancel' },
+            { text: t('studies.cancel'), style: 'cancel' },
             {
-              text: 'Open',
+              text: t('studies.open'),
               onPress: async () => {
                 if (await Sharing.isAvailableAsync()) {
                   await Sharing.shareAsync(downloadedFile.uri);
                 } else {
-                  Alert.alert('Error', 'Cannot share on this device');
+                  Alert.alert(t('studies.error'), t('studies.cannotShare'));
                 }
               },
             },
           ]
         );
       } else {
-        Alert.alert('Error', 'Could not download the file.');
+        Alert.alert(t('studies.error'), t('studies.downloadError'));
       }
     } catch (err) {
       console.error('Error downloading:', err);
-      Alert.alert('Error', 'Could not download the file.');
+      Alert.alert(t('studies.error'), t('studies.downloadError'));
     } finally {
       setDownloading(false);
     }
@@ -100,9 +102,9 @@ export default function ViewResultForm({ navigation, route }) {
       return (
         <View style={styles.previewPlaceholder}>
           <Ionicons name="document-text-outline" size={64} color="#cbd5e0" />
-          <Text style={styles.placeholderText}>Select a file</Text>
+          <Text style={styles.placeholderText}>{t('studies.selectAFile')}</Text>
           <Text style={styles.placeholderSubtext}>
-            Tap a file from the list to preview it
+            {t('studies.tapFileToPreview')}
           </Text>
         </View>
       );
@@ -133,7 +135,7 @@ export default function ViewResultForm({ navigation, route }) {
             ) : (
               <>
                 <Ionicons name="download-outline" size={20} color="#fff" />
-                <Text style={styles.downloadText}>Download PDF</Text>
+                <Text style={styles.downloadText}>{t('studies.downloadPdf')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -146,7 +148,7 @@ export default function ViewResultForm({ navigation, route }) {
             source={{ uri: fileUrl }}
             style={styles.previewImage}
             resizeMode="contain"
-            onError={() => Alert.alert('Error', 'Could not load image')}
+            onError={() => Alert.alert(t('studies.error'), t('studies.imageLoadError'))}
           />
         </View>
       );
@@ -154,9 +156,9 @@ export default function ViewResultForm({ navigation, route }) {
       return (
         <View style={styles.previewPlaceholder}>
           <Ionicons name="document-outline" size={48} color="#a0aec0" />
-          <Text style={styles.placeholderText}>Unsupported format</Text>
+          <Text style={styles.placeholderText}>{t('studies.unsupportedFormat')}</Text>
           <Text style={styles.placeholderSubtext}>
-            Preview not available for this file type.
+            {t('studies.cannotPreview')}
           </Text>
           <TouchableOpacity
             style={styles.downloadButton}
@@ -168,7 +170,7 @@ export default function ViewResultForm({ navigation, route }) {
             ) : (
               <>
                 <Ionicons name="download-outline" size={20} color="#fff" />
-                <Text style={styles.downloadText}>Download file</Text>
+                <Text style={styles.downloadText}>{t('studies.downloadFile')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -181,7 +183,7 @@ export default function ViewResultForm({ navigation, route }) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#667eea" />
-        <Text style={styles.loadingText}>Loading files...</Text>
+        <Text style={styles.loadingText}>{t('studies.loadingFiles')}</Text>
       </View>
     );
   }
@@ -192,7 +194,7 @@ export default function ViewResultForm({ navigation, route }) {
         <Ionicons name="alert-circle-outline" size={48} color="#e53e3e" />
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.retryText}>Go Back</Text>
+          <Text style={styles.retryText}>{t('studies.goBack')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -205,7 +207,7 @@ export default function ViewResultForm({ navigation, route }) {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          <Ionicons name="eye-outline" size={20} color="#fff" /> View Results
+          <Ionicons name="eye-outline" size={20} color="#fff" /> {t('studies.viewResults')}
         </Text>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.refreshButton}>
           <Ionicons name="close-outline" size={24} color="#fff" />
@@ -216,10 +218,10 @@ export default function ViewResultForm({ navigation, route }) {
       <View style={styles.summaryCard}>
         <View>
           <Text style={styles.summaryTitle}>
-            {tipo === 'LABORATORIO' ? 'Laboratory Results' : 'Imaging Results'}
+            {tipo === 'LABORATORIO' ? t('studies.labResults') : t('studies.imagingResults')}
           </Text>
           <Text style={styles.summarySubtitle}>
-            {archivos.length} file{archivos.length !== 1 ? 's' : ''} available
+            {t(archivos.length === 1 ? 'studies.fileAvailable' : 'studies.filesAvailable', { count: archivos.length })}
           </Text>
         </View>
         <View style={styles.statsPill}>
@@ -233,7 +235,7 @@ export default function ViewResultForm({ navigation, route }) {
         <View style={styles.listContainer}>
           <View style={styles.sectionHeader}>
             <Ionicons name="list-outline" size={20} color="#4a5568" />
-            <Text style={styles.sectionTitle}>Available Files</Text>
+            <Text style={styles.sectionTitle}>{t('studies.availableFiles')}</Text>
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{archivos.length}</Text>
             </View>
@@ -242,7 +244,7 @@ export default function ViewResultForm({ navigation, route }) {
             {archivos.length === 0 ? (
               <View style={styles.emptyState}>
                 <Ionicons name="document-outline" size={40} color="#cbd5e0" />
-                <Text style={styles.emptyText}>No files registered</Text>
+                <Text style={styles.emptyText}>{t('studies.noFilesRegistered')}</Text>
               </View>
             ) : (
               archivos.map((file, index) => (
@@ -279,7 +281,7 @@ export default function ViewResultForm({ navigation, route }) {
         <View style={styles.previewContainer}>
           <View style={styles.sectionHeader}>
             <Ionicons name="eye-outline" size={20} color="#4a5568" />
-            <Text style={styles.sectionTitle}>Preview</Text>
+            <Text style={styles.sectionTitle}>{t('studies.preview')}</Text>
           </View>
           <View style={styles.previewBox}>{renderPreview()}</View>
         </View>
@@ -289,7 +291,7 @@ export default function ViewResultForm({ navigation, route }) {
       <View style={styles.footer}>
         <Text style={styles.footerText}>
           <Ionicons name="shield-checkmark-outline" size={12} color="rgba(0,0,0,0.4)" />
-          {' '}INEO v2.0 - Hospital Management System
+          {' '}{t('studies.hospitalFooter')}
         </Text>
       </View>
     </View>

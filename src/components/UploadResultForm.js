@@ -14,8 +14,10 @@ import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import api from '../services/api';
 import { getCache, setCache, CacheKeys, invalidateCachePrefix, removeCache } from '../services/EstudiosCache';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function UploadResultForm({ navigation, route }) {
+  const { t } = useLanguage();
   const { id_examen, tipo } = route.params;
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -42,13 +44,13 @@ export default function UploadResultForm({ navigation, route }) {
         setError('');
       } catch (err) {
         console.error('Error loading request:', err);
-        setError('Could not load request information.');
+        setError(t('studies.couldNotLoadInfo'));
       } finally {
         setLoading(false);
       }
     };
     loadSolicitud();
-  }, [id_examen]);
+  }, [id_examen, t]);
 
   // ============================================================
   //  FILE SELECTION
@@ -94,7 +96,7 @@ export default function UploadResultForm({ navigation, route }) {
       }
 
       if (selectedFiles.length === 0) {
-        Alert.alert('Notice', 'No file obtained. Please try again.');
+        Alert.alert(t('studies.notice'), t('studies.noFileObtained'));
         return;
       }
 
@@ -106,7 +108,7 @@ export default function UploadResultForm({ navigation, route }) {
 
     } catch (err) {
       console.error('Error selecting files:', err);
-      Alert.alert('Error', 'An error occurred while selecting files. Please try again.');
+      Alert.alert(t('studies.error'), t('studies.selectFilesError'));
     }
   };
 
@@ -119,14 +121,14 @@ export default function UploadResultForm({ navigation, route }) {
   // ============================================================
   const handleSubmit = async () => {
     if (archivos.length === 0) {
-      Alert.alert('Error', 'You must select at least one file.');
+      Alert.alert(t('studies.error'), t('studies.selectAtLeastOneFile'));
       return;
     }
 
     const MAX_SIZE = 25 * 1024 * 1024;
     for (const file of archivos) {
       if (file.size > MAX_SIZE) {
-        Alert.alert('Error', `File "${file.name}" exceeds 25MB.`);
+        Alert.alert(t('studies.error'), t('studies.fileTooLarge', { file: file.name }));
         return;
       }
     }
@@ -162,18 +164,18 @@ export default function UploadResultForm({ navigation, route }) {
       await removeCache(CacheKeys.counts);
       await removeCache(CacheKeys.examenInfo(id_examen));
 
-      Alert.alert('Success', 'Results uploaded successfully.', [
+      Alert.alert(t('studies.success'), t('studies.uploadSuccess'), [
         { text: 'OK', onPress: () => navigation.goBack() }
       ]);
     } catch (err) {
       console.error('Error uploading:', err);
-      let msg = 'Error uploading results.';
+      let msg = t('studies.uploadError');
       if (err.response?.data?.error) {
         msg = err.response.data.error;
       } else if (err.message) {
         msg = err.message;
       }
-      Alert.alert('Error', msg);
+      Alert.alert(t('studies.error'), msg);
     } finally {
       setSubmitting(false);
     }
@@ -186,7 +188,7 @@ export default function UploadResultForm({ navigation, route }) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#667eea" />
-        <Text style={styles.loadingText}>Loading...</Text>
+        <Text style={styles.loadingText}>{t('studies.loading')}</Text>
       </View>
     );
   }
@@ -196,7 +198,7 @@ export default function UploadResultForm({ navigation, route }) {
       <View style={styles.centered}>
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.retryText}>Go Back</Text>
+          <Text style={styles.retryText}>{t('studies.goBack')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -209,7 +211,7 @@ export default function UploadResultForm({ navigation, route }) {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          <Ionicons name="cloud-upload-outline" size={20} color="#fff" /> Upload Results
+          <Ionicons name="cloud-upload-outline" size={20} color="#fff" /> {t('studies.uploadResults')}
         </Text>
         <View style={{ width: 40 }} />
       </LinearGradient>
@@ -225,21 +227,21 @@ export default function UploadResultForm({ navigation, route }) {
           <Text style={styles.patientName}>{solicitud?.paciente || '-'}</Text>
           <View style={styles.patientDetails}>
             <Ionicons name="bed-outline" size={14} color="#718096" />
-            <Text style={styles.detailText}>Room: {solicitud?.habitacion || '-'}</Text>
+            <Text style={styles.detailText}>{t('studies.room')}: {solicitud?.habitacion || '-'}</Text>
           </View>
           <View style={styles.patientDetails}>
             <Ionicons name="flask-outline" size={14} color="#718096" />
-            <Text style={styles.detailText}>Studies: {solicitud?.estudios || '-'}</Text>
+            <Text style={styles.detailText}>{t('studies.module')}: {solicitud?.estudios || '-'}</Text>
           </View>
         </View>
       </View>
 
       {/* File Selection Card */}
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Select Files</Text>
+        <Text style={styles.sectionTitle}>{t('studies.selectFiles')}</Text>
         <TouchableOpacity style={styles.pickButton} onPress={pickDocuments}>
           <Ionicons name="attach-outline" size={20} color="#4dabf7" />
-          <Text style={styles.pickButtonText}>Choose files</Text>
+          <Text style={styles.pickButtonText}>{t('studies.chooseFiles')}</Text>
         </TouchableOpacity>
 
         {archivos.length > 0 && (
@@ -259,17 +261,17 @@ export default function UploadResultForm({ navigation, route }) {
           </View>
         )}
 
-        <Text style={styles.hint}>Formats: PDF, PNG, JPG, JPEG (max 25MB)</Text>
+        <Text style={styles.hint}>{t('studies.formatsHint')}</Text>
       </View>
 
       {/* Observations Card */}
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Observations</Text>
+        <Text style={styles.sectionTitle}>{t('studies.observations')}</Text>
         <TextInput
           style={styles.textArea}
           multiline
           numberOfLines={4}
-          placeholder="Relevant observations..."
+          placeholder={t('studies.observationsPlaceholder')}
           placeholderTextColor="#a0aec0"
           value={observaciones}
           onChangeText={setObservaciones}
@@ -286,7 +288,7 @@ export default function UploadResultForm({ navigation, route }) {
         ) : (
           <>
             <Ionicons name="cloud-upload-outline" size={20} color="#fff" />
-            <Text style={styles.submitText}>Upload Results</Text>
+            <Text style={styles.submitText}>{t('studies.uploadResults')}</Text>
           </>
         )}
       </TouchableOpacity>
