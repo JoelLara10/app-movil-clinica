@@ -54,6 +54,7 @@ import GeneralSettingsScreen from "../screens/config/GeneralSettingsScreen";
 import UsuariosConfigScreen from "../screens/config/UsuariosConfigScreen";
 import CamasConfigScreen from "../screens/config/CamasConfigScreen";
 import ServiciosConfigScreen from "../screens/config/ServiciosConfigScreen";
+import DiagnosticosConfigScreen from "../screens/config/DiagnosticosConfigScreen";
 import AutomationConfigScreen from "../screens/config/AutomationConfigScreen";
 import BackupConfigScreen from "../screens/config/BackupConfigScreen";
 import ProfileConfigScreen from "../screens/config/ProfileConfigScreen";
@@ -658,6 +659,10 @@ function MainStack() {
           <Stack.Screen
             name="ServiciosConfig"
             component={ServiciosConfigScreen}
+          />
+          <Stack.Screen
+            name="DiagnosticosConfig"
+            component={DiagnosticosConfigScreen}
           />
           <Stack.Screen
             name="AutomationConfig"

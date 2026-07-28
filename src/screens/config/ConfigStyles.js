@@ -67,4 +67,13 @@ export const configStyles = StyleSheet.create({
   pageText: { marginHorizontal: 12, color: '#475569', fontWeight: '900' },
   smallIconButton: { width: 40, height: 40, borderRadius: 13, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
   actionBar: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 12, marginTop: 10 },
+  wrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  optionChip: { borderWidth: 1, borderColor: colors.border, backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 9, borderRadius: 18 },
+  optionChipActive: { borderColor: colors.primary, backgroundColor: '#eef2ff' },
+  optionText: { color: colors.muted, fontSize: 12, fontWeight: '800' },
+  optionTextActive: { color: colors.primary },
+  messageBox: { backgroundColor: '#eef2ff', borderRadius: 12, padding: 12, marginVertical: 10 },
+  messageText: { color: '#4338ca', fontSize: 13, lineHeight: 19, fontWeight: '700' },
+  searchInput: { backgroundColor: '#fff', borderWidth: 1, borderColor: colors.border, borderRadius: 13, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16 },
+  disabled: { opacity: 0.5 },
 });

@@ -1,51 +1,101 @@
-import React, { useEffect, useState } from 'react';
-import { Alert, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import ConfigHeader from './ConfigHeader';
 import { configStyles as styles } from './ConfigStyles';
-import { clearConfigCache, getConfigSection, saveConfigSection } from './configCache';
+import configurationService from '../../services/configurationService';
+import { useLanguage } from '../../context/LanguageContext';
+
+const defaults = { activo: false, tipo: 'completa', formato: 'json', intervalo: 1440, colecciones: [], max_backups: 4 };
+
+const Choice = ({ value, label, current, onPress }) => (
+  <TouchableOpacity style={[styles.optionChip, current === value && styles.optionChipActive]} onPress={() => onPress(value)}>
+    <Text style={[styles.optionText, current === value && styles.optionTextActive]}>{label}</Text>
+  </TouchableOpacity>
+);
 
 export default function AutomationConfigScreen({ navigation }) {
-  const [form, setForm] = useState({ respaldosAutomaticos: true, horaRespaldo: '22:00', limpiarTemporales: true, diasRetencion: '30', sincronizacionWifi: true, notificaciones: true });
+  const { t } = useLanguage();
+  const [form, setForm] = useState(defaults);
+  const [collections, setCollections] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
 
-  useEffect(() => { getConfigSection('automatizacion').then((data) => setForm((old) => ({ ...old, ...data }))); }, []);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [config, names] = await Promise.all([configurationService.automation.get(), configurationService.backups.collections()]);
+      setCollections(names);
+      setForm({ ...defaults, ...config, colecciones: config.colecciones?.length ? config.colecciones : names });
+    } catch (error) { setMessage(error.response?.data?.error || t('config.automationLoadError')); }
+    finally { setLoading(false); }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const toggle = (name) => setForm((old) => ({
+    ...old,
+    colecciones: old.colecciones.includes(name) ? old.colecciones.filter((item) => item !== name) : [...old.colecciones, name],
+  }));
 
   const save = async () => {
-    await saveConfigSection('automatizacion', form);
-    Alert.alert('Guardado', 'La automatización fue configurada en caché.');
+    setLoading(true);
+    try {
+      const result = await configurationService.automation.update({ ...form, intervalo: Number(form.intervalo), max_backups: Number(form.max_backups) });
+      setForm(result); setMessage(t('config.automationSaved'));
+    } catch (error) { setMessage(error.response?.data?.error || t('config.automationSaveError')); }
+    finally { setLoading(false); }
   };
-
-  const clear = () => Alert.alert('Limpiar caché', 'Se borrará el caché local del módulo. ¿Continuar?', [
-    { text: 'Cancelar', style: 'cancel' },
-    { text: 'Limpiar', style: 'destructive', onPress: async () => { await clearConfigCache(); Alert.alert('Listo', 'Caché limpiado.'); } },
-  ]);
 
   return (
     <ScrollView style={styles.container}>
-      <ConfigHeader title="Rendimiento y Automatización" navigation={navigation} />
+      <ConfigHeader title={t('config.automationTitle')} navigation={navigation} />
       <View style={styles.content}>
-        <View style={styles.card}><Text style={styles.cardTitle}>📈 Rendimiento</Text><Text style={styles.cardSubtitle}>Monitoreo local, limpieza y tareas automáticas del módulo.</Text></View>
-
-        {[
-          ['respaldosAutomaticos', 'Respaldos automáticos', 'Permite programar respaldos diarios del sistema.'],
-          ['limpiarTemporales', 'Limpieza de archivos temporales', 'Ayuda a mantener ordenado el almacenamiento local.'],
-          ['sincronizacionWifi', 'Sincronizar solo con WiFi', 'Evita consumir datos móviles durante sincronización.'],
-          ['notificaciones', 'Notificaciones del sistema', 'Activa alertas de tareas y respaldos.'],
-        ].map(([key, title, subtitle]) => (
-          <View style={styles.card} key={key}>
-            <View style={styles.between}>
-              <View style={{ flex: 1 }}><Text style={styles.cardTitle}>{title}</Text><Text style={styles.cardSubtitle}>{subtitle}</Text></View>
-              <Switch value={!!form[key]} onValueChange={(v) => setForm({ ...form, [key]: v })} />
+        <View style={styles.card}>
+          <View style={styles.between}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.cardTitle}>{t('config.automationAutoBackups')}</Text>
+              <Text style={styles.cardSubtitle}>{t('config.automationAutoBackupsDesc')}</Text>
             </View>
+            <Switch value={form.activo} onValueChange={(activo) => setForm({ ...form, activo })} />
           </View>
-        ))}
+        </View>
 
-        <Text style={styles.label}>Hora de respaldo</Text>
-        <TextInput style={styles.input} value={form.horaRespaldo} onChangeText={(v) => setForm({ ...form, horaRespaldo: v })} placeholder="22:00" />
-        <Text style={styles.label}>Días de retención</Text>
-        <TextInput style={styles.input} value={form.diasRetencion} onChangeText={(v) => setForm({ ...form, diasRetencion: v })} keyboardType="number-pad" />
+        <Text style={styles.label}>{t('config.backupType')}</Text>
+        <View style={styles.wrapRow}>
+          <Choice value="completa" label={t('config.backupFull')} current={form.tipo} onPress={(tipo) => setForm({ ...form, tipo })} />
+          <Choice value="incremental" label={t('config.backupIncremental')} current={form.tipo} onPress={(tipo) => setForm({ ...form, tipo })} />
+          <Choice value="diferencial" label={t('config.backupDifferential')} current={form.tipo} onPress={(tipo) => setForm({ ...form, tipo })} />
+        </View>
 
-        <TouchableOpacity style={styles.primaryButton} onPress={save}><Text style={styles.primaryText}>Guardar automatización</Text></TouchableOpacity>
-        <TouchableOpacity style={[styles.dangerButton, { alignItems: 'center', marginTop: 12 }]} onPress={clear}><Text style={styles.dangerText}>Limpiar caché local</Text></TouchableOpacity>
+        <Text style={styles.label}>{t('config.backupFormat')}</Text>
+        <View style={styles.wrapRow}>
+          {[['json', 'JSON'], ['csv', 'CSV'], ['xlsx', 'Excel'], ['pdf', 'PDF']].map(([v, l]) => (
+            <Choice key={v} value={v} label={l} current={form.formato} onPress={(formato) => setForm({ ...form, formato })} />
+          ))}
+        </View>
+
+        <Text style={styles.label}>{t('config.automationInterval')}</Text>
+        <TextInput style={styles.input} keyboardType="number-pad" value={String(form.intervalo)} onChangeText={(intervalo) => setForm({ ...form, intervalo })} />
+
+        <Text style={styles.label}>{t('config.automationMaxBackups')}</Text>
+        <TextInput style={styles.input} keyboardType="number-pad" value={String(form.max_backups)} onChangeText={(max_backups) => setForm({ ...form, max_backups })} />
+
+        <View style={styles.between}>
+          <Text style={styles.sectionTitle}>{t('config.backupCollections')} ({form.colecciones.length}/{collections.length})</Text>
+          <TouchableOpacity style={styles.secondaryButton} onPress={() => setForm({ ...form, colecciones: form.colecciones.length === collections.length ? [] : collections })}>
+            <Text style={styles.secondaryText}>{form.colecciones.length === collections.length ? t('config.backupNone') : t('config.backupAll')}</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.wrapRow}>
+          {collections.map((name) => (
+            <Choice key={name} value={name} label={name} current={form.colecciones.includes(name) ? name : ''} onPress={() => toggle(name)} />
+          ))}
+        </View>
+
+        <TouchableOpacity disabled={loading} style={[styles.primaryButton, loading && styles.disabled]} onPress={save}>
+          <Text style={styles.primaryText}>{loading ? t('config.automationSaving') : t('config.automationSave')}</Text>
+        </TouchableOpacity>
+
+        {!!message && <View style={styles.messageBox}><Text style={styles.messageText}>{message}</Text></View>}
       </View>
     </ScrollView>
   );

@@ -2,32 +2,39 @@ import React from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { configStyles as styles } from './ConfigStyles';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function ConfigScreen({ navigation }) {
+  const { t } = useLanguage();
+
   const cards = [
-    { title: 'Gestión de Camas', desc: 'Administra la disponibilidad y asignación de camas hospitalarias', badge: 'ADMINISTRADOR', emoji: '🏥', color: '#3182ce', screen: 'CamasConfig' },
-    { title: 'Gestión de Personal', desc: 'Administra usuarios, roles y permisos del sistema', badge: 'ADMINISTRADOR', emoji: '👥', color: '#38a169', screen: 'UsuariosConfig' },
-    { title: 'Diagnósticos', desc: 'Catálogo de diagnósticos y códigos CIE-10', badge: 'MÉDICO', emoji: '〽️', color: '#ed8936', screen: 'DiagnosticosConfig' },
-    { title: 'Servicios', desc: 'Catálogo de servicios y procedimientos médicos', badge: 'CATÁLOGO', emoji: '+', color: '#f56565', screen: 'ServiciosConfig' },
-    { title: 'Copias de Seguridad', desc: 'Respaldo y restauración de la base de datos', badge: 'ADMINISTRADOR', emoji: '🛡️', color: '#805ad5', screen: 'BackupConfig' },
-    { title: 'Rendimiento', desc: 'Monitoreo de CPU, RAM, disco y actividad del sistema', badge: 'MONITOREO', emoji: '📈', color: '#38b2ac', screen: 'AutomationConfig' },
+    { titleKey: 'bedsManagement', descKey: 'bedsManagementDesc', badgeKey: 'badgeAdmin', emoji: '🏥', color: '#3182ce', screen: 'CamasConfig' },
+    { titleKey: 'staffManagement', descKey: 'staffManagementDesc', badgeKey: 'badgeAdmin', emoji: '👥', color: '#38a169', screen: 'UsuariosConfig' },
+    { titleKey: 'diagnostics', descKey: 'diagnosticsDesc', badgeKey: 'badgeMedico', emoji: '〽️', color: '#ed8936', screen: 'DiagnosticosConfig' },
+    { titleKey: 'services', descKey: 'servicesDesc', badgeKey: 'badgeCatalog', emoji: '+', color: '#f56565', screen: 'ServiciosConfig' },
+    { titleKey: 'backups', descKey: 'backupsDesc', badgeKey: 'badgeAdmin', emoji: '🛡️', color: '#805ad5', screen: 'BackupConfig' },
+    { titleKey: 'automation', descKey: 'automationDesc', badgeKey: 'badgeAdmin', emoji: '⏱️', color: '#38b2ac', screen: 'AutomationConfig' },
   ];
 
   return (
     <LinearGradient colors={['#667eea', '#764ba2']} style={styles.gradientPage}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
-          <Text style={styles.heroTitle}>Configuración del Sistema</Text>
-          <Text style={styles.heroSubtitle}>Administra módulos, catálogos, usuarios, respaldos y parámetros del sistema INEO.</Text>
+          <Text style={styles.heroTitle}>{t('config.systemConfig')}</Text>
+          <Text style={styles.heroSubtitle}>{t('config.systemConfigDesc')}</Text>
         </View>
 
         <View style={styles.mainGrid}>
           {cards.map((item) => (
-            <TouchableOpacity key={item.title} activeOpacity={0.88} style={styles.menuCard} onPress={() => navigation.navigate(item.screen)}>
-              <View style={[styles.rolePill, { backgroundColor: item.color }]}><Text style={styles.rolePillText}>{item.badge}</Text></View>
-              <View style={[styles.iconCircle, { backgroundColor: item.color }]}><Text style={styles.iconText}>{item.emoji}</Text></View>
-              <Text style={styles.menuTitle}>{item.title}</Text>
-              <Text style={styles.menuDesc}>{item.desc}</Text>
+            <TouchableOpacity key={item.screen} activeOpacity={0.88} style={styles.menuCard} onPress={() => navigation.navigate(item.screen)}>
+              <View style={[styles.rolePill, { backgroundColor: item.color }]}>
+                <Text style={styles.rolePillText}>{t(`config.${item.badgeKey}`)}</Text>
+              </View>
+              <View style={[styles.iconCircle, { backgroundColor: item.color }]}>
+                <Text style={styles.iconText}>{item.emoji}</Text>
+              </View>
+              <Text style={styles.menuTitle}>{t(`config.${item.titleKey}`)}</Text>
+              <Text style={styles.menuDesc}>{t(`config.${item.descKey}`)}</Text>
             </TouchableOpacity>
           ))}
         </View>

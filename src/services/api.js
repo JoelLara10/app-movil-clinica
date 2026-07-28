@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
 // Base URL por plataforma
-const API_URL =
+export const API_URL =
   Platform.OS === 'web'
     ? 'http://localhost:5001/api/v1'
     : Constants.expoConfig?.extra?.API_URL ||

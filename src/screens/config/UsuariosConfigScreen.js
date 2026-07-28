@@ -1,8 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, RefreshControl, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import ConfigHeader from './ConfigHeader';
 import { configStyles as styles } from './ConfigStyles';
-import { addConfigItem, deleteConfigItem, getConfigSection, updateConfigItem } from './configCache';
+import { addConfigItem, deleteConfigItem, getConfigSection, saveConfigSection, updateConfigItem } from './configCache';
+import CacheService from '../../services/cacheService';
+import configurationService from '../../services/configurationService';
+import { useLanguage } from '../../context/LanguageContext';
 
 const ITEMS_PER_PAGE = 5;
 const emptyForm = { curp: '', nombre: '', papell: '', sapell: '', fecnac: '', telefono: '', matricula: '', cedula: '', cargo: '', email: '', preguntaSeguridad: '', username: '', password: '', role: 'medico' };
@@ -10,97 +13,112 @@ const getTotalPages = (data) => Math.max(1, Math.ceil(data.length / ITEMS_PER_PA
 const getPagedData = (data, page) => data.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
 export default function UsuariosConfigScreen({ navigation }) {
+  const { t } = useLanguage();
   const [usuarios, setUsuarios] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [page, setPage] = useState(1);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async () => setUsuarios(await getConfigSection('usuarios')), []);
+  const load = useCallback(async (forceRefresh = false) => {
+    if (!forceRefresh) { setUsuarios(await getConfigSection('usuarios')); return; }
+    try {
+      const data = await configurationService.users?.list?.();
+      if (Array.isArray(data)) { await saveConfigSection('usuarios', data); setUsuarios(data); }
+      else setUsuarios(await getConfigSection('usuarios'));
+    } catch { setUsuarios(await getConfigSection('usuarios')); }
+  }, []);
   useEffect(() => { load(); }, [load]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true); setPage(1);
+    await load(true);
+    setRefreshing(false);
+  }, [load]);
 
   const paged = useMemo(() => getPagedData(usuarios, page), [usuarios, page]);
   const totalPages = getTotalPages(usuarios);
 
   const save = async () => {
     if (!form.nombre || !form.username || !form.password || !form.role) {
-      Alert.alert('Faltan datos', 'Captura nombre, usuario, contraseña y rol.');
+      Alert.alert(t('config.userMissingData'), t('config.userMissingDataMsg'));
       return;
     }
     const item = { ...form, id: `U-${Date.now()}`, activo: true };
     setUsuarios(await addConfigItem('usuarios', item));
     setForm(emptyForm);
     setPage(1);
-    Alert.alert('Guardado', 'Usuario guardado en caché.');
+    Alert.alert(t('config.userSavedTitle'), t('config.userSaved'));
   };
 
-  const remove = (id) => Alert.alert('Eliminar usuario', '¿Deseas eliminar este usuario?', [
-    { text: 'Cancelar', style: 'cancel' },
-    { text: 'Eliminar', style: 'destructive', onPress: async () => setUsuarios(await deleteConfigItem('usuarios', id)) },
+  const remove = (id) => Alert.alert(t('config.deleteUserTitle'), t('config.deleteUserMsg'), [
+    { text: t('config.cancel'), style: 'cancel' },
+    { text: t('config.delete'), style: 'destructive', onPress: async () => setUsuarios(await deleteConfigItem('usuarios', id)) },
   ]);
 
   return (
-    <ScrollView style={styles.container}>
-      <ConfigHeader title="Usuarios del Sistema" navigation={navigation} />
+    <ScrollView style={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+      <ConfigHeader title={t('config.usersTitle')} navigation={navigation} onRefresh={onRefresh} />
       <View style={styles.content}>
-        <Text style={styles.sectionTitle}>👥 Registrar Nuevo Usuario</Text>
+        <Text style={styles.sectionTitle}>👥 {t('config.registerUser')}</Text>
         <View style={styles.card}>
           <View style={styles.sectionBox}>
-            <Text style={styles.subTitle}>Datos Personales</Text>
-            <Text style={styles.label}>CURP</Text>
-            <TextInput style={styles.input} value={form.curp} onChangeText={(v) => setForm({ ...form, curp: v.toUpperCase() })} placeholder="Ingrese CURP" />
-            <Text style={styles.label}>Nombre(s)</Text>
-            <TextInput style={styles.input} value={form.nombre} onChangeText={(v) => setForm({ ...form, nombre: v })} placeholder="Ingrese nombre(s)" />
-            <Text style={styles.label}>Primer Apellido</Text>
-            <TextInput style={styles.input} value={form.papell} onChangeText={(v) => setForm({ ...form, papell: v })} placeholder="Ingrese primer apellido" />
-            <Text style={styles.label}>Segundo Apellido</Text>
-            <TextInput style={styles.input} value={form.sapell} onChangeText={(v) => setForm({ ...form, sapell: v })} placeholder="Ingrese segundo apellido" />
-            <Text style={styles.label}>Fecha de nacimiento</Text>
-            <TextInput style={styles.input} value={form.fecnac} onChangeText={(v) => setForm({ ...form, fecnac: v })} placeholder="AAAA-MM-DD" />
-            <Text style={styles.label}>Teléfono</Text>
-            <TextInput style={styles.input} value={form.telefono} onChangeText={(v) => setForm({ ...form, telefono: v })} placeholder="Ingrese teléfono" keyboardType="phone-pad" />
-            <Text style={styles.label}>Matrícula</Text>
-            <TextInput style={styles.input} value={form.matricula} onChangeText={(v) => setForm({ ...form, matricula: v })} placeholder="Matrícula opcional" />
-            <Text style={styles.label}>Cédula Profesional</Text>
-            <TextInput style={styles.input} value={form.cedula} onChangeText={(v) => setForm({ ...form, cedula: v })} placeholder="Cédula opcional" />
+            <Text style={styles.subTitle}>{t('config.personalData')}</Text>
+            <Text style={styles.label}>{t('config.curp')}</Text>
+            <TextInput style={styles.input} value={form.curp} onChangeText={(v) => setForm({ ...form, curp: v.toUpperCase() })} placeholder={t('config.curpPlaceholder')} />
+            <Text style={styles.label}>{t('config.firstName')}</Text>
+            <TextInput style={styles.input} value={form.nombre} onChangeText={(v) => setForm({ ...form, nombre: v })} placeholder={t('config.firstNamePlaceholder')} />
+            <Text style={styles.label}>{t('config.firstLastName')}</Text>
+            <TextInput style={styles.input} value={form.papell} onChangeText={(v) => setForm({ ...form, papell: v })} placeholder={t('config.firstLastNamePlaceholder')} />
+            <Text style={styles.label}>{t('config.secondLastName')}</Text>
+            <TextInput style={styles.input} value={form.sapell} onChangeText={(v) => setForm({ ...form, sapell: v })} placeholder={t('config.secondLastNamePlaceholder')} />
+            <Text style={styles.label}>{t('config.birthDate')}</Text>
+            <TextInput style={styles.input} value={form.fecnac} onChangeText={(v) => setForm({ ...form, fecnac: v })} placeholder={t('config.birthDatePlaceholder')} />
+            <Text style={styles.label}>{t('config.phone')}</Text>
+            <TextInput style={styles.input} value={form.telefono} onChangeText={(v) => setForm({ ...form, telefono: v })} placeholder={t('config.phonePlaceholder')} keyboardType="phone-pad" />
+            <Text style={styles.label}>{t('config.matricula')}</Text>
+            <TextInput style={styles.input} value={form.matricula} onChangeText={(v) => setForm({ ...form, matricula: v })} placeholder={t('config.matriculaPlaceholder')} />
+            <Text style={styles.label}>{t('config.cedula')}</Text>
+            <TextInput style={styles.input} value={form.cedula} onChangeText={(v) => setForm({ ...form, cedula: v })} placeholder={t('config.cedulaPlaceholder')} />
           </View>
 
           <View style={styles.sectionBox}>
-            <Text style={styles.subTitle}>Datos del Sistema</Text>
-            <Text style={styles.label}>Cargo</Text>
-            <TextInput style={styles.input} value={form.cargo} onChangeText={(v) => setForm({ ...form, cargo: v })} placeholder="Ej. Médico General" />
-            <Text style={styles.label}>Correo</Text>
-            <TextInput style={styles.input} value={form.email} onChangeText={(v) => setForm({ ...form, email: v })} placeholder="correo@ejemplo.com" autoCapitalize="none" keyboardType="email-address" />
-            <Text style={styles.label}>Pregunta de seguridad</Text>
-            <TextInput style={styles.input} value={form.preguntaSeguridad} onChangeText={(v) => setForm({ ...form, preguntaSeguridad: v })} placeholder="Ej. ¿Nombre de tu primera mascota?" />
-            <Text style={styles.label}>Usuario</Text>
-            <TextInput style={styles.input} value={form.username} onChangeText={(v) => setForm({ ...form, username: v })} placeholder="Usuario" autoCapitalize="none" />
-            <Text style={styles.label}>Contraseña</Text>
-            <TextInput style={styles.input} value={form.password} onChangeText={(v) => setForm({ ...form, password: v })} placeholder="Contraseña" secureTextEntry />
-            <Text style={styles.label}>Rol</Text>
-            <TextInput style={styles.input} value={form.role} onChangeText={(v) => setForm({ ...form, role: v })} placeholder="admin, medico, enfermero, estudios" autoCapitalize="none" />
+            <Text style={styles.subTitle}>{t('config.systemData')}</Text>
+            <Text style={styles.label}>{t('config.cargo')}</Text>
+            <TextInput style={styles.input} value={form.cargo} onChangeText={(v) => setForm({ ...form, cargo: v })} placeholder={t('config.cargoPlaceholder')} />
+            <Text style={styles.label}>{t('config.email')}</Text>
+            <TextInput style={styles.input} value={form.email} onChangeText={(v) => setForm({ ...form, email: v })} placeholder={t('config.emailPlaceholder')} autoCapitalize="none" keyboardType="email-address" />
+            <Text style={styles.label}>{t('config.securityQuestion')}</Text>
+            <TextInput style={styles.input} value={form.preguntaSeguridad} onChangeText={(v) => setForm({ ...form, preguntaSeguridad: v })} placeholder={t('config.securityQuestionPlaceholder')} />
+            <Text style={styles.label}>{t('config.username')}</Text>
+            <TextInput style={styles.input} value={form.username} onChangeText={(v) => setForm({ ...form, username: v })} placeholder={t('config.usernamePlaceholder')} autoCapitalize="none" />
+            <Text style={styles.label}>{t('config.password')}</Text>
+            <TextInput style={styles.input} value={form.password} onChangeText={(v) => setForm({ ...form, password: v })} placeholder={t('config.passwordPlaceholder')} secureTextEntry />
+            <Text style={styles.label}>{t('config.role')}</Text>
+            <TextInput style={styles.input} value={form.role} onChangeText={(v) => setForm({ ...form, role: v })} placeholder={t('config.rolePlaceholder')} autoCapitalize="none" />
           </View>
 
           <View style={styles.actionBar}>
-            <TouchableOpacity style={styles.secondaryButton} onPress={() => setForm(emptyForm)}><Text style={styles.secondaryText}>Cancelar</Text></TouchableOpacity>
-            <TouchableOpacity style={[styles.primaryButton, { paddingHorizontal: 22 }]} onPress={save}><Text style={styles.primaryText}>💾 Guardar Usuario</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.secondaryButton} onPress={() => setForm(emptyForm)}><Text style={styles.secondaryText}>{t('config.cancel')}</Text></TouchableOpacity>
+            <TouchableOpacity style={[styles.primaryButton, { paddingHorizontal: 22 }]} onPress={save}><Text style={styles.primaryText}>💾 {t('config.saveUser')}</Text></TouchableOpacity>
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Usuarios registrados</Text>
-        {usuarios.length === 0 && <Text style={styles.emptyText}>No hay usuarios registrados.</Text>}
+        <Text style={styles.sectionTitle}>{t('config.usersRegistered')}</Text>
+        {usuarios.length === 0 && <Text style={styles.emptyText}>{t('config.noUsersRegistered')}</Text>}
         {paged.map((u) => (
           <View key={u.id} style={styles.card}>
             <View style={styles.between}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.cardTitle}>{u.nombre || 'Sin nombre'} {u.papell || ''}</Text>
-                <Text style={styles.cardSubtitle}>Usuario: {u.username || u.usuario} · Rol: {u.role || u.rol}</Text>
-                {!!u.email && <Text style={styles.cardSubtitle}>Correo: {u.email}</Text>}
-                {!!u.telefono && <Text style={styles.cardSubtitle}>Teléfono: {u.telefono}</Text>}
+                <Text style={styles.cardTitle}>{u.nombre || '-'} {u.papell || ''}</Text>
+                <Text style={styles.cardSubtitle}>{t('config.username')}: {u.username || u.usuario} · {t('config.role')}: {u.role || u.rol}</Text>
+                {!!u.email && <Text style={styles.cardSubtitle}>{t('config.email')}: {u.email}</Text>}
+                {!!u.telefono && <Text style={styles.cardSubtitle}>{t('config.phone')}: {u.telefono}</Text>}
               </View>
               <Switch value={!!u.activo} onValueChange={async (activo) => setUsuarios(await updateConfigItem('usuarios', u.id, { activo }))} />
             </View>
-            <View style={[styles.between, { marginTop: 12 }]}> 
-              <View style={styles.badge}><Text style={styles.badgeText}>{u.activo ? 'ACTIVO' : 'INACTIVO'}</Text></View>
-              <TouchableOpacity style={styles.dangerButton} onPress={() => remove(u.id)}><Text style={styles.dangerText}>Eliminar</Text></TouchableOpacity>
+            <View style={[styles.between, { marginTop: 12 }]}>
+              <View style={styles.badge}><Text style={styles.badgeText}>{u.activo ? t('config.active') : t('config.inactive')}</Text></View>
+              <TouchableOpacity style={styles.dangerButton} onPress={() => remove(u.id)}><Text style={styles.dangerText}>{t('config.delete')}</Text></TouchableOpacity>
             </View>
           </View>
         ))}
