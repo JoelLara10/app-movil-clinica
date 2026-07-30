@@ -12,7 +12,9 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import Pagination from '../../components/Pagination';
 import adminService from '../../services/adminService';
+import { getAdminCache, setAdminCache } from '../../services/adminCache';
 
 const PATIENTS_PER_PAGE = 5;
 const CACHE_TIME = 1000 * 60 * 5;
@@ -62,10 +64,8 @@ const patientGroupsFallback = [
   },
 ];
 
-const patientsCache = new Map();
-
-const getCacheKey = (search = '', page = 1) => (
-  `${search.trim().toLowerCase()}::${page}`
+const getCacheKey = (search = '') => (
+  `patients:${search.trim().toLowerCase() || 'all'}:complete`
 );
 
 const normalizeGroups = (response) => {
@@ -117,45 +117,6 @@ const getPatientKey = (patient, index = 0) => (
   )
 );
 
-const mergeGroups = (currentGroups, nextGroups) => {
-  const currentByKey = new Map(
-    (currentGroups || []).map((group) => [group.key, group])
-  );
-
-  return (nextGroups || []).map((nextGroup) => {
-    const currentGroup = currentByKey.get(nextGroup.key);
-
-    if (!currentGroup) {
-      return {
-        ...nextGroup,
-        patients: nextGroup.patients || [],
-      };
-    }
-
-    const usedKeys = new Set();
-    const mergedPatients = [];
-
-    [...(currentGroup.patients || []), ...(nextGroup.patients || [])].forEach((patient, index) => {
-      const key = getPatientKey(patient, index);
-
-      if (!usedKeys.has(key)) {
-        usedKeys.add(key);
-        mergedPatients.push(patient);
-      }
-    });
-
-    return {
-      ...currentGroup,
-      ...nextGroup,
-      patients: mergedPatients,
-    };
-  });
-};
-
-const hasMoreGroups = (groups = []) => (
-  groups.some((group) => Boolean(group?.pagination?.has_more))
-);
-
 const getGroupTotal = (group) => (
   group?.pagination?.total ?? group?.patients?.length ?? 0
 );
@@ -204,74 +165,62 @@ const PacientesScreen = ({ navigation }) => {
   const [groups, setGroups] = useState(patientGroupsFallback);
   const [summary, setSummary] = useState({ activos: 0, expedientes: 0, altas: 0 });
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
   const [loadingInitial, setLoadingInitial] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [apiNotice, setApiNotice] = useState('');
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   const requestIdRef = useRef(0);
 
-  const applyPatientsResponse = useCallback((response, requestedPage, append = false) => {
+  const applyPatientsResponse = useCallback((response, requestedPage) => {
     const nextGroups = normalizeGroups(response);
     const nextSummary = normalizeSummary(response);
 
-    setGroups((currentGroups) => (
-      append ? mergeGroups(currentGroups, nextGroups) : nextGroups
-    ));
-
+    setGroups(nextGroups);
     setSummary(nextSummary);
     setPage(requestedPage);
-    setHasMore(hasMoreGroups(nextGroups));
     setApiNotice('');
   }, []);
 
   const loadPatients = useCallback(async ({
     requestedPage = 1,
-    append = false,
     forceRefresh = false,
     silent = false,
   } = {}) => {
     const currentRequestId = requestIdRef.current + 1;
     requestIdRef.current = currentRequestId;
 
-    const cacheKey = getCacheKey(debouncedSearch, requestedPage);
-    const cachedData = patientsCache.get(cacheKey);
-    const cacheIsValid =
-      cachedData &&
-      Date.now() - cachedData.timestamp < CACHE_TIME;
+    const cacheKey = getCacheKey(debouncedSearch);
+    const cachedData = await getAdminCache(cacheKey, CACHE_TIME);
 
-    if (!forceRefresh && cacheIsValid) {
-      applyPatientsResponse(cachedData.data, requestedPage, append);
+    if (cachedData) {
+      applyPatientsResponse(cachedData.data, requestedPage);
+      setLastUpdated(cachedData.timestamp);
       setLoadingInitial(false);
-      setLoadingMore(false);
-      setRefreshing(false);
-      return;
+
+      if (!forceRefresh && cachedData.isFresh) {
+        setRefreshing(false);
+        return;
+      }
     }
 
     try {
-      if (append) {
-        setLoadingMore(true);
-      } else if (!silent) {
+      if (!silent && !cachedData) {
         setLoadingInitial(true);
       }
 
       const response = await adminService.getPatients(
-        debouncedSearch,
-        requestedPage,
-        PATIENTS_PER_PAGE
+        debouncedSearch
       );
 
       if (currentRequestId !== requestIdRef.current) {
         return;
       }
 
-      patientsCache.set(cacheKey, {
-        data: response,
-        timestamp: Date.now(),
-      });
+      const savedCache = await setAdminCache(cacheKey, response);
 
-      applyPatientsResponse(response, requestedPage, append);
+      applyPatientsResponse(response, requestedPage);
+      setLastUpdated(savedCache.timestamp);
     } catch (error) {
       if (currentRequestId !== requestIdRef.current) {
         return;
@@ -286,8 +235,9 @@ const PacientesScreen = ({ navigation }) => {
         data: error.response?.data,
       });
 
-      if (cachedData) {
-        applyPatientsResponse(cachedData.data, requestedPage, append);
+      if (cachedData?.data) {
+        applyPatientsResponse(cachedData.data, requestedPage);
+        setLastUpdated(cachedData.timestamp);
         setApiNotice('Mostrando información guardada en caché.');
       } else {
         setApiNotice(
@@ -298,7 +248,6 @@ const PacientesScreen = ({ navigation }) => {
     } finally {
       if (currentRequestId === requestIdRef.current) {
         setLoadingInitial(false);
-        setLoadingMore(false);
         setRefreshing(false);
       }
     }
@@ -315,7 +264,6 @@ const PacientesScreen = ({ navigation }) => {
   useEffect(() => {
     loadPatients({
       requestedPage: 1,
-      append: false,
       forceRefresh: false,
       silent: false,
     });
@@ -326,24 +274,37 @@ const PacientesScreen = ({ navigation }) => {
 
     loadPatients({
       requestedPage: 1,
-      append: false,
       forceRefresh: true,
       silent: true,
     });
   };
 
-  const loadMorePatients = () => {
-    if (loadingMore || loadingInitial || !hasMore) {
-      return;
-    }
+  const reloadPatients = () => {
+    setRefreshing(true);
 
     loadPatients({
-      requestedPage: page + 1,
-      append: true,
-      forceRefresh: false,
+      requestedPage: page,
+      forceRefresh: true,
       silent: true,
     });
   };
+
+  const changePage = (nextPage) => {
+    if (loadingInitial || nextPage === page) {
+      return;
+    }
+
+    setPage(nextPage);
+  };
+
+  const totalPages = Math.max(1, ...(groups || []).map((group) =>
+    Math.ceil((group?.patients?.length || 0) / PATIENTS_PER_PAGE)
+  ));
+  const totalItems = (groups || []).reduce(
+    (total, group) => total + Number(getGroupTotal(group) || 0),
+    0
+  );
+  const itemsPerPage = PATIENTS_PER_PAGE * Math.max(groups.length, 1);
 
   const goToDetail = (patient) => {
     navigation.navigate('PacienteDetail', { patient });
@@ -353,7 +314,11 @@ const PacientesScreen = ({ navigation }) => {
     const rows = [];
 
     (groups || []).forEach((group) => {
-      const patients = group.patients || [];
+      const start = (page - 1) * PATIENTS_PER_PAGE;
+      const patients = (group.patients || []).slice(
+        start,
+        start + PATIENTS_PER_PAGE
+      );
 
       if (!patients.length) {
         return;
@@ -376,7 +341,7 @@ const PacientesScreen = ({ navigation }) => {
     });
 
     return rows;
-  }, [groups]);
+  }, [groups, page]);
 
   const renderItem = ({ item }) => {
     if (item.type === 'section') {
@@ -605,6 +570,30 @@ const PacientesScreen = ({ navigation }) => {
         <Summary label="Altas" value={String(summary.altas || 0)} color="#48bb78" />
       </View>
 
+      <View style={styles.refreshRow}>
+        <Text style={styles.refreshInfo}>
+          {lastUpdated
+            ? `Última actualización: ${new Date(lastUpdated).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}`
+            : 'Datos administrativos'}
+        </Text>
+
+        <TouchableOpacity
+          style={styles.refreshButton}
+          onPress={reloadPatients}
+          disabled={refreshing}
+        >
+          {refreshing ? (
+            <ActivityIndicator size="small" color="#667eea" />
+          ) : (
+            <Ionicons name="refresh-outline" size={17} color="#667eea" />
+          )}
+          <Text style={styles.refreshButtonText}>Recargar</Text>
+        </TouchableOpacity>
+      </View>
+
       {apiNotice ? (
         <View style={styles.noticeBox}>
           <Ionicons name="cloud-offline-outline" size={16} color="#b7791f" />
@@ -623,28 +612,14 @@ const PacientesScreen = ({ navigation }) => {
 
   const ListFooter = (
     <>
-      {!loadingInitial && hasMore ? (
-        <TouchableOpacity
-          style={styles.loadMoreButton}
-          onPress={loadMorePatients}
-          disabled={loadingMore}
-        >
-          {loadingMore ? (
-            <ActivityIndicator color="#667eea" />
-          ) : (
-            <>
-              <Ionicons
-                name="chevron-down-outline"
-                size={18}
-                color="#667eea"
-              />
-
-              <Text style={styles.loadMoreText}>
-                Mostrar 5 más
-              </Text>
-            </>
-          )}
-        </TouchableOpacity>
+      {!loadingInitial ? (
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          onPageChange={changePage}
+          itemsPerPage={itemsPerPage}
+          totalItems={totalItems}
+        />
       ) : null}
 
       <View style={styles.footerSpace} />
@@ -855,6 +830,35 @@ const styles = StyleSheet.create({
     color: '#718096',
     fontSize: 13,
     marginTop: 8,
+  },
+  refreshRow: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  refreshInfo: {
+    color: '#718096',
+    fontSize: 11,
+    flex: 1,
+  },
+  refreshButton: {
+    minHeight: 38,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#c3dafe',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  refreshButtonText: {
+    color: '#667eea',
+    fontSize: 12,
+    fontWeight: '800',
+    marginLeft: 5,
   },
   section: {
     paddingHorizontal: 16,

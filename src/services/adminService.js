@@ -1,4 +1,8 @@
-import api from './api';
+import api, { API_URL } from './api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 
 const buildParams = (params = {}) => (
   Object.fromEntries(
@@ -42,12 +46,11 @@ const adminService = {
     }).then(unwrap)
   ),
 
-  getPatients: (search = '', page = 1, limit = 5) => (
+  getPatients: (search = '') => (
     getWithFallback(['/gestion-pacientes', '/admin-patients', '/patients-admin', '/patients'], {
       params: buildParams({
         search,
-        page,
-        limit,
+        all: true,
       }),
     })
   ),
@@ -69,31 +72,28 @@ const adminService = {
 
   getDocumentsPatients: () => api.get('/documents/patients').then(unwrap),
 
-  getCensus: (search = '', page = 1, limit = 5) =>
+  getCensus: (search = '') =>
     api.get('/censo', {
       params: buildParams({
         search,
-        page,
-        limit,
+        all: true,
       }),
     }).then(unwrap),
 
-  getCashCut: ({ date, search, page = 1, limit = 5 } = {}) =>
+  getCashCut: ({ date, search } = {}) =>
     api.get('/corte-caja', {
       params: buildParams({
         date,
         search,
-        page,
-        limit,
+        all: true,
       }),
     }).then(unwrap),
 
-  getAccounts: (search = '', page = 1, limit = 5) =>
+  getAccounts: (search = '') =>
     api.get('/cuenta-pacientes', {
       params: buildParams({
         search,
-        page,
-        limit,
+        all: true,
       }),
     }).then(unwrap),
 
@@ -102,6 +102,51 @@ const adminService = {
 
   getAccountDocuments: (idAtencion) =>
     api.get(`/accounts/${idAtencion}/documents`).then(unwrap),
+
+  downloadDocument: async (document) => {
+    const endpoint = document?.endpoint;
+
+    if (!endpoint) {
+      throw new Error('La API no proporcionó la ruta del documento.');
+    }
+
+    const normalizedEndpoint = endpoint.startsWith('/api/')
+      ? endpoint.replace(/^\/api\/v1/, '')
+      : endpoint;
+    const filename = document.filename ||
+      `${document.key || 'documento'}_${Date.now()}.pdf`;
+
+    if (Platform.OS === 'web') {
+      const response = await api.get(normalizedEndpoint, { responseType: 'blob' });
+      const url = URL.createObjectURL(response.data);
+      const anchor = window.document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
+
+    const token = await AsyncStorage.getItem('@ineo_token');
+    const result = await FileSystem.downloadAsync(
+      `${API_URL}${normalizedEndpoint}`,
+      `${FileSystem.cacheDirectory}${filename}`,
+      { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+    );
+
+    if (result.status < 200 || result.status >= 300) {
+      throw new Error(`La API respondió con estado ${result.status}.`);
+    }
+
+    if (!(await Sharing.isAvailableAsync())) {
+      throw new Error(`Documento descargado en ${result.uri}`);
+    }
+
+    await Sharing.shareAsync(result.uri, {
+      mimeType: 'application/pdf',
+      dialogTitle: `Guardar o compartir ${document.title || 'documento'}`,
+    });
+  },
 
   addCharge: (idAtencion, payload) => (
     api.post(`/accounts/${idAtencion}/charges`, payload).then(unwrap)

@@ -12,7 +12,9 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import Pagination from '../../components/Pagination';
 import adminService from '../../services/adminService';
+import { getAdminCache, setAdminCache } from '../../services/adminCache';
 
 const movements = [
   {
@@ -98,8 +100,6 @@ const money = (value) =>
 
 const ITEMS_PER_PAGE = 5;
 const CACHE_TIME = 1000 * 60 * 5;
-const cashCutCache = new Map();
-
 const CorteCajaScreen = ({ navigation }) => {
   const [search, setSearch] = useState('');
 
@@ -111,10 +111,9 @@ const CorteCajaScreen = ({ navigation }) => {
   });
 
   const [loading, setLoading] = useState(true);
-  const [loadingMoreMovements, setLoadingMoreMovements] = useState(false);
-  const [loadingMoreAccounts, setLoadingMoreAccounts] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [apiNotice, setApiNotice] = useState('');
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   const [movementsPage, setMovementsPage] = useState(1);
   const [accountsPage, setAccountsPage] = useState(1);
@@ -137,8 +136,8 @@ const CorteCajaScreen = ({ navigation }) => {
 
   const requestIdRef = useRef(0);
 
-  const getCacheKey = (value = '', page = 1) =>
-    `${value.trim().toLowerCase()}::${page}`;
+  const getCacheKey = (value = '') =>
+    `cash-cut:${value.trim().toLowerCase() || 'all'}:complete`;
 
   const normalizeCashCutResponse = (response) => ({
     period: response.period || { label: '' },
@@ -173,65 +172,37 @@ const CorteCajaScreen = ({ navigation }) => {
       has_more: false,
     };
 
-  const mergeByKey = (currentItems, newItems, keyFactory) => {
-    const map = new Map();
-
-    [...currentItems, ...newItems].forEach((item, index) => {
-      const key = keyFactory(item, index);
-      map.set(key, item);
-    });
-
-    return Array.from(map.values());
-  };
-
   const applyCashCutResponse = (
     response,
     {
-      append = false,
       page = 1,
-      appendType = 'all',
+      target = 'all',
     } = {}
   ) => {
     const normalized = normalizeCashCutResponse(response);
 
     setCashCut((current) => {
-      if (!append) {
+      if (target === 'all') {
         return normalized;
       }
-
-      const nextMovements =
-        appendType === 'movements' || appendType === 'all'
-          ? mergeByKey(
-              current.movements || [],
-              normalized.movements || [],
-              (item, index) =>
-                `${item.id || item.id_movimiento || item.id_atencion || 'movement'}-${index}`
-            )
-          : current.movements || [];
-
-      const nextAccounts =
-        appendType === 'accounts' || appendType === 'all'
-          ? mergeByKey(
-              current.activeAccounts || [],
-              normalized.activeAccounts || [],
-              (item, index) =>
-                `${item.id_atencion || item.attention || item.record || 'account'}-${index}`
-            )
-          : current.activeAccounts || [];
 
       return {
         period: normalized.period || current.period,
         summary: normalized.summary || current.summary,
-        movements: nextMovements,
-        activeAccounts: nextAccounts,
+        movements: target === 'movements'
+          ? normalized.movements
+          : current.movements || [],
+        activeAccounts: target === 'accounts'
+          ? normalized.activeAccounts
+          : current.activeAccounts || [],
       };
     });
 
-    if (appendType === 'movements' || appendType === 'all') {
+    if (target === 'movements' || target === 'all') {
       setMovementsPagination(getMovementsPagination(response, page));
     }
 
-    if (appendType === 'accounts' || appendType === 'all') {
+    if (target === 'accounts' || target === 'all') {
       setAccountsPagination(getAccountsPagination(response, page));
     }
 
@@ -242,79 +213,70 @@ const CorteCajaScreen = ({ navigation }) => {
     silent = false,
     forceRefresh = false,
     page = 1,
-    append = false,
-    appendType = 'all',
+    target = 'all',
   } = {}) => {
     const currentRequestId = requestIdRef.current + 1;
     requestIdRef.current = currentRequestId;
 
-    const cacheKey = getCacheKey(search, page);
-    const cachedData = cashCutCache.get(cacheKey);
-    const cacheIsValid =
-      cachedData &&
-      Date.now() - cachedData.timestamp < CACHE_TIME;
+    const cacheKey = getCacheKey(search);
+    const cachedData = await getAdminCache(cacheKey, CACHE_TIME);
 
-    if (!forceRefresh && cacheIsValid) {
+    if (cachedData) {
       applyCashCutResponse(cachedData.data, {
-        append,
         page,
-        appendType,
+        target,
       });
 
+      setLastUpdated(cachedData.timestamp);
       setLoading(false);
-      setRefreshing(false);
-      setLoadingMoreMovements(false);
-      setLoadingMoreAccounts(false);
-      return;
+
+      if (!forceRefresh && cachedData.isFresh) {
+        setRefreshing(false);
+        return;
+      }
     }
 
     try {
-      if (!silent && !append && !cachedData) {
+      if (!silent && !cachedData) {
         setLoading(true);
       }
 
       if (cachedData) {
         applyCashCutResponse(cachedData.data, {
-          append,
           page,
-          appendType,
+          target,
         });
       }
 
       const response = await adminService.getCashCut({
         search,
-        page,
-        limit: ITEMS_PER_PAGE,
       });
 
       if (currentRequestId !== requestIdRef.current) {
         return;
       }
 
-      cashCutCache.set(cacheKey, {
-        data: response,
-        timestamp: Date.now(),
-      });
+      const savedCache = await setAdminCache(cacheKey, response);
 
       applyCashCutResponse(response, {
-        append,
         page,
-        appendType,
+        target,
       });
+      setLastUpdated(savedCache.timestamp);
     } catch (error) {
       if (currentRequestId !== requestIdRef.current) {
         return;
       }
 
-      if (cachedData) {
+      if (cachedData?.data) {
         applyCashCutResponse(cachedData.data, {
-          append,
           page,
-          appendType,
+          target,
         });
 
+        setLastUpdated(cachedData.timestamp);
         setApiNotice('Mostrando información guardada en caché.');
-      } else if (!append) {
+      } else if (target === 'all') {
         setApiNotice(
           'Mostrando datos locales. No se pudo consultar el corte en la API.'
         );
@@ -342,14 +304,12 @@ const CorteCajaScreen = ({ navigation }) => {
           has_more: false,
         });
       } else {
-        setApiNotice('No se pudieron cargar más registros desde la API.');
+        setApiNotice('No se pudo cambiar la página del corte.');
       }
     } finally {
       if (currentRequestId === requestIdRef.current) {
         setLoading(false);
         setRefreshing(false);
-        setLoadingMoreMovements(false);
-        setLoadingMoreAccounts(false);
       }
     }
   };
@@ -383,40 +343,32 @@ const CorteCajaScreen = ({ navigation }) => {
     });
   };
 
-  const loadMoreMovements = () => {
-    if (loadingMoreMovements || !movementsPagination.has_more) {
-      return;
-    }
-
-    const nextPage = movementsPage + 1;
-
-    setMovementsPage(nextPage);
-    setLoadingMoreMovements(true);
+  const reloadCashCut = () => {
+    setRefreshing(true);
+    setMovementsPage(1);
+    setAccountsPage(1);
 
     loadCashCut({
       silent: true,
-      page: nextPage,
-      append: true,
-      appendType: 'movements',
+      forceRefresh: true,
+      page: 1,
     });
   };
 
-  const loadMoreAccounts = () => {
-    if (loadingMoreAccounts || !accountsPagination.has_more) {
+  const changeMovementsPage = (nextPage) => {
+    if (loading || nextPage === movementsPage) {
       return;
     }
 
-    const nextPage = accountsPage + 1;
+    setMovementsPage(nextPage);
+  };
+
+  const changeAccountsPage = (nextPage) => {
+    if (loading || nextPage === accountsPage) {
+      return;
+    }
 
     setAccountsPage(nextPage);
-    setLoadingMoreAccounts(true);
-
-    loadCashCut({
-      silent: true,
-      page: nextPage,
-      append: true,
-      appendType: 'accounts',
-    });
   };
 
   const totals = useMemo(() => {
@@ -457,20 +409,15 @@ const CorteCajaScreen = ({ navigation }) => {
     }
   );
 
-  const visibleMovementItems = cashCut.movements;
-
-  const visibleAccountItems = filteredAccounts;
-
-  const remainingMovements = Math.max(
-    (movementsPagination.total || cashCut.movements.length) -
-      visibleMovementItems.length,
-    0
+  const movementStart = (movementsPage - 1) * ITEMS_PER_PAGE;
+  const accountStart = (accountsPage - 1) * ITEMS_PER_PAGE;
+  const visibleMovementItems = cashCut.movements.slice(
+    movementStart,
+    movementStart + ITEMS_PER_PAGE
   );
-
-  const remainingAccounts = Math.max(
-    (accountsPagination.total || filteredAccounts.length) -
-      visibleAccountItems.length,
-    0
+  const visibleAccountItems = filteredAccounts.slice(
+    accountStart,
+    accountStart + ITEMS_PER_PAGE
   );
 
   return (
@@ -597,6 +544,30 @@ const CorteCajaScreen = ({ navigation }) => {
         />
       </View>
 
+      <View style={styles.refreshRow}>
+        <Text style={styles.refreshInfo}>
+          {lastUpdated
+            ? `Última actualización: ${new Date(lastUpdated).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}`
+            : 'Datos del corte'}
+        </Text>
+
+        <TouchableOpacity
+          style={styles.refreshButton}
+          onPress={reloadCashCut}
+          disabled={refreshing}
+        >
+          {refreshing ? (
+            <ActivityIndicator size="small" color="#667eea" />
+          ) : (
+            <Ionicons name="refresh-outline" size={17} color="#667eea" />
+          )}
+          <Text style={styles.refreshButtonText}>Recargar</Text>
+        </TouchableOpacity>
+      </View>
+
       {apiNotice ? (
         <View style={styles.noticeBox}>
           <Ionicons
@@ -692,33 +663,13 @@ const CorteCajaScreen = ({ navigation }) => {
           </View>
         ))}
 
-        {remainingMovements > 0 ? (
-          <TouchableOpacity
-            style={styles.loadMoreButton}
-            onPress={loadMoreMovements}
-            disabled={loadingMoreMovements}
-          >
-            {loadingMoreMovements ? (
-              <ActivityIndicator color="#667eea" />
-            ) : (
-              <Ionicons
-                name="chevron-down-outline"
-                size={18}
-                color="#667eea"
-              />
-            )}
-
-            <Text style={styles.loadMoreText}>
-              {loadingMoreMovements
-                ? 'Cargando...'
-                : 'Mostrar 5 movimientos más'}
-            </Text>
-
-            <Text style={styles.remainingText}>
-              {remainingMovements} restantes
-            </Text>
-          </TouchableOpacity>
-        ) : null}
+        <Pagination
+          currentPage={movementsPage}
+          totalPages={Math.max(1, Math.ceil(cashCut.movements.length / ITEMS_PER_PAGE))}
+          onPageChange={changeMovementsPage}
+          itemsPerPage={ITEMS_PER_PAGE}
+          totalItems={cashCut.movements.length}
+        />
       </View>
 
       <View style={styles.section}>
@@ -818,33 +769,13 @@ const CorteCajaScreen = ({ navigation }) => {
           </TouchableOpacity>
         ))}
 
-        {remainingAccounts > 0 ? (
-          <TouchableOpacity
-            style={styles.loadMoreButton}
-            onPress={loadMoreAccounts}
-            disabled={loadingMoreAccounts}
-          >
-            {loadingMoreAccounts ? (
-              <ActivityIndicator color="#667eea" />
-            ) : (
-              <Ionicons
-                name="chevron-down-outline"
-                size={18}
-                color="#667eea"
-              />
-            )}
-
-            <Text style={styles.loadMoreText}>
-              {loadingMoreAccounts
-                ? 'Cargando...'
-                : 'Mostrar 5 cuentas más'}
-            </Text>
-
-            <Text style={styles.remainingText}>
-              {remainingAccounts} restantes
-            </Text>
-          </TouchableOpacity>
-        ) : null}
+        <Pagination
+          currentPage={accountsPage}
+          totalPages={Math.max(1, Math.ceil(filteredAccounts.length / ITEMS_PER_PAGE))}
+          onPageChange={changeAccountsPage}
+          itemsPerPage={ITEMS_PER_PAGE}
+          totalItems={filteredAccounts.length}
+        />
       </View>
     </ScrollView>
   );
@@ -1011,6 +942,40 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     paddingHorizontal: 12,
     marginTop: 14,
+  },
+
+  refreshRow: {
+    marginHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  refreshInfo: {
+    color: '#718096',
+    fontSize: 11,
+    flex: 1,
+  },
+
+  refreshButton: {
+    minHeight: 38,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#c3dafe',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  refreshButtonText: {
+    color: '#667eea',
+    fontSize: 12,
+    fontWeight: '800',
+    marginLeft: 5,
   },
 
   metricCard: {

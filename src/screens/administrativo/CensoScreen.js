@@ -12,7 +12,9 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import Pagination from '../../components/Pagination';
 import adminService from '../../services/adminService';
+import { getAdminCache, setAdminCache } from '../../services/adminCache';
 
 const censusSections = [
   {
@@ -109,8 +111,6 @@ const matchesSearch = (patient, query) => {
 
 const PATIENTS_PER_PAGE = 5;
 const CACHE_TIME = 1000 * 60 * 5;
-const censusCache = new Map();
-
 const CensoScreen = ({ navigation }) => {
   const [searches, setSearches] = useState({
     consulta: '',
@@ -121,9 +121,9 @@ const CensoScreen = ({ navigation }) => {
   const [sections, setSections] = useState(censusSections);
   const [summary, setSummary] = useState({ activos: 5, areas: 3, avisos: 3 });
   const [loading, setLoading] = useState(true);
-  const [loadingMoreBySection, setLoadingMoreBySection] = useState({});
   const [refreshing, setRefreshing] = useState(false);
   const [apiNotice, setApiNotice] = useState('');
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   const [pagesBySection, setPagesBySection] = useState({
     consulta: 1,
@@ -162,19 +162,8 @@ const CensoScreen = ({ navigation }) => {
       .join(' ')
       .trim();
 
-  const getCacheKey = (search = '', page = 1) =>
-    `${search.trim().toLowerCase()}::${page}`;
-
-  const mergeByKey = (currentItems, newItems, keyFactory) => {
-    const map = new Map();
-
-    [...currentItems, ...newItems].forEach((item, index) => {
-      const key = keyFactory(item, index);
-      map.set(key, item);
-    });
-
-    return Array.from(map.values());
-  };
+  const getCacheKey = (search = '') =>
+    `census:${search.trim().toLowerCase() || 'all'}:complete`;
 
   const getSectionPagination = (section, response, page) =>
     section.pagination ||
@@ -192,20 +181,19 @@ const CensoScreen = ({ navigation }) => {
   const applyCensusResponse = (
     response,
     {
-      append = false,
-      appendSectionKey = null,
+      sectionKey = null,
       page = 1,
     } = {}
   ) => {
     const responseSections = response.sections || censusSections;
 
     setSections((currentSections) => {
-      if (!append) {
+      if (!sectionKey) {
         return responseSections;
       }
 
       return currentSections.map((currentSection) => {
-        if (appendSectionKey && currentSection.key !== appendSectionKey) {
+        if (currentSection.key !== sectionKey) {
           return currentSection;
         }
 
@@ -220,12 +208,7 @@ const CensoScreen = ({ navigation }) => {
         return {
           ...currentSection,
           ...incomingSection,
-          data: mergeByKey(
-            currentSection.data || [],
-            incomingSection.data || [],
-            (item, index) =>
-              `${item.id_atencion || item.account || 'censo'}-${item.Id_exp || item.record || index}`
-          ),
+          data: incomingSection.data || [],
         };
       });
     });
@@ -236,6 +219,10 @@ const CensoScreen = ({ navigation }) => {
       const nextPagination = { ...current };
 
       responseSections.forEach((section) => {
+        if (sectionKey && section.key !== sectionKey) {
+          return;
+        }
+
         nextPagination[section.key] = getSectionPagination(
           section,
           response,
@@ -253,89 +240,80 @@ const CensoScreen = ({ navigation }) => {
     silent = false,
     forceRefresh = false,
     page = 1,
-    append = false,
-    appendSectionKey = null,
+    sectionKey = null,
   } = {}) => {
     const currentRequestId = requestIdRef.current + 1;
     requestIdRef.current = currentRequestId;
 
     const globalSearch = getGlobalSearch();
-    const cacheKey = getCacheKey(globalSearch, page);
-    const cachedData = censusCache.get(cacheKey);
-    const cacheIsValid =
-      cachedData &&
-      Date.now() - cachedData.timestamp < CACHE_TIME;
+    const cacheKey = getCacheKey(globalSearch);
+    const cachedData = await getAdminCache(cacheKey, CACHE_TIME);
 
-    if (!forceRefresh && cacheIsValid) {
+    if (cachedData) {
       applyCensusResponse(cachedData.data, {
-        append,
-        appendSectionKey,
+        sectionKey,
         page,
       });
 
+      setLastUpdated(cachedData.timestamp);
       setLoading(false);
-      setRefreshing(false);
-      setLoadingMoreBySection({});
-      return;
+
+      if (!forceRefresh && cachedData.isFresh) {
+        setRefreshing(false);
+        return;
+      }
     }
 
     try {
-      if (!silent && !append && !cachedData) {
+      if (!silent && !cachedData) {
         setLoading(true);
       }
 
       if (cachedData) {
         applyCensusResponse(cachedData.data, {
-          append,
-          appendSectionKey,
+          sectionKey,
           page,
         });
       }
 
       const response = await adminService.getCensus(
-        globalSearch,
-        page,
-        PATIENTS_PER_PAGE
+        globalSearch
       );
 
       if (currentRequestId !== requestIdRef.current) {
         return;
       }
 
-      censusCache.set(cacheKey, {
-        data: response,
-        timestamp: Date.now(),
-      });
+      const savedCache = await setAdminCache(cacheKey, response);
 
       applyCensusResponse(response, {
-        append,
-        appendSectionKey,
+        sectionKey,
         page,
       });
+      setLastUpdated(savedCache.timestamp);
     } catch (error) {
       if (currentRequestId !== requestIdRef.current) {
         return;
       }
 
-      if (cachedData) {
+      if (cachedData?.data) {
         applyCensusResponse(cachedData.data, {
-          append,
-          appendSectionKey,
+          sectionKey,
           page,
         });
 
+        setLastUpdated(cachedData.timestamp);
         setApiNotice('Mostrando información guardada en caché.');
-      } else if (!append) {
+      } else if (!sectionKey) {
         setApiNotice('Mostrando datos locales. No se pudo consultar el censo en la API.');
         setSections(censusSections);
       } else {
-        setApiNotice('No se pudieron cargar más pacientes desde la API.');
+        setApiNotice('No se pudo cambiar la página del censo.');
       }
     } finally {
       if (currentRequestId === requestIdRef.current) {
         setLoading(false);
         setRefreshing(false);
-        setLoadingMoreBySection({});
       }
     }
   };
@@ -380,31 +358,31 @@ const CensoScreen = ({ navigation }) => {
     setSearches((current) => ({ ...current, [key]: value }));
   };
 
-  const loadMoreSection = (sectionKey) => {
-    const pagination = paginationBySection[sectionKey];
+  const reloadCensus = () => {
+    setRefreshing(true);
+    setPagesBySection({
+      consulta: 1,
+      preparacion: 1,
+      recuperacion: 1,
+    });
 
-    if (loadingMoreBySection[sectionKey] || !pagination?.has_more) {
+    loadCensus({
+      silent: true,
+      forceRefresh: true,
+      page: 1,
+    });
+  };
+
+  const changeSectionPage = (sectionKey, nextPage) => {
+    if (loading || nextPage === pagesBySection[sectionKey]) {
       return;
     }
-
-    const nextPage = (pagesBySection[sectionKey] || 1) + 1;
 
     setPagesBySection((current) => ({
       ...current,
       [sectionKey]: nextPage,
     }));
 
-    setLoadingMoreBySection((current) => ({
-      ...current,
-      [sectionKey]: true,
-    }));
-
-    loadCensus({
-      silent: true,
-      page: nextPage,
-      append: true,
-      appendSectionKey: sectionKey,
-    });
   };
 
   const renderPatient = (patient, accent, roomLabel, index) => (
@@ -499,6 +477,30 @@ const CensoScreen = ({ navigation }) => {
         <SummaryCard icon="alert-circle-outline" label="Avisos" value={String(summary.avisos || 0)} color="#ed8936" />
       </View>
 
+      <View style={styles.refreshRow}>
+        <Text style={styles.refreshInfo}>
+          {lastUpdated
+            ? `Última actualización: ${new Date(lastUpdated).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}`
+            : 'Datos del censo'}
+        </Text>
+
+        <TouchableOpacity
+          style={styles.refreshButton}
+          onPress={reloadCensus}
+          disabled={refreshing}
+        >
+          {refreshing ? (
+            <ActivityIndicator size="small" color="#667eea" />
+          ) : (
+            <Ionicons name="refresh-outline" size={17} color="#667eea" />
+          )}
+          <Text style={styles.refreshButtonText}>Recargar</Text>
+        </TouchableOpacity>
+      </View>
+
       {apiNotice ? (
         <View style={styles.noticeBox}>
           <Ionicons name="cloud-offline-outline" size={16} color="#b7791f" />
@@ -516,21 +518,17 @@ const CensoScreen = ({ navigation }) => {
       {sections.map((section) => {
         const query = searches[section.key] || '';
 
-        const filtered = (section.data || []).filter((patient) =>
+        const allFiltered = (section.data || []).filter((patient) =>
           matchesSearch(patient, query)
         );
+        const sectionPage = pagesBySection[section.key] || 1;
+        const start = (sectionPage - 1) * PATIENTS_PER_PAGE;
+        const filtered = allFiltered.slice(start, start + PATIENTS_PER_PAGE);
 
         const sectionPagination = paginationBySection[section.key] || {
-          total: filtered.length,
+          total: allFiltered.length,
           has_more: false,
         };
-
-        const remainingPatients = Math.max(
-          (sectionPagination.total || filtered.length) - filtered.length,
-          0
-        );
-
-        const isLoadingMore = !!loadingMoreBySection[section.key];
 
         return (
           <View key={section.key} style={styles.section}>
@@ -570,33 +568,13 @@ const CensoScreen = ({ navigation }) => {
                   )
                 )}
 
-                {sectionPagination.has_more ? (
-                  <TouchableOpacity
-                    style={styles.loadMoreButton}
-                    onPress={() => loadMoreSection(section.key)}
-                    disabled={isLoadingMore}
-                  >
-                    {isLoadingMore ? (
-                      <ActivityIndicator color="#667eea" />
-                    ) : (
-                      <Ionicons
-                        name="chevron-down-outline"
-                        size={18}
-                        color="#667eea"
-                      />
-                    )}
-
-                    <Text style={styles.loadMoreText}>
-                      {isLoadingMore
-                        ? 'Cargando...'
-                        : 'Mostrar 5 más'}
-                    </Text>
-
-                    <Text style={styles.remainingText}>
-                      {remainingPatients} restantes
-                    </Text>
-                  </TouchableOpacity>
-                ) : null}
+                <Pagination
+                  currentPage={sectionPage}
+                  totalPages={Math.max(1, Math.ceil(allFiltered.length / PATIENTS_PER_PAGE))}
+                  onPageChange={(nextPage) => changeSectionPage(section.key, nextPage)}
+                  itemsPerPage={PATIENTS_PER_PAGE}
+                  totalItems={allFiltered.length}
+                />
               </>
             ) : (
               <View style={styles.emptyState}>
@@ -711,6 +689,35 @@ const styles = StyleSheet.create({
   },
   summaryValue: { fontSize: 20, fontWeight: '800', color: '#2d3748', fontVariant: ['tabular-nums'] },
   summaryLabel: { fontSize: 11, color: '#718096', marginTop: 2 },
+  refreshRow: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  refreshInfo: {
+    color: '#718096',
+    fontSize: 11,
+    flex: 1,
+  },
+  refreshButton: {
+    minHeight: 38,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#c3dafe',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  refreshButtonText: {
+    color: '#667eea',
+    fontSize: 12,
+    fontWeight: '800',
+    marginLeft: 5,
+  },
   section: { paddingHorizontal: 16, marginTop: 18 },
   sectionHeader: {
     backgroundColor: '#fff',

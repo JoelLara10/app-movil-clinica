@@ -10,10 +10,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import Pagination from '../../components/Pagination';
 import adminService from '../../services/adminService';
+import { getAdminCache, setAdminCache } from '../../services/adminCache';
 
 const fallbackPatient = {
   record: 'INEO-000341',
@@ -36,18 +37,15 @@ const initialCharges = [
 ];
 
 const documents = [
-  { title: 'Hoja inicial', icon: 'document-text-outline', color: '#667eea' },
-  { title: 'Hoja frontal', icon: 'reader-outline', color: '#48bb78' },
-  { title: 'Contrato', icon: 'briefcase-outline', color: '#ed8936' },
-  { title: 'Consentimiento', icon: 'shield-checkmark-outline', color: '#38b2ac' },
-  { title: 'Ficha', icon: 'id-card-outline', color: '#9f7aea' },
+  { key: 'initial-sheet', title: 'Hoja inicial', icon: 'document-text-outline', color: '#667eea' },
+  { key: 'front-sheet', title: 'Hoja frontal', icon: 'reader-outline', color: '#48bb78' },
+  { key: 'contract', title: 'Contrato', icon: 'briefcase-outline', color: '#ed8936' },
+  { key: 'consent', title: 'Consentimiento', icon: 'shield-checkmark-outline', color: '#38b2ac' },
+  { key: 'identification-sheet', title: 'Ficha', icon: 'id-card-outline', color: '#9f7aea' },
 ];
 
 const ACCOUNTS_PER_PAGE = 5;
 const CACHE_TIME = 1000 * 60 * 5;
-const accountsMemoryCache = new Map();
-const accountDetailMemoryCache = new Map();
-const optionsMemoryCache = new Map();
 
 const money = (value) => `$${Number(value || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 
@@ -58,52 +56,6 @@ const normalizePatient = (patient = {}) => ({
   attention: patient.attention || patient.id_atencion || fallbackPatient.attention,
   record: patient.record || patient.Id_exp || fallbackPatient.record,
 });
-
-const getAsyncCacheKey = (key) => `paciente_detail_cache_${key}`;
-
-const getCacheItem = async (memoryCache, key) => {
-  const memoryItem = memoryCache.get(key);
-
-  if (memoryItem && Date.now() - memoryItem.timestamp < CACHE_TIME) {
-    return memoryItem.data;
-  }
-
-  try {
-    const rawValue = await AsyncStorage.getItem(getAsyncCacheKey(key));
-
-    if (!rawValue) {
-      return null;
-    }
-
-    const parsedValue = JSON.parse(rawValue);
-
-    if (!parsedValue?.timestamp || Date.now() - parsedValue.timestamp >= CACHE_TIME) {
-      await AsyncStorage.removeItem(getAsyncCacheKey(key));
-      return null;
-    }
-
-    memoryCache.set(key, parsedValue);
-
-    return parsedValue.data;
-  } catch (error) {
-    return null;
-  }
-};
-
-const setCacheItem = async (memoryCache, key, data) => {
-  const cacheValue = {
-    data,
-    timestamp: Date.now(),
-  };
-
-  memoryCache.set(key, cacheValue);
-
-  try {
-    await AsyncStorage.setItem(getAsyncCacheKey(key), JSON.stringify(cacheValue));
-  } catch (error) {
-    console.log('ERROR GUARDANDO CACHE:', error.message);
-  }
-};
 
 const extractAccounts = (response) => {
   if (Array.isArray(response)) return response;
@@ -158,25 +110,10 @@ const getAccountKey = (item, index = 0) => (
   )
 );
 
-const mergeAccounts = (currentAccounts = [], nextAccounts = []) => {
-  const usedKeys = new Set();
-  const mergedAccounts = [];
-
-  [...currentAccounts, ...nextAccounts].forEach((item, index) => {
-    const key = getAccountKey(item, index);
-
-    if (!usedKeys.has(key)) {
-      usedKeys.add(key);
-      mergedAccounts.push(item);
-    }
-  });
-
-  return mergedAccounts;
-};
-
 const PacienteDetailScreen = ({ navigation, route }) => {
   const patient = normalizePatient(route?.params?.patient);
   const idAtencion = patient.id_atencion || patient.idAtencion || route?.params?.id_atencion;
+  const idExp = patient.Id_exp || patient.id_exp || route?.params?.id_exp;
 
   const [service, setService] = useState('');
   const [serviceQty, setServiceQty] = useState('1');
@@ -190,11 +127,12 @@ const PacienteDetailScreen = ({ navigation, route }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [apiNotice, setApiNotice] = useState('');
+  const [lastUpdated, setLastUpdated] = useState(null);
   const [accountList, setAccountList] = useState([]);
   const [accountsPage, setAccountsPage] = useState(1);
-  const [accountsHasMore, setAccountsHasMore] = useState(false);
+  const [accountsTotalPages, setAccountsTotalPages] = useState(1);
   const [accountsTotal, setAccountsTotal] = useState(0);
-  const [loadingMoreAccounts, setLoadingMoreAccounts] = useState(false);
+  const [downloadingDocument, setDownloadingDocument] = useState('');
   const [accountSearch, setAccountSearch] = useState('');
   const [debouncedAccountSearch, setDebouncedAccountSearch] = useState('');
 
@@ -220,25 +158,34 @@ const PacienteDetailScreen = ({ navigation, route }) => {
   }, [account]);
 
   const charges = account?.charges || account?.items || initialCharges;
-  const documentItems = account?.documents || documents;
+  const documentItems = account?.documents?.length
+    ? account.documents
+    : documents.map((document) => ({
+        ...document,
+        endpoint: idExp && idAtencion
+          ? `/api/v1/pdf/${document.key}/${idExp}/${idAtencion}`
+          : '',
+        filename: `${document.key}_${idAtencion || 'paciente'}.pdf`,
+      }));
+  const accountListStart = (accountsPage - 1) * ACCOUNTS_PER_PAGE;
+  const visibleAccountList = accountList.slice(
+    accountListStart,
+    accountListStart + ACCOUNTS_PER_PAGE
+  );
 
-  const applyAccountsResponse = useCallback((response, requestedPage, append = false) => {
+  const applyAccountsResponse = useCallback((response, requestedPage) => {
     const nextAccounts = extractAccounts(response);
     const pagination = extractAccountsPagination(response);
 
-    setAccountList((currentAccounts) => (
-      append ? mergeAccounts(currentAccounts, nextAccounts) : nextAccounts
-    ));
-
+    setAccountList(nextAccounts);
     setAccountsPage(pagination.page || requestedPage);
-    setAccountsHasMore(Boolean(pagination.has_more));
-    setAccountsTotal(pagination.total ?? nextAccounts.length);
+    setAccountsTotalPages(Math.max(1, Math.ceil(nextAccounts.length / ACCOUNTS_PER_PAGE)));
+    setAccountsTotal(nextAccounts.length);
     setApiNotice('');
   }, []);
 
   const loadAccountList = useCallback(async ({
     requestedPage = 1,
-    append = false,
     forceRefresh = false,
     silent = false,
   } = {}) => {
@@ -246,43 +193,45 @@ const PacienteDetailScreen = ({ navigation, route }) => {
     requestIdRef.current = currentRequestId;
 
     const searchValue = debouncedAccountSearch.trim();
-    const cacheKey = `accounts_search_${searchValue.toLowerCase()}_page_${requestedPage}`;
+    const cacheKey = `accounts:${searchValue.toLowerCase() || 'all'}:complete`;
 
     try {
-      if (append) {
-        setLoadingMoreAccounts(true);
-      } else if (!silent) {
+      const cachedData = await getAdminCache(cacheKey, CACHE_TIME);
+
+      if (cachedData) {
+        applyAccountsResponse(cachedData.data, requestedPage);
+        setLastUpdated(cachedData.timestamp);
+        setLoading(false);
+
+        if (!forceRefresh && cachedData.isFresh) {
+          setRefreshing(false);
+          return;
+        }
+      }
+
+      if (!silent && !cachedData) {
         setLoading(true);
       }
 
-      const cachedData = await getCacheItem(accountsMemoryCache, cacheKey);
-
-      if (!forceRefresh && cachedData) {
-        applyAccountsResponse(cachedData, requestedPage, append);
-        setLoading(false);
-        setLoadingMoreAccounts(false);
-        setRefreshing(false);
-
-        return;
-      }
-
-      const response = await adminService.getAccounts(searchValue, requestedPage, ACCOUNTS_PER_PAGE);
+      const response = await adminService.getAccounts(searchValue);
 
       if (currentRequestId !== requestIdRef.current) {
         return;
       }
 
-      await setCacheItem(accountsMemoryCache, cacheKey, response);
-      applyAccountsResponse(response, requestedPage, append);
+      const savedCache = await setAdminCache(cacheKey, response);
+      applyAccountsResponse(response, requestedPage);
+      setLastUpdated(savedCache.timestamp);
     } catch (error) {
       if (currentRequestId !== requestIdRef.current) {
         return;
       }
 
-      const cachedData = await getCacheItem(accountsMemoryCache, cacheKey);
+      const cachedData = await getAdminCache(cacheKey, CACHE_TIME);
 
       if (cachedData) {
-        applyAccountsResponse(cachedData, requestedPage, append);
+        applyAccountsResponse(cachedData.data, requestedPage);
+        setLastUpdated(cachedData.timestamp);
         setApiNotice('Mostrando información guardada en caché.');
       } else {
         setApiNotice('No se pudieron consultar las cuentas activas en la API.');
@@ -290,36 +239,40 @@ const PacienteDetailScreen = ({ navigation, route }) => {
     } finally {
       if (currentRequestId === requestIdRef.current) {
         setLoading(false);
-        setLoadingMoreAccounts(false);
         setRefreshing(false);
       }
     }
   }, [applyAccountsResponse, debouncedAccountSearch]);
 
   const loadAccountDetail = useCallback(async ({ silent = false, forceRefresh = false } = {}) => {
-    const accountCacheKey = `account_detail_${idAtencion}`;
-    const optionsCacheKey = 'options_account_detail';
+    const accountCacheKey = `account-detail:${idAtencion}`;
+    const optionsCacheKey = 'account-options';
 
     try {
-      if (!silent) {
-        setLoading(true);
-      }
+      const [cachedAccount, cachedOptions] = await Promise.all([
+        getAdminCache(accountCacheKey, CACHE_TIME),
+        getAdminCache(optionsCacheKey, CACHE_TIME),
+      ]);
 
-      const cachedAccount = await getCacheItem(accountDetailMemoryCache, accountCacheKey);
-      const cachedOptions = await getCacheItem(optionsMemoryCache, optionsCacheKey);
+      if (cachedAccount) {
+        setAccount(cachedAccount.data);
+        setLastUpdated(cachedAccount.timestamp);
 
-      if (!forceRefresh && cachedAccount) {
-        setAccount(cachedAccount);
-
-        if (cachedOptions) {
-          setOptions(cachedOptions);
+        if (cachedOptions?.data) {
+          setOptions(cachedOptions.data);
         }
 
         setApiNotice('');
         setLoading(false);
-        setRefreshing(false);
 
-        return;
+        if (!forceRefresh && cachedAccount.isFresh && cachedOptions?.isFresh) {
+          setRefreshing(false);
+          return;
+        }
+      }
+
+      if (!silent && !cachedAccount) {
+        setLoading(true);
       }
 
       const [accountResponse, optionsResponse] = await Promise.all([
@@ -330,19 +283,23 @@ const PacienteDetailScreen = ({ navigation, route }) => {
       setAccount(accountResponse);
       setOptions(optionsResponse || { servicios: [], medicamentos: [] });
 
-      await setCacheItem(accountDetailMemoryCache, accountCacheKey, accountResponse);
-      await setCacheItem(optionsMemoryCache, optionsCacheKey, optionsResponse || { servicios: [], medicamentos: [] });
+      const savedAccount = await setAdminCache(accountCacheKey, accountResponse);
+      await setAdminCache(optionsCacheKey, optionsResponse || { servicios: [], medicamentos: [] });
+      setLastUpdated(savedAccount.timestamp);
 
       setApiNotice('');
     } catch (error) {
-      const cachedAccount = await getCacheItem(accountDetailMemoryCache, accountCacheKey);
-      const cachedOptions = await getCacheItem(optionsMemoryCache, optionsCacheKey);
+      const [cachedAccount, cachedOptions] = await Promise.all([
+        getAdminCache(accountCacheKey, CACHE_TIME),
+        getAdminCache(optionsCacheKey, CACHE_TIME),
+      ]);
 
       if (cachedAccount) {
-        setAccount(cachedAccount);
+        setAccount(cachedAccount.data);
+        setLastUpdated(cachedAccount.timestamp);
 
-        if (cachedOptions) {
-          setOptions(cachedOptions);
+        if (cachedOptions?.data) {
+          setOptions(cachedOptions.data);
         }
 
         setApiNotice('Mostrando información guardada en caché.');
@@ -359,7 +316,6 @@ const PacienteDetailScreen = ({ navigation, route }) => {
     if (!idAtencion) {
       await loadAccountList({
         requestedPage: 1,
-        append: false,
         forceRefresh,
         silent,
       });
@@ -391,17 +347,52 @@ const PacienteDetailScreen = ({ navigation, route }) => {
     });
   };
 
-  const loadMoreAccounts = () => {
-    if (loading || loadingMoreAccounts || !accountsHasMore) {
+  const renderRefreshBar = () => (
+    <View style={styles.refreshRow}>
+      <Text style={styles.refreshInfo}>
+        {lastUpdated
+          ? `Última actualización: ${new Date(lastUpdated).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}`
+          : 'Datos de la cuenta'}
+      </Text>
+
+      <TouchableOpacity
+        style={styles.refreshButton}
+        onPress={onRefresh}
+        disabled={refreshing}
+      >
+        {refreshing ? (
+          <ActivityIndicator size="small" color="#667eea" />
+        ) : (
+          <Ionicons name="refresh-outline" size={17} color="#667eea" />
+        )}
+        <Text style={styles.refreshButtonText}>Recargar</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const changeAccountsPage = (nextPage) => {
+    if (loading || nextPage === accountsPage) {
       return;
     }
 
-    loadAccountList({
-      requestedPage: accountsPage + 1,
-      append: true,
-      forceRefresh: false,
-      silent: true,
-    });
+    setAccountsPage(nextPage);
+  };
+
+  const downloadDocument = async (doc) => {
+    try {
+      setDownloadingDocument(doc.key || doc.title);
+      await adminService.downloadDocument(doc);
+    } catch (error) {
+      Alert.alert(
+        'No se pudo abrir el documento',
+        error.response?.data?.error || error.message || 'Intenta nuevamente.'
+      );
+    } finally {
+      setDownloadingDocument('');
+    }
   };
 
   const clearAccountSearch = () => {
@@ -436,7 +427,8 @@ const PacienteDetailScreen = ({ navigation, route }) => {
       });
 
       setAccount(response);
-      await setCacheItem(accountDetailMemoryCache, `account_detail_${idAtencion}`, response);
+      const savedCache = await setAdminCache(`account-detail:${idAtencion}`, response);
+      setLastUpdated(savedCache.timestamp);
 
       setService('');
       setServiceQty('1');
@@ -480,7 +472,8 @@ const PacienteDetailScreen = ({ navigation, route }) => {
       const nextAccount = response.account || response;
 
       setAccount(nextAccount);
-      await setCacheItem(accountDetailMemoryCache, `account_detail_${idAtencion}`, nextAccount);
+      const savedCache = await setAdminCache(`account-detail:${idAtencion}`, nextAccount);
+      setLastUpdated(savedCache.timestamp);
 
       Alert.alert('Cuenta cerrada', response.message || 'Cuenta cerrada exitosamente.');
     } catch (error) {
@@ -552,7 +545,7 @@ const PacienteDetailScreen = ({ navigation, route }) => {
 
           <View style={styles.dashboardItem}>
             <Text style={[styles.dashboardValue, { color: '#48bb78' }]}>
-              {accountList.length}
+              {visibleAccountList.length}
             </Text>
             <Text style={styles.dashboardLabel}>Mostradas</Text>
           </View>
@@ -564,6 +557,8 @@ const PacienteDetailScreen = ({ navigation, route }) => {
             <Text style={styles.dashboardLabel}>Filtro</Text>
           </View>
         </View>
+
+        {renderRefreshBar()}
 
         {apiNotice ? (
           <View style={styles.noticeBox}>
@@ -600,8 +595,8 @@ const PacienteDetailScreen = ({ navigation, route }) => {
             </View>
           ) : null}
 
-          {accountList.length ? (
-            accountList.map((item, index) => (
+          {visibleAccountList.length ? (
+            visibleAccountList.map((item, index) => (
               <TouchableOpacity
                 key={getAccountKey(item, index)}
                 style={styles.accountPickerCard}
@@ -635,21 +630,14 @@ const PacienteDetailScreen = ({ navigation, route }) => {
             </View>
           ) : null}
 
-          {!loading && accountsHasMore ? (
-            <TouchableOpacity
-              style={styles.loadMoreButton}
-              onPress={loadMoreAccounts}
-              disabled={loadingMoreAccounts}
-            >
-              {loadingMoreAccounts ? (
-                <ActivityIndicator color="#667eea" />
-              ) : (
-                <>
-                  <Ionicons name="chevron-down-outline" size={18} color="#667eea" />
-                  <Text style={styles.loadMoreText}>Mostrar 5 más</Text>
-                </>
-              )}
-            </TouchableOpacity>
+          {!loading ? (
+            <Pagination
+              currentPage={accountsPage}
+              totalPages={accountsTotalPages}
+              onPageChange={changeAccountsPage}
+              itemsPerPage={ACCOUNTS_PER_PAGE}
+              totalItems={accountsTotal}
+            />
           ) : null}
         </View>
       </ScrollView>
@@ -685,6 +673,8 @@ const PacienteDetailScreen = ({ navigation, route }) => {
           </Text>
         </View>
       </View>
+
+      {renderRefreshBar()}
 
       {apiNotice ? (
         <View style={styles.noticeBox}>
@@ -811,10 +801,15 @@ const PacienteDetailScreen = ({ navigation, route }) => {
             <TouchableOpacity
               key={doc.key || doc.title}
               style={styles.documentButton}
-              onPress={() => Alert.alert(doc.title, doc.endpoint || 'Documento disponible desde la API.')}
+              onPress={() => downloadDocument(doc)}
+              disabled={downloadingDocument === (doc.key || doc.title)}
             >
               <View style={[styles.documentIcon, { backgroundColor: `${doc.color || '#667eea'}18` }]}>
-                <Ionicons name={doc.icon || 'document-text-outline'} size={21} color={doc.color || '#667eea'} />
+                {downloadingDocument === (doc.key || doc.title) ? (
+                  <ActivityIndicator color={doc.color || '#667eea'} />
+                ) : (
+                  <Ionicons name={doc.icon || 'document-text-outline'} size={21} color={doc.color || '#667eea'} />
+                )}
               </View>
 
               <Text style={styles.documentText}>{doc.title}</Text>
@@ -999,6 +994,35 @@ const styles = StyleSheet.create({
     color: '#718096',
     fontSize: 11,
     marginTop: 2,
+  },
+  refreshRow: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  refreshInfo: {
+    color: '#718096',
+    fontSize: 11,
+    flex: 1,
+  },
+  refreshButton: {
+    minHeight: 38,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#c3dafe',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  refreshButtonText: {
+    color: '#667eea',
+    fontSize: 12,
+    fontWeight: '800',
+    marginLeft: 5,
   },
   searchResultInfo: {
     backgroundColor: '#ebf4ff',
