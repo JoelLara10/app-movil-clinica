@@ -290,6 +290,41 @@ const Sidebar = ({ navigation }) => {
           requiresPatient: false,
           params: {},
         },
+        {
+          name: t('sidebar.patientManagement'),
+          icon: 'people-outline',
+          screen: 'Pacientes',
+          requiresPatient: false,
+          params: {},
+        },
+        {
+          name: t('sidebar.newPatient'),
+          icon: 'person-add-outline',
+          screen: 'NuevoPaciente',
+          requiresPatient: false,
+          params: {},
+        },
+        {
+          name: t('sidebar.patientAccount'),
+          icon: 'receipt-outline',
+          screen: 'PacienteDetail',
+          requiresPatient: false,
+          params: {},
+        },
+        {
+          name: t('sidebar.patientCensus'),
+          icon: 'stats-chart-outline',
+          screen: 'Censo',
+          requiresPatient: false,
+          params: {},
+        },
+        {
+          name: t('sidebar.cashCut'),
+          icon: 'cash-outline',
+          screen: 'CorteCaja',
+          requiresPatient: false,
+          params: {},
+        },
       ],
     });
 

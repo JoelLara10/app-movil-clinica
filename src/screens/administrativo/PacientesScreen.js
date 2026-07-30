@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Pagination from '../../components/Pagination';
 import adminService from '../../services/adminService';
 import { getAdminCache, setAdminCache } from '../../services/adminCache';
+import { useLanguage } from '../../context/LanguageContext';
 
 const PATIENTS_PER_PAGE = 5;
 const CACHE_TIME = 1000 * 60 * 5;
@@ -129,7 +130,7 @@ const formatValue = (value) => {
   return String(value);
 };
 
-const formatAge = (value) => {
+const formatAge = (value, yearsLabel = 'años') => {
   if (value === undefined || value === null || value === '') {
     return '-';
   }
@@ -140,7 +141,7 @@ const formatAge = (value) => {
     return text;
   }
 
-  return `${text} años`;
+  return `${text} ${yearsLabel}`;
 };
 
 const formatDate = (value) => {
@@ -160,6 +161,7 @@ const formatDate = (value) => {
 };
 
 const PacientesScreen = ({ navigation }) => {
+  const { t } = useLanguage();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [groups, setGroups] = useState(patientGroupsFallback);
@@ -363,7 +365,7 @@ const PacientesScreen = ({ navigation }) => {
               />
 
               <Text style={styles.sectionTitle}>
-                {group.title}
+                {t(`administrative.${group.key === 'activos' ? 'activePatients' : group.key === 'expedientes' ? 'recentRecords' : 'recentDischarges'}`)}
               </Text>
             </View>
 
@@ -425,22 +427,22 @@ const PacientesScreen = ({ navigation }) => {
 
           <View style={styles.detailGrid}>
             <Info
-              label="Edad"
-              value={formatAge(patient.age)}
+              label={t('administrative.age')}
+              value={formatAge(patient.age, t('administrative.years'))}
             />
 
             <Info
-              label="Nacimiento"
+              label={t('administrative.birthDate')}
               value={formatDate(patient.birthDate)}
             />
 
             <Info
-              label="Telefono"
+              label={t('administrative.phone')}
               value={formatValue(patient.phone)}
             />
 
             <Info
-              label="Ingreso"
+              label={t('administrative.admission')}
               value={formatDate(patient.admittedAt)}
             />
           </View>
@@ -470,7 +472,7 @@ const PacientesScreen = ({ navigation }) => {
                   { color: '#667eea' },
                 ]}
               >
-                Editar
+                {t('administrative.edit')}
               </Text>
             </TouchableOpacity>
 
@@ -493,7 +495,7 @@ const PacientesScreen = ({ navigation }) => {
                   { color: '#48bb78' },
                 ]}
               >
-                Cuenta
+                {t('administrative.account')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -510,8 +512,8 @@ const PacientesScreen = ({ navigation }) => {
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Gestion de Pacientes</Text>
-          <Text style={styles.headerSubtitle}>Registro, expedientes y cuentas</Text>
+          <Text style={styles.headerTitle}>{t('administrative.patientManagement')}</Text>
+          <Text style={styles.headerSubtitle}>{t('administrative.patientManagementDesc')}</Text>
         </View>
 
         <TouchableOpacity onPress={() => navigation.navigate('NuevoPaciente')} style={styles.headerButton}>
@@ -522,28 +524,28 @@ const PacientesScreen = ({ navigation }) => {
       <View style={styles.actionGrid}>
         <ActionCard
           icon="person-add-outline"
-          title="Nuevo paciente"
+          title={t('administrative.newPatient')}
           color="#667eea"
           onPress={() => navigation.navigate('NuevoPaciente')}
         />
 
         <ActionCard
           icon="documents-outline"
-          title="Documentos"
+          title={t('administrative.documents')}
           color="#e53e3e"
           onPress={() => Alert.alert('Documentos', 'Estos PDFs se conectaran despues con la API.')}
         />
 
         <ActionCard
           icon="folder-open-outline"
-          title="Expedientes"
+          title={t('administrative.recentRecords')}
           color="#ed8936"
           onPress={() => Alert.alert('Expedientes', 'La consulta de expedientes se conectara despues.')}
         />
 
         <ActionCard
           icon="stats-chart-outline"
-          title="Censo"
+          title={t('administrative.patientCensus')}
           color="#38b2ac"
           onPress={() => navigation.navigate('Censo')}
         />
@@ -555,7 +557,7 @@ const PacientesScreen = ({ navigation }) => {
         <TextInput
           value={search}
           onChangeText={setSearch}
-          placeholder="Buscar pacientes por nombre, expediente o telefono..."
+          placeholder={t('administrative.searchPatients')}
           placeholderTextColor="#a0aec0"
           style={styles.searchInput}
           autoCorrect={false}
@@ -565,19 +567,19 @@ const PacientesScreen = ({ navigation }) => {
       </View>
 
       <View style={styles.summaryStrip}>
-        <Summary label="Activos" value={String(summary.activos || 0)} color="#667eea" />
-        <Summary label="Expedientes" value={String(summary.expedientes || 0)} color="#ed8936" />
-        <Summary label="Altas" value={String(summary.altas || 0)} color="#48bb78" />
+        <Summary label={t('administrative.activePatients')} value={String(summary.activos || 0)} color="#667eea" />
+        <Summary label={t('administrative.recentRecords')} value={String(summary.expedientes || 0)} color="#ed8936" />
+        <Summary label={t('administrative.recentDischarges')} value={String(summary.altas || 0)} color="#48bb78" />
       </View>
 
       <View style={styles.refreshRow}>
         <Text style={styles.refreshInfo}>
           {lastUpdated
-            ? `Última actualización: ${new Date(lastUpdated).toLocaleTimeString([], {
+            ? `${t('administrative.lastUpdated')}: ${new Date(lastUpdated).toLocaleTimeString([], {
                 hour: '2-digit',
                 minute: '2-digit',
               })}`
-            : 'Datos administrativos'}
+            : t('administrative.title')}
         </Text>
 
         <TouchableOpacity
@@ -590,7 +592,7 @@ const PacientesScreen = ({ navigation }) => {
           ) : (
             <Ionicons name="refresh-outline" size={17} color="#667eea" />
           )}
-          <Text style={styles.refreshButtonText}>Recargar</Text>
+          <Text style={styles.refreshButtonText}>{t('administrative.refresh')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -604,7 +606,7 @@ const PacientesScreen = ({ navigation }) => {
       {loadingInitial ? (
         <View style={styles.loadingBox}>
           <ActivityIndicator color="#667eea" />
-          <Text style={styles.loadingText}>Cargando pacientes...</Text>
+          <Text style={styles.loadingText}>{t('administrative.loading')}</Text>
         </View>
       ) : null}
     </>
@@ -635,11 +637,11 @@ const PacientesScreen = ({ navigation }) => {
       />
 
       <Text style={styles.emptyTitle}>
-        Sin resultados
+        {t('administrative.noPatients')}
       </Text>
 
       <Text style={styles.emptyText}>
-        Intenta con otro nombre, expediente o telefono.
+        {t('administrative.searchPatients')}
       </Text>
     </View>
   ) : null;

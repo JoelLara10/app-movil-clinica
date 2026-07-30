@@ -137,6 +137,10 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
       ? "medico"
       : hasRouteInPath("Estudios")
         ? "estudios"
+        : hasRouteInPath("Config")
+          ? "config"
+        : ["Admin", "Pacientes", "PacienteDetail", "NuevoPaciente", "Censo", "CorteCaja", "Camas"].some(hasRouteInPath)
+          ? "administrativo"
         : "general";
   const menuSections = [];
 
@@ -172,6 +176,19 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
     });
   }
 
+  if (
+    (role === "admin" || role === "administrativo") &&
+    currentModule === "administrativo"
+  ) {
+    principalItems.push({
+      name: t("dashboard.administrative"),
+      icon: "speedometer-outline",
+      screen: "Admin",
+      params: {},
+      requiresPatient: false,
+    });
+  }
+
   if (role === "estudios" || (isAdminRole && currentModule === "estudios")) {
     principalItems.push({
       name: t("sidebar.studiesPanel"),
@@ -185,6 +202,39 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
 
   if (principalItems.length) {
     menuSections.push({ title: t("sidebar.principal"), items: principalItems });
+  }
+
+  if (
+    (role === "admin" || role === "administrativo") &&
+    currentModule === "administrativo"
+  ) {
+    menuSections.push({
+      title: t("sidebar.administrativeModule"),
+      items: [
+        { name: t("sidebar.patientManagement"), icon: "people-outline", screen: "Pacientes", params: {}, requiresPatient: false },
+        { name: t("sidebar.newPatient"), icon: "person-add-outline", screen: "NuevoPaciente", params: {}, requiresPatient: false },
+        { name: t("sidebar.patientAccount"), icon: "receipt-outline", screen: "PacienteDetail", params: {}, requiresPatient: false },
+        { name: t("sidebar.patientCensus"), icon: "stats-chart-outline", screen: "Censo", params: {}, requiresPatient: false },
+        { name: t("sidebar.cashCut"), icon: "cash-outline", screen: "CorteCaja", params: {}, requiresPatient: false },
+        { name: t("sidebar.beds"), icon: "bed-outline", screen: "Camas", params: {}, requiresPatient: false },
+      ],
+    });
+  }
+
+  if (isAdminRole && currentModule === "config") {
+    menuSections.push({
+      title: t("sidebar.configSection"),
+      items: [
+        { name: t("sidebar.generalConfig"), icon: "settings-outline", screen: "Config", subScreen: "GeneralSettings", params: {}, requiresPatient: false },
+        { name: t("sidebar.users"), icon: "people-outline", screen: "Config", subScreen: "UsuariosConfig", params: {}, requiresPatient: false },
+        { name: t("sidebar.diagnostics"), icon: "clipboard-outline", screen: "Config", subScreen: "DiagnosticosConfig", params: {}, requiresPatient: false },
+        { name: t("sidebar.beds"), icon: "bed-outline", screen: "Config", subScreen: "CamasConfig", params: {}, requiresPatient: false },
+        { name: t("sidebar.services"), icon: "business-outline", screen: "Config", subScreen: "ServiciosConfig", params: {}, requiresPatient: false },
+        { name: t("sidebar.automation"), icon: "pulse-outline", screen: "Config", subScreen: "AutomationConfig", params: {}, requiresPatient: false },
+        { name: t("sidebar.backups"), icon: "folder-open-outline", screen: "Config", subScreen: "BackupConfig", params: {}, requiresPatient: false },
+        { name: t("sidebar.profile"), icon: "person-circle-outline", screen: "Config", subScreen: "ProfileConfig", params: {}, requiresPatient: false },
+      ],
+    });
   }
 
   if (isMedicoRole || (isAdminRole && currentModule === "medico")) {

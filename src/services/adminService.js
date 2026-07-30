@@ -36,12 +36,13 @@ const getWithFallback = (paths, config) => (
 );
 
 const adminService = {
-  getOptions: (currentIdCama, page = 1, limit = 5) => (
+  getOptions: (currentIdCama) => (
     api.get('/options', {
       params: buildParams({
         current_id_cama: currentIdCama,
-        page,
-        limit,
+        page: 1,
+        limit: 1000,
+        all: true,
       }),
     }).then(unwrap)
   ),

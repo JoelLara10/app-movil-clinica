@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Pagination from '../../components/Pagination';
 import adminService from '../../services/adminService';
 import { getAdminCache, setAdminCache } from '../../services/adminCache';
+import { useLanguage } from '../../context/LanguageContext';
 
 const fallbackPatient = {
   record: 'INEO-000341',
@@ -111,6 +112,7 @@ const getAccountKey = (item, index = 0) => (
 );
 
 const PacienteDetailScreen = ({ navigation, route }) => {
+  const { t } = useLanguage();
   const patient = normalizePatient(route?.params?.patient);
   const idAtencion = patient.id_atencion || patient.idAtencion || route?.params?.id_atencion;
   const idExp = patient.Id_exp || patient.id_exp || route?.params?.id_exp;
@@ -351,11 +353,11 @@ const PacienteDetailScreen = ({ navigation, route }) => {
     <View style={styles.refreshRow}>
       <Text style={styles.refreshInfo}>
         {lastUpdated
-          ? `Última actualización: ${new Date(lastUpdated).toLocaleTimeString([], {
+          ? `${t('administrative.lastUpdated')}: ${new Date(lastUpdated).toLocaleTimeString([], {
               hour: '2-digit',
               minute: '2-digit',
             })}`
-          : 'Datos de la cuenta'}
+          : t('administrative.patientAccount')}
       </Text>
 
       <TouchableOpacity
@@ -368,7 +370,7 @@ const PacienteDetailScreen = ({ navigation, route }) => {
         ) : (
           <Ionicons name="refresh-outline" size={17} color="#667eea" />
         )}
-        <Text style={styles.refreshButtonText}>Recargar</Text>
+        <Text style={styles.refreshButtonText}>{t('administrative.refresh')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -490,7 +492,7 @@ const PacienteDetailScreen = ({ navigation, route }) => {
       </TouchableOpacity>
 
       <View style={styles.headerCenter}>
-        <Text style={styles.headerTitle}>Cuenta del Paciente</Text>
+        <Text style={styles.headerTitle}>{t('administrative.patientAccount')}</Text>
         <Text style={styles.headerSubtitle}>{subtitle}</Text>
       </View>
 
@@ -512,7 +514,7 @@ const PacienteDetailScreen = ({ navigation, route }) => {
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        {renderHeader('Selecciona una cuenta activa')}
+        {renderHeader(t('administrative.selectAccount'))}
 
         <View style={styles.accountSearchBox}>
           <Ionicons name="search-outline" size={18} color="#a0aec0" />
@@ -520,7 +522,7 @@ const PacienteDetailScreen = ({ navigation, route }) => {
           <TextInput
             value={accountSearch}
             onChangeText={setAccountSearch}
-            placeholder="Buscar por paciente, expediente, atención o cama..."
+            placeholder={t('administrative.searchPatients')}
             placeholderTextColor="#a0aec0"
             style={styles.accountSearchInput}
             autoCorrect={false}
@@ -540,21 +542,21 @@ const PacienteDetailScreen = ({ navigation, route }) => {
             <Text style={[styles.dashboardValue, { color: '#667eea' }]}>
               {accountsTotal || accountList.length}
             </Text>
-            <Text style={styles.dashboardLabel}>Cuentas</Text>
+            <Text style={styles.dashboardLabel}>{t('administrative.accounts')}</Text>
           </View>
 
           <View style={styles.dashboardItem}>
             <Text style={[styles.dashboardValue, { color: '#48bb78' }]}>
               {visibleAccountList.length}
             </Text>
-            <Text style={styles.dashboardLabel}>Mostradas</Text>
+            <Text style={styles.dashboardLabel}>{t('administrative.shown')}</Text>
           </View>
 
           <View style={styles.dashboardItem}>
             <Text style={[styles.dashboardValue, { color: '#ed8936' }]}>
-              {debouncedAccountSearch ? 'Sí' : 'No'}
+              {debouncedAccountSearch ? t('administrative.yes') : t('administrative.no')}
             </Text>
-            <Text style={styles.dashboardLabel}>Filtro</Text>
+            <Text style={styles.dashboardLabel}>{t('administrative.filter')}</Text>
           </View>
         </View>
 
@@ -570,7 +572,7 @@ const PacienteDetailScreen = ({ navigation, route }) => {
         {loading ? (
           <View style={styles.loadingBox}>
             <ActivityIndicator color="#667eea" />
-            <Text style={styles.loadingText}>Cargando cuentas...</Text>
+            <Text style={styles.loadingText}>{t('administrative.loading')}</Text>
           </View>
         ) : null}
 
@@ -578,7 +580,7 @@ const PacienteDetailScreen = ({ navigation, route }) => {
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleRow}>
               <Ionicons name="receipt-outline" size={21} color="#667eea" />
-              <Text style={styles.sectionTitle}>Cuentas activas</Text>
+              <Text style={styles.sectionTitle}>{t('administrative.activeAccounts')}</Text>
             </View>
 
             <Text style={styles.sectionHint}>
@@ -616,7 +618,7 @@ const PacienteDetailScreen = ({ navigation, route }) => {
                   </Text>
 
                   <Text style={styles.accountPickerMeta}>
-                    Saldo: {money(item.balance || item.pending || 0)}
+                    {t('administrative.balance')}: {money(item.balance || item.pending || 0)}
                   </Text>
                 </View>
 
@@ -626,7 +628,7 @@ const PacienteDetailScreen = ({ navigation, route }) => {
           ) : !loading ? (
             <View style={styles.emptyState}>
               <Ionicons name="file-tray-outline" size={34} color="#a0aec0" />
-              <Text style={styles.emptyText}>No hay cuentas activas para mostrar</Text>
+              <Text style={styles.emptyText}>{t('administrative.noAccounts')}</Text>
             </View>
           ) : null}
 
@@ -669,7 +671,7 @@ const PacienteDetailScreen = ({ navigation, route }) => {
           </Text>
 
           <Text style={styles.patientMeta}>
-            Ingreso: {(account || patient).admittedAt}
+            {t('administrative.admission')}: {(account || patient).admittedAt}
           </Text>
         </View>
       </View>
@@ -686,28 +688,28 @@ const PacienteDetailScreen = ({ navigation, route }) => {
       {loading ? (
         <View style={styles.loadingBox}>
           <ActivityIndicator color="#667eea" />
-          <Text style={styles.loadingText}>Cargando cuenta...</Text>
+          <Text style={styles.loadingText}>{t('administrative.loading')}</Text>
         </View>
       ) : null}
 
       <View style={styles.totalGrid}>
-        <TotalCard label="Subtotal" value={money(totals.subtotal)} color="#4299e1" />
-        <TotalCard label="IVA" value={money(totals.iva)} color="#ed8936" />
-        <TotalCard label="Total" value={money(totals.total)} color="#667eea" />
-        <TotalCard label="Saldo" value={money(totals.balance)} color="#e53e3e" />
+        <TotalCard label={t('administrative.subtotal')} value={money(totals.subtotal)} color="#4299e1" />
+        <TotalCard label={t('administrative.tax')} value={money(totals.iva)} color="#ed8936" />
+        <TotalCard label={t('administrative.total')} value={money(totals.total)} color="#667eea" />
+        <TotalCard label={t('administrative.balance')} value={money(totals.balance)} color="#e53e3e" />
       </View>
 
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <View style={styles.sectionTitleRow}>
             <Ionicons name="add-circle-outline" size={21} color="#667eea" />
-            <Text style={styles.sectionTitle}>Agregar cargos</Text>
+            <Text style={styles.sectionTitle}>{t('administrative.addCharge')}</Text>
           </View>
         </View>
 
         <ChargeForm
-          title="Servicio"
-          placeholder="Selecciona o escribe servicio"
+          title={t('administrative.service')}
+          placeholder={t('administrative.service')}
           value={service}
           qty={serviceQty}
           onValueChange={setService}
@@ -726,8 +728,8 @@ const PacienteDetailScreen = ({ navigation, route }) => {
         />
 
         <ChargeForm
-          title="Medicamento"
-          placeholder="Selecciona o escribe medicamento"
+          title={t('administrative.medicine')}
+          placeholder={t('administrative.medicine')}
           value={medicine}
           qty={medicineQty}
           onValueChange={setMedicine}
@@ -750,10 +752,10 @@ const PacienteDetailScreen = ({ navigation, route }) => {
         <View style={styles.sectionHeader}>
           <View style={styles.sectionTitleRow}>
             <Ionicons name="receipt-outline" size={21} color="#48bb78" />
-            <Text style={styles.sectionTitle}>Detalle de cuenta</Text>
+            <Text style={styles.sectionTitle}>{t('administrative.accountDetail')}</Text>
           </View>
 
-          <Text style={styles.sectionHint}>{charges.length} cargos</Text>
+          <Text style={styles.sectionHint}>{charges.length} {t('administrative.charges').toLowerCase()}</Text>
         </View>
 
         {charges.map((charge, index) => (
@@ -776,8 +778,8 @@ const PacienteDetailScreen = ({ navigation, route }) => {
               <Text style={styles.chargeDate}>{charge.date || charge.fecha || ''}</Text>
 
               <View style={styles.chargeAmounts}>
-                <Text style={styles.chargeMeta}>Cant. {charge.quantity || charge.cantidad}</Text>
-                <Text style={styles.chargeMeta}>Precio {money(charge.price || charge.precio)}</Text>
+                <Text style={styles.chargeMeta}>{t('administrative.quantity')} {charge.quantity || charge.cantidad}</Text>
+                <Text style={styles.chargeMeta}>{t('administrative.price')} {money(charge.price || charge.precio)}</Text>
 
                 <Text style={styles.chargeTotal}>
                   {money(charge.subtotal || ((charge.quantity || charge.cantidad || 1) * (charge.price || charge.precio || 0)))}
@@ -792,7 +794,7 @@ const PacienteDetailScreen = ({ navigation, route }) => {
         <View style={styles.sectionHeader}>
           <View style={styles.sectionTitleRow}>
             <Ionicons name="documents-outline" size={21} color="#ed8936" />
-            <Text style={styles.sectionTitle}>Documentos</Text>
+            <Text style={styles.sectionTitle}>{t('administrative.documents')}</Text>
           </View>
         </View>
 
@@ -812,7 +814,9 @@ const PacienteDetailScreen = ({ navigation, route }) => {
                 )}
               </View>
 
-              <Text style={styles.documentText}>{doc.title}</Text>
+              <Text style={styles.documentText}>
+                {t(`administrative.${doc.key === 'initial-sheet' ? 'initialSheet' : doc.key === 'front-sheet' ? 'frontSheet' : doc.key === 'contract' ? 'contract' : doc.key === 'consent' ? 'consent' : 'identificationSheet'}`)}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -820,8 +824,8 @@ const PacienteDetailScreen = ({ navigation, route }) => {
 
       <View style={styles.closeCard}>
         <View style={styles.closeText}>
-          <Text style={styles.closeTitle}>Cerrar cuenta</Text>
-          <Text style={styles.closeSubtitle}>Marca la atencion como cerrada cuando la cuenta quede liquidada.</Text>
+          <Text style={styles.closeTitle}>{t('administrative.closeAccount')}</Text>
+          <Text style={styles.closeSubtitle}>{t('administrative.closeAccountDesc')}</Text>
         </View>
 
         <TouchableOpacity
@@ -830,7 +834,7 @@ const PacienteDetailScreen = ({ navigation, route }) => {
           disabled={saving}
         >
           {saving ? <ActivityIndicator color="#fff" /> : <Ionicons name="lock-closed-outline" size={18} color="#fff" />}
-          <Text style={styles.closeButtonText}>Cerrar</Text>
+          <Text style={styles.closeButtonText}>{t('administrative.close')}</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

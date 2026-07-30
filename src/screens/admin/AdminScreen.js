@@ -9,15 +9,17 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useLanguage } from '../../context/LanguageContext';
 
 const AdminScreen = ({ navigation }) => {
+  const { t } = useLanguage();
   const menuItems = [
-    { title: 'Gestion de Pacientes', icon: 'people-outline', screen: 'Pacientes', color: '#667eea' },
-    { title: 'Nuevo Paciente', icon: 'person-add-outline', screen: 'NuevoPaciente', color: '#48bb78' },
-    { title: 'Cuenta Paciente', icon: 'receipt-outline', screen: 'PacienteDetail', color: '#ed8936' },
-    { title: 'Censo de Pacientes', icon: 'stats-chart-outline', screen: 'Censo', color: '#38b2ac' },
-    { title: 'Corte de Caja', icon: 'cash-outline', screen: 'CorteCaja', color: '#ecc94b' },
-    { title: 'Camas', icon: 'bed-outline', screen: 'Camas', color: '#9f7aea' },
+    { title: t('administrative.patientManagement'), icon: 'people-outline', screen: 'Pacientes', color: '#667eea' },
+    { title: t('administrative.newPatient'), icon: 'person-add-outline', screen: 'NuevoPaciente', color: '#48bb78' },
+    { title: t('administrative.patientAccount'), icon: 'receipt-outline', screen: 'PacienteDetail', color: '#ed8936' },
+    { title: t('administrative.patientCensus'), icon: 'stats-chart-outline', screen: 'Censo', color: '#38b2ac' },
+    { title: t('administrative.cashCut'), icon: 'cash-outline', screen: 'CorteCaja', color: '#ecc94b' },
+    { title: t('administrative.beds'), icon: 'bed-outline', screen: 'Camas', color: '#9f7aea' },
   ];
 
   const handleOpen = (item) => {
@@ -38,12 +40,12 @@ const AdminScreen = ({ navigation }) => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Administrativo</Text>
+        <Text style={styles.headerTitle}>{t('administrative.title')}</Text>
         <View style={{ width: 40 }} />
       </LinearGradient>
 
       <View style={styles.content}>
-        <Text style={styles.sectionTitle}>Modulos Administrativos</Text>
+        <Text style={styles.sectionTitle}>{t('administrative.modules')}</Text>
         <View style={styles.grid}>
           {menuItems.map((item) => (
             <TouchableOpacity
@@ -55,7 +57,7 @@ const AdminScreen = ({ navigation }) => {
                 <Ionicons name={item.icon} size={32} color={item.color} />
               </View>
               <Text style={styles.cardTitle}>{item.title}</Text>
-              <Text style={styles.cardHint}>{item.pending ? 'Pendiente' : 'Abrir modulo'}</Text>
+              <Text style={styles.cardHint}>{t('administrative.openModule')}</Text>
             </TouchableOpacity>
           ))}
         </View>

@@ -12,6 +12,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import adminService from '../../services/adminService';
+import { useLanguage } from '../../context/LanguageContext';
 
 const areas = ['Consulta', 'Preparacion', 'Recuperacion'];
 const reasons = ['Consulta', 'Cirugia', 'Urgencia', 'Estudio'];
@@ -36,6 +37,7 @@ const buildInitialForm = (patient = {}) => ({
 });
 
 const NuevoPacienteScreen = ({ navigation, route }) => {
+  const { t } = useLanguage();
   const mode = route?.params?.mode === 'edit' ? 'edit' : 'create';
   const idExp = route?.params?.patient?.Id_exp;
   const [form, setForm] = useState(buildInitialForm(route?.params?.patient));
@@ -153,15 +155,15 @@ const NuevoPacienteScreen = ({ navigation, route }) => {
         setSaving(true);
         if (mode === 'edit' && idExp) {
           await adminService.updatePatient(idExp, payload);
-          Alert.alert('Paciente actualizado', 'La informacion fue enviada a la API.');
+          Alert.alert(t('administrative.patientUpdated'), t('administrative.patientUpdated'));
         } else {
           await adminService.createPatient(payload);
-          Alert.alert('Paciente registrado', 'El paciente fue enviado a la API.');
+          Alert.alert(t('administrative.patientSaved'), t('administrative.patientSaved'));
         }
         navigation.goBack();
       } catch (error) {
-        const message = error.response?.data?.error || 'No se pudo guardar el paciente.';
-        Alert.alert('Error', message);
+        const message = error.response?.data?.error || t('administrative.saveError');
+        Alert.alert(t('administrative.error'), message);
       } finally {
         setSaving(false);
       }
@@ -182,8 +184,8 @@ const NuevoPacienteScreen = ({ navigation, route }) => {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>{mode === 'edit' ? 'Editar Paciente' : 'Nuevo Paciente'}</Text>
-          <Text style={styles.headerSubtitle}>Datos generales, atencion y familiar</Text>
+          <Text style={styles.headerTitle}>{t(mode === 'edit' ? 'administrative.editPatient' : 'administrative.registerPatient')}</Text>
+          <Text style={styles.headerSubtitle}>{t('administrative.patientManagementDesc')}</Text>
         </View>
         <TouchableOpacity onPress={handleSave} style={styles.headerButton}>
           <Ionicons name="save-outline" size={22} color="#fff" />
@@ -195,7 +197,7 @@ const NuevoPacienteScreen = ({ navigation, route }) => {
           <Ionicons name="search-outline" size={22} color="#667eea" />
         </View>
         <View style={styles.lookupBody}>
-          <Text style={styles.lookupTitle}>Busqueda rapida</Text>
+          <Text style={styles.lookupTitle}>{t('administrative.search')}</Text>
           <TextInput
             value={form.curp}
             onChangeText={(value) => update('curp', value.toUpperCase())}
@@ -217,22 +219,22 @@ const NuevoPacienteScreen = ({ navigation, route }) => {
       {loading ? (
         <View style={styles.loadingBox}>
           <ActivityIndicator color="#667eea" />
-          <Text style={styles.loadingText}>Cargando datos...</Text>
+          <Text style={styles.loadingText}>{t('administrative.loading')}</Text>
         </View>
       ) : null}
 
-      <FormSection icon="person-outline" title="Datos del paciente">
+      <FormSection icon="person-outline" title={t('administrative.personalData')}>
         <Field label="CURP" value={form.curp} onChangeText={(value) => update('curp', value.toUpperCase())} placeholder="Ingrese CURP" autoCapitalize="characters" maxLength={18} />
-        <Field label="Primer apellido" value={form.papell} onChangeText={(value) => update('papell', value)} placeholder="Primer apellido" />
-        <Field label="Segundo apellido" value={form.sapell} onChangeText={(value) => update('sapell', value)} placeholder="Segundo apellido" />
-        <Field label="Nombre completo" value={form.nom_pac} onChangeText={(value) => update('nom_pac', value)} placeholder="Nombre completo" />
-        <Field label="Fecha de nacimiento" value={form.fecnac} onChangeText={(value) => update('fecnac', value)} placeholder="AAAA-MM-DD" />
-        <Field label="Telefono" value={form.tel} onChangeText={(value) => update('tel', value)} placeholder="Telefono de contacto" keyboardType="phone-pad" />
+        <Field label={t('administrative.firstSurname')} value={form.papell} onChangeText={(value) => update('papell', value)} placeholder={t('administrative.firstSurname')} />
+        <Field label={t('administrative.secondSurname')} value={form.sapell} onChangeText={(value) => update('sapell', value)} placeholder={t('administrative.secondSurname')} />
+        <Field label={t('administrative.names')} value={form.nom_pac} onChangeText={(value) => update('nom_pac', value)} placeholder={t('administrative.names')} />
+        <Field label={t('administrative.birthDate')} value={form.fecnac} onChangeText={(value) => update('fecnac', value)} placeholder="AAAA-MM-DD" />
+        <Field label={t('administrative.phone')} value={form.tel} onChangeText={(value) => update('tel', value)} placeholder={t('administrative.phone')} keyboardType="phone-pad" />
       </FormSection>
 
-      <FormSection icon="business-outline" title="Datos de atencion">
-        <OptionGroup label="Area" options={options.areas || areas} value={form.area} onChange={(value) => update('area', value)} />
-        <Field label="Cama o consultorio" value={form.cama} onChangeText={(value) => update('cama', value)} placeholder="Ej: CONS-02" />
+      <FormSection icon="business-outline" title={t('administrative.attentionData')}>
+        <OptionGroup label={t('administrative.area')} options={options.areas || areas} value={form.area} onChange={(value) => update('area', value)} />
+        <Field label={t('administrative.bed')} value={form.cama} onChangeText={(value) => update('cama', value)} placeholder="CONS-02" />
         {(options.camas || []).length ? (
           <View style={styles.chipWrap}>
             {options.camas.map((bed) => (
@@ -248,13 +250,13 @@ const NuevoPacienteScreen = ({ navigation, route }) => {
             ))}
           </View>
         ) : null}
-        <OptionGroup label="Motivo" options={options.motivos || reasons} value={form.motivo} onChange={(value) => update('motivo', value)} />
-        <OptionGroup label="Especialidad" options={options.especialidades || specialties} value={form.especialidad} onChange={(value) => update('especialidad', value)} />
-        <Field label="Alergias" value={form.alergias} onChangeText={(value) => update('alergias', value)} placeholder="Medicamentos, alimentos, etc." multiline />
+        <OptionGroup label={t('administrative.reason')} options={options.motivos || reasons} value={form.motivo} onChange={(value) => update('motivo', value)} />
+        <OptionGroup label={t('administrative.specialty')} options={options.especialidades || specialties} value={form.especialidad} onChange={(value) => update('especialidad', value)} />
+        <Field label={t('administrative.allergies')} value={form.alergias} onChangeText={(value) => update('alergias', value)} placeholder={t('administrative.allergies')} multiline />
       </FormSection>
 
-      <FormSection icon="medkit-outline" title="Medicos asignados">
-        <Text style={styles.helperText}>Selecciona hasta 5 medicos para la atencion.</Text>
+      <FormSection icon="medkit-outline" title={t('administrative.assignedDoctors')}>
+        <Text style={styles.helperText}>{t('administrative.selectUpToDoctors')}</Text>
         <View style={styles.chipWrap}>
           {doctorOptions.map((doctor) => {
             const active = assignedDoctors.includes(doctor.id) || assignedDoctors.includes(doctor.label);
@@ -272,20 +274,20 @@ const NuevoPacienteScreen = ({ navigation, route }) => {
         </View>
       </FormSection>
 
-      <FormSection icon="call-outline" title="Familiar responsable">
-        <Field label="Nombre del familiar" value={form.familiar} onChangeText={(value) => update('familiar', value)} placeholder="Nombre del familiar" />
-        <Field label="Parentesco" value={form.parentesco} onChangeText={(value) => update('parentesco', value)} placeholder="Ej: Padre, Madre, Hermano" />
-        <Field label="Telefono familiar" value={form.famTel} onChangeText={(value) => update('famTel', value)} placeholder="Telefono de contacto" keyboardType="phone-pad" />
+      <FormSection icon="call-outline" title={t('administrative.familyResponsible')}>
+        <Field label={t('administrative.familyName')} value={form.familiar} onChangeText={(value) => update('familiar', value)} placeholder={t('administrative.familyName')} />
+        <Field label={t('administrative.relationship')} value={form.parentesco} onChangeText={(value) => update('parentesco', value)} placeholder={t('administrative.relationship')} />
+        <Field label={t('administrative.familyPhone')} value={form.famTel} onChangeText={(value) => update('famTel', value)} placeholder={t('administrative.familyPhone')} keyboardType="phone-pad" />
       </FormSection>
 
       <View style={styles.footerActions}>
         <TouchableOpacity style={[styles.footerButton, styles.cancelButton]} onPress={() => navigation.goBack()}>
           <Ionicons name="close-circle-outline" size={18} color="#718096" />
-          <Text style={styles.cancelText}>Cancelar</Text>
+          <Text style={styles.cancelText}>{t('administrative.cancel')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.footerButton, styles.saveButton]} onPress={handleSave} disabled={saving}>
           {saving ? <ActivityIndicator color="#fff" /> : <Ionicons name="save-outline" size={18} color="#fff" />}
-          <Text style={styles.saveText}>{mode === 'edit' ? 'Actualizar' : 'Guardar'}</Text>
+          <Text style={styles.saveText}>{t(mode === 'edit' ? 'administrative.update' : 'administrative.save')}</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Pagination from '../../components/Pagination';
 import adminService from '../../services/adminService';
 import { getAdminCache, setAdminCache } from '../../services/adminCache';
+import { useLanguage } from '../../context/LanguageContext';
 
 const movements = [
   {
@@ -101,6 +102,7 @@ const money = (value) =>
 const ITEMS_PER_PAGE = 5;
 const CACHE_TIME = 1000 * 60 * 5;
 const CorteCajaScreen = ({ navigation }) => {
+  const { t } = useLanguage();
   const [search, setSearch] = useState('');
 
   const [cashCut, setCashCut] = useState({
@@ -449,11 +451,11 @@ const CorteCajaScreen = ({ navigation }) => {
 
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>
-            Corte de Caja
+            {t('administrative.cashCut')}
           </Text>
 
           <Text style={styles.headerSubtitle}>
-            Movimientos y cuentas activas
+            {t('administrative.cashCutDesc')}
           </Text>
         </View>
 
@@ -484,7 +486,7 @@ const CorteCajaScreen = ({ navigation }) => {
 
           <View>
             <Text style={styles.dateLabel}>
-              Periodo de corte
+              {t('administrative.cutPeriod')}
             </Text>
 
             <Text style={styles.dateValue}>
@@ -509,35 +511,35 @@ const CorteCajaScreen = ({ navigation }) => {
           />
 
           <Text style={styles.filterText}>
-            Filtros
+            {t('administrative.filters')}
           </Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.metricsGrid}>
         <MetricCard
-          label="Ingresos"
+          label={t('administrative.income')}
           value={money(totals.income)}
           color="#48bb78"
           icon="cash-outline"
         />
 
         <MetricCard
-          label="Pendiente"
+          label={t('administrative.pending')}
           value={money(totals.pending)}
           color="#ed8936"
           icon="time-outline"
         />
 
         <MetricCard
-          label="Movs."
+          label={t('administrative.movements')}
           value={String(totals.movements)}
           color="#4299e1"
           icon="swap-horizontal-outline"
         />
 
         <MetricCard
-          label="Cuentas"
+          label={t('administrative.accounts')}
           value={String(totals.accounts)}
           color="#9f7aea"
           icon="receipt-outline"
@@ -547,11 +549,11 @@ const CorteCajaScreen = ({ navigation }) => {
       <View style={styles.refreshRow}>
         <Text style={styles.refreshInfo}>
           {lastUpdated
-            ? `Última actualización: ${new Date(lastUpdated).toLocaleTimeString([], {
+            ? `${t('administrative.lastUpdated')}: ${new Date(lastUpdated).toLocaleTimeString([], {
                 hour: '2-digit',
                 minute: '2-digit',
               })}`
-            : 'Datos del corte'}
+            : t('administrative.cashCut')}
         </Text>
 
         <TouchableOpacity
@@ -564,7 +566,7 @@ const CorteCajaScreen = ({ navigation }) => {
           ) : (
             <Ionicons name="refresh-outline" size={17} color="#667eea" />
           )}
-          <Text style={styles.refreshButtonText}>Recargar</Text>
+          <Text style={styles.refreshButtonText}>{t('administrative.refresh')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -587,7 +589,7 @@ const CorteCajaScreen = ({ navigation }) => {
           <ActivityIndicator color="#667eea" />
 
           <Text style={styles.loadingText}>
-            Cargando corte...
+            {t('administrative.loading')}
           </Text>
         </View>
       ) : null}
@@ -602,7 +604,7 @@ const CorteCajaScreen = ({ navigation }) => {
             />
 
             <Text style={styles.sectionTitle}>
-              Movimientos del dia
+              {t('administrative.movements')}
             </Text>
           </View>
 
@@ -616,7 +618,7 @@ const CorteCajaScreen = ({ navigation }) => {
             }
           >
             <Text style={styles.outlineActionText}>
-              Cerrar
+              {t('administrative.close')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -682,7 +684,7 @@ const CorteCajaScreen = ({ navigation }) => {
             />
 
             <Text style={styles.sectionTitle}>
-              Cuentas de pacientes activos
+              {t('administrative.activeAccounts')}
             </Text>
           </View>
         </View>
@@ -697,7 +699,7 @@ const CorteCajaScreen = ({ navigation }) => {
           <TextInput
             value={search}
             onChangeText={setSearch}
-            placeholder="Buscar por nombre, expediente, cama..."
+            placeholder={t('administrative.searchPatients')}
             placeholderTextColor="#a0aec0"
             style={styles.searchInput}
           />
@@ -736,23 +738,23 @@ const CorteCajaScreen = ({ navigation }) => {
 
             <View style={styles.amountGrid}>
               <Amount
-                label="Subtotal"
+                label={t('administrative.subtotal')}
                 value={money(account.subtotal)}
               />
 
               <Amount
-                label="IVA"
+                label={t('administrative.tax')}
                 value={money(account.tax)}
               />
 
               <Amount
-                label="Total"
+                label={t('administrative.total')}
                 value={money(account.total)}
                 strong
               />
 
               <Amount
-                label="Anticipos"
+                label={t('administrative.advance')}
                 value={money(account.advance)}
               />
             </View>

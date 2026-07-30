@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Pagination from '../../components/Pagination';
 import adminService from '../../services/adminService';
 import { getAdminCache, setAdminCache } from '../../services/adminCache';
+import { useLanguage } from '../../context/LanguageContext';
 
 const censusSections = [
   {
@@ -112,6 +113,7 @@ const matchesSearch = (patient, query) => {
 const PATIENTS_PER_PAGE = 5;
 const CACHE_TIME = 1000 * 60 * 5;
 const CensoScreen = ({ navigation }) => {
+  const { t } = useLanguage();
   const [searches, setSearches] = useState({
     consulta: '',
     preparacion: '',
@@ -414,7 +416,7 @@ const CensoScreen = ({ navigation }) => {
             color="#48bb78"
           />
 
-          <Text style={styles.smallActionText}>Alta</Text>
+          <Text style={styles.smallActionText}>{t('administrative.discharge')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -424,20 +426,20 @@ const CensoScreen = ({ navigation }) => {
 
       <View style={styles.infoGrid}>
         <InfoItem label={roomLabel} value={patient.room} />
-        <InfoItem label="Ingreso" value={patient.admittedAt} />
-        <InfoItem label="Edad" value={`${patient.age} anos`} />
-        <InfoItem label="Exp" value={patient.record} />
-        <InfoItem label="Medico" value={patient.doctor} />
+        <InfoItem label={t('administrative.admission')} value={patient.admittedAt} />
+        <InfoItem label={t('administrative.age')} value={`${patient.age} ${t('administrative.years')}`} />
+        <InfoItem label={t('administrative.record')} value={patient.record} />
+        <InfoItem label={t('administrative.doctor')} value={patient.doctor} />
 
         <InfoItem
-          label="Aviso"
+          label={t('administrative.notice')}
           value={patient.notice}
           strong={patient.notice !== 'Sin aviso'}
         />
       </View>
 
       <View style={styles.reasonBox}>
-        <Text style={styles.reasonLabel}>Motivo</Text>
+        <Text style={styles.reasonLabel}>{t('administrative.reason')}</Text>
 
         <Text style={styles.reasonText} selectable>
           {patient.reason}
@@ -459,8 +461,8 @@ const CensoScreen = ({ navigation }) => {
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Censo de Pacientes</Text>
-          <Text style={styles.headerSubtitle}>Consulta, preparacion y recuperacion</Text>
+          <Text style={styles.headerTitle}>{t('administrative.patientCensus')}</Text>
+          <Text style={styles.headerSubtitle}>{t('administrative.censusDesc')}</Text>
         </View>
 
         <TouchableOpacity
@@ -472,19 +474,19 @@ const CensoScreen = ({ navigation }) => {
       </LinearGradient>
 
       <View style={styles.summaryRow}>
-        <SummaryCard icon="people-outline" label="Activos" value={String(summary.activos || 0)} color="#667eea" />
-        <SummaryCard icon="business-outline" label="Areas" value={String(summary.areas || 0)} color="#48bb78" />
-        <SummaryCard icon="alert-circle-outline" label="Avisos" value={String(summary.avisos || 0)} color="#ed8936" />
+        <SummaryCard icon="people-outline" label={t('administrative.activePatients')} value={String(summary.activos || 0)} color="#667eea" />
+        <SummaryCard icon="business-outline" label={t('administrative.areas')} value={String(summary.areas || 0)} color="#48bb78" />
+        <SummaryCard icon="alert-circle-outline" label={t('administrative.notices')} value={String(summary.avisos || 0)} color="#ed8936" />
       </View>
 
       <View style={styles.refreshRow}>
         <Text style={styles.refreshInfo}>
           {lastUpdated
-            ? `Última actualización: ${new Date(lastUpdated).toLocaleTimeString([], {
+            ? `${t('administrative.lastUpdated')}: ${new Date(lastUpdated).toLocaleTimeString([], {
                 hour: '2-digit',
                 minute: '2-digit',
               })}`
-            : 'Datos del censo'}
+            : t('administrative.patientCensus')}
         </Text>
 
         <TouchableOpacity
@@ -497,7 +499,7 @@ const CensoScreen = ({ navigation }) => {
           ) : (
             <Ionicons name="refresh-outline" size={17} color="#667eea" />
           )}
-          <Text style={styles.refreshButtonText}>Recargar</Text>
+          <Text style={styles.refreshButtonText}>{t('administrative.refresh')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -511,7 +513,7 @@ const CensoScreen = ({ navigation }) => {
       {loading ? (
         <View style={styles.loadingBox}>
           <ActivityIndicator color="#667eea" />
-          <Text style={styles.loadingText}>Cargando censo...</Text>
+          <Text style={styles.loadingText}>{t('administrative.loading')}</Text>
         </View>
       ) : null}
 
@@ -535,7 +537,9 @@ const CensoScreen = ({ navigation }) => {
             <View style={[styles.sectionHeader, { borderLeftColor: section.accent }]}>
               <View style={styles.sectionTitleRow}>
                 <Ionicons name={section.icon} size={22} color={section.accent} />
-                <Text style={styles.sectionTitle}>{section.title}</Text>
+                <Text style={styles.sectionTitle}>
+                  {t(`administrative.${section.key === 'consulta' ? 'consultationPatients' : section.key === 'preparacion' ? 'preparationPatients' : 'recoveryPatients'}`)}
+                </Text>
               </View>
 
               <View style={[styles.countPill, { backgroundColor: section.accent }]}>
@@ -551,7 +555,7 @@ const CensoScreen = ({ navigation }) => {
               <TextInput
                 value={query}
                 onChangeText={(value) => updateSearch(section.key, value)}
-                placeholder={section.searchPlaceholder}
+                placeholder={t('administrative.search')}
                 placeholderTextColor="#a0aec0"
                 style={styles.searchInput}
               />
@@ -585,7 +589,7 @@ const CensoScreen = ({ navigation }) => {
                 />
 
                 <Text style={styles.emptyText}>
-                  No hay pacientes para mostrar
+                  {t('administrative.noPatients')}
                 </Text>
               </View>
             )}
