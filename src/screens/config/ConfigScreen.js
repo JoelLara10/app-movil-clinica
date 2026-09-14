@@ -11,7 +11,6 @@ export default function ConfigScreen({ navigation }) {
   const isTablet = width >= 760;
 
   const cards = [
-    { titleKey: 'generalTitle', descKey: 'clinicDataDesc', badgeKey: 'badgeAdmin', icon: 'settings-outline', color: '#667eea', screen: 'GeneralSettings' },
     { titleKey: 'bedsManagement', descKey: 'bedsManagementDesc', badgeKey: 'badgeAdmin', icon: 'bed-outline', color: '#3182ce', screen: 'CamasConfig' },
     { titleKey: 'staffManagement', descKey: 'staffManagementDesc', badgeKey: 'badgeAdmin', icon: 'people-outline', color: '#38a169', screen: 'UsuariosConfig' },
     { titleKey: 'diagnostics', descKey: 'diagnosticsDesc', badgeKey: 'badgeMedico', icon: 'pulse-outline', color: '#ed8936', screen: 'DiagnosticosConfig' },
