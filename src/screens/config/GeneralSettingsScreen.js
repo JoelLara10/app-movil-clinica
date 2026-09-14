@@ -1,15 +1,31 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import ConfigHeader from './ConfigHeader';
-import { configStyles as styles } from './ConfigStyles';
+import { colors, configStyles as styles } from './ConfigStyles';
 import { getConfigSection, saveConfigSection } from './configCache';
 import { useLanguage } from '../../context/LanguageContext';
 
 export default function GeneralSettingsScreen({ navigation }) {
   const { t } = useLanguage();
-  const [form, setForm] = useState({ nombreClinica: '', telefono: '', direccion: '', moneda: 'MXN', tema: 'Morado', apiHost: '192.168.1.4', apiPort: '5001', apiPath: '/api/v1' });
+  const [form, setForm] = useState({
+    nombreClinica: '',
+    telefono: '',
+    direccion: '',
+    moneda: 'MXN',
+    tema: 'Morado',
+    apiHost: '192.168.1.4',
+    apiPort: '5001',
+    apiPath: '/api/v1',
+  });
 
-  useEffect(() => { getConfigSection('general').then((data) => setForm((old) => ({ ...old, ...data }))); }, []);
+  useEffect(() => {
+    getConfigSection('general').then((data) => setForm((old) => ({ ...old, ...data })));
+  }, []);
+
+  const updateField = (field, value) => {
+    setForm((current) => ({ ...current, [field]: value }));
+  };
 
   const save = async () => {
     await saveConfigSection('general', form);
@@ -17,35 +33,112 @@ export default function GeneralSettingsScreen({ navigation }) {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{ paddingBottom: 28 }}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
       <ConfigHeader title={t('config.generalTitle')} navigation={navigation} />
+
       <View style={styles.content}>
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>🏥 {t('config.clinicData')}</Text>
-          <Text style={styles.cardSubtitle}>{t('config.clinicDataDesc')}</Text>
+          <View style={styles.sectionHeadingRow}>
+            <View style={styles.sectionIcon}>
+              <Ionicons name="business-outline" size={22} color={colors.primary} />
+            </View>
+            <View style={styles.sectionHeadingText}>
+              <Text style={styles.cardTitle}>{t('config.clinicData')}</Text>
+              <Text style={styles.cardSubtitle}>{t('config.clinicDataDesc')}</Text>
+            </View>
+          </View>
+
+          <Text style={styles.label}>{t('config.clinicName')}</Text>
+          <TextInput
+            style={styles.input}
+            value={form.nombreClinica}
+            onChangeText={(value) => updateField('nombreClinica', value)}
+          />
+
+          <Text style={styles.label}>{t('config.clinicPhone')}</Text>
+          <TextInput
+            style={styles.input}
+            value={form.telefono}
+            onChangeText={(value) => updateField('telefono', value)}
+            keyboardType="phone-pad"
+          />
+
+          <Text style={styles.label}>{t('config.clinicAddress')}</Text>
+          <TextInput
+            style={styles.input}
+            value={form.direccion}
+            onChangeText={(value) => updateField('direccion', value)}
+          />
+
+          <Text style={styles.label}>{t('config.clinicCurrency')}</Text>
+          <TextInput
+            style={styles.input}
+            value={form.moneda}
+            onChangeText={(value) => updateField('moneda', value.toUpperCase())}
+            autoCapitalize="characters"
+          />
+
+          <Text style={styles.label}>{t('config.clinicTheme')}</Text>
+          <TextInput
+            style={styles.input}
+            value={form.tema}
+            onChangeText={(value) => updateField('tema', value)}
+          />
         </View>
 
-        <Text style={styles.label}>{t('config.clinicName')}</Text>
-        <TextInput style={styles.input} value={form.nombreClinica} onChangeText={(v) => setForm({ ...form, nombreClinica: v })} />
-        <Text style={styles.label}>{t('config.clinicPhone')}</Text>
-        <TextInput style={styles.input} value={form.telefono} onChangeText={(v) => setForm({ ...form, telefono: v })} keyboardType="phone-pad" />
-        <Text style={styles.label}>{t('config.clinicAddress')}</Text>
-        <TextInput style={styles.input} value={form.direccion} onChangeText={(v) => setForm({ ...form, direccion: v })} />
-        <Text style={styles.label}>{t('config.clinicCurrency')}</Text>
-        <TextInput style={styles.input} value={form.moneda} onChangeText={(v) => setForm({ ...form, moneda: v.toUpperCase() })} autoCapitalize="characters" />
-        <Text style={styles.label}>{t('config.clinicTheme')}</Text>
-        <TextInput style={styles.input} value={form.tema} onChangeText={(v) => setForm({ ...form, tema: v })} />
+        <View style={styles.card}>
+          <View style={styles.sectionHeadingRow}>
+            <View style={styles.sectionIcon}>
+              <Ionicons name="cloud-outline" size={22} color={colors.primary} />
+            </View>
+            <View style={styles.sectionHeadingText}>
+              <Text style={styles.cardTitle}>{t('config.apiConnection')}</Text>
+            </View>
+          </View>
 
-        <Text style={styles.sectionTitle}>{t('config.apiConnection')}</Text>
-        <Text style={styles.label}>{t('config.apiHost')}</Text>
-        <TextInput style={styles.input} value={form.apiHost} onChangeText={(v) => setForm({ ...form, apiHost: v })} placeholder="192.168.1.4" />
-        <Text style={styles.label}>{t('config.apiPort')}</Text>
-        <TextInput style={styles.input} value={form.apiPort} onChangeText={(v) => setForm({ ...form, apiPort: v })} placeholder="5001" keyboardType="number-pad" />
-        <Text style={styles.label}>{t('config.apiPath')}</Text>
-        <TextInput style={styles.input} value={form.apiPath} onChangeText={(v) => setForm({ ...form, apiPath: v })} placeholder="/api/v1" />
+          <Text style={styles.label}>{t('config.apiHost')}</Text>
+          <TextInput
+            style={styles.input}
+            value={form.apiHost}
+            onChangeText={(value) => updateField('apiHost', value)}
+            placeholder="api.ejemplo.com"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
 
-        <TouchableOpacity style={styles.primaryButton} onPress={save}>
-          <Text style={styles.primaryText}>{t('config.saveConfig')}</Text>
+          <Text style={styles.label}>{t('config.apiPort')}</Text>
+          <TextInput
+            style={styles.input}
+            value={form.apiPort}
+            onChangeText={(value) => updateField('apiPort', value)}
+            placeholder="443"
+            keyboardType="number-pad"
+          />
+
+          <Text style={styles.label}>{t('config.apiPath')}</Text>
+          <TextInput
+            style={styles.input}
+            value={form.apiPath}
+            onChangeText={(value) => updateField('apiPath', value)}
+            placeholder="/api/v1"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+        </View>
+
+        <TouchableOpacity
+          style={styles.primaryButton}
+          onPress={save}
+          accessibilityRole="button"
+          accessibilityLabel={t('config.saveConfig')}
+        >
+          <Ionicons name="save-outline" size={20} color="#fff" />
+          <Text style={[styles.primaryText, { marginLeft: 8 }]}>{t('config.saveConfig')}</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
