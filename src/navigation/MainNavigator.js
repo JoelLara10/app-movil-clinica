@@ -50,7 +50,6 @@ import PrintDocsScreen from "../screens/medico/PrintDocsScreen";
 import StudyResultsScreen from "../screens/medico/StudyResultsScreen";
 
 // Screens Config
-import GeneralSettingsScreen from "../screens/config/GeneralSettingsScreen";
 import UsuariosConfigScreen from "../screens/config/UsuariosConfigScreen";
 import CamasConfigScreen from "../screens/config/CamasConfigScreen";
 import ServiciosConfigScreen from "../screens/config/ServiciosConfigScreen";
@@ -225,7 +224,6 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
     menuSections.push({
       title: t("sidebar.configSection"),
       items: [
-        { name: t("sidebar.generalConfig"), icon: "settings-outline", screen: "Config", subScreen: "GeneralSettings", params: {}, requiresPatient: false },
         { name: t("sidebar.users"), icon: "people-outline", screen: "Config", subScreen: "UsuariosConfig", params: {}, requiresPatient: false },
         { name: t("sidebar.diagnostics"), icon: "clipboard-outline", screen: "Config", subScreen: "DiagnosticosConfig", params: {}, requiresPatient: false },
         { name: t("sidebar.beds"), icon: "bed-outline", screen: "Config", subScreen: "CamasConfig", params: {}, requiresPatient: false },
@@ -672,7 +670,6 @@ function ConfigStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="ConfigMain" component={ConfigScreen} />
-      <Stack.Screen name="GeneralSettings" component={GeneralSettingsScreen} />
       <Stack.Screen name="UsuariosConfig" component={UsuariosConfigScreen} />
       <Stack.Screen name="CamasConfig" component={CamasConfigScreen} />
       <Stack.Screen name="ServiciosConfig" component={ServiciosConfigScreen} />
