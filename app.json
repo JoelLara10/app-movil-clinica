@@ -6,39 +6,45 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#667eea"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ineo.hospital"
+      "bundleIdentifier": "com.ineo.hospital",
+      "buildNumber": "1"
     },
     "android": {
-      "permissions": [
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "DOWNLOAD_WITHOUT_NOTIFICATION"
-      ],
+      "package": "com.ineo.hospital",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#667eea"
       },
-      "package": "com.ineo.hospital"
+      "permissions": [
+        "DOWNLOAD_WITHOUT_NOTIFICATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "API_URL": "http://192.168.1.67:5001/api/v1"
-
+      "API_URL": "https://api-hospital-cq3e.onrender.com/api/v1",
+      "eas": {
+        "projectId": "af5c4bd9-8c79-4271-8eea-6485e978d713"
+      }
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      "expo-sharing",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#667eea"
+        }
+      ]
     ]
   }
 }

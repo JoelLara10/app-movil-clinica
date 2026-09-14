@@ -44,3 +44,6 @@ __pycache__/
 # generated native folders
 /ios
 /android
+
+# AI tooling / Local configs
+.claude/
