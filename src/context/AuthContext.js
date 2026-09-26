@@ -6,6 +6,18 @@ import api from '../services/api';
 const AuthContext = createContext({});
 export const useAuth = () => useContext(AuthContext);
 
+const isValidAuthResponse = (data) => (
+  data
+  && typeof data.token === 'string'
+  && data.token.length > 0
+  && data.token.length <= 4096
+  && data.user
+  && typeof data.user === 'object'
+  && typeof data.user.id === 'string'
+  && typeof data.user.username === 'string'
+  && typeof data.user.role === 'string'
+);
+
 // Helpers para storage cross-platform
 const storage = {
   async getItem(key) {
@@ -58,8 +70,16 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (username, password) => {
     setError(null);
+
     try {
       const response = await api.post('/auth/login', { username, password });
+
+      if (!isValidAuthResponse(response.data)) {
+        const invalidResponseError = new Error('Invalid authentication response');
+        invalidResponseError.code = 'INVALID_AUTH_RESPONSE';
+        throw invalidResponseError;
+      }
+
       const { token, user: userData } = response.data;
 
       await storage.setItem('@ineo_token', token);
@@ -70,9 +90,16 @@ export const AuthProvider = ({ children }) => {
 
       return { success: true };
     } catch (err) {
-      const message = err.response?.data?.error || 'Error de conexión';
+      const reason = err.response?.status === 401
+        ? 'invalid_credentials'
+        : (!err.response && err.request ? 'connection' : 'unexpected');
+
+      const message = reason === 'connection'
+        ? 'Error de conexión'
+        : 'No fue posible iniciar sesión';
+
       setError(message);
-      return { success: false, error: message };
+      return { success: false, reason };
     }
   };
 

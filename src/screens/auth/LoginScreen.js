@@ -19,6 +19,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
+const MAX_USERNAME_LENGTH = 80;
+const MAX_PASSWORD_LENGTH = 72;
 
 const LoginScreen = ({ navigation }) => {
   const [username, setUsername] = useState('');
@@ -30,17 +32,28 @@ const LoginScreen = ({ navigation }) => {
   const { width: screenWidth } = useWindowDimensions();
 
   const handleLogin = async () => {
-    if (!username.trim() || !password.trim()) {
+    const normalizedUsername = username.trim();
+
+    if (
+      !normalizedUsername
+      || !password.trim()
+      || normalizedUsername.length > MAX_USERNAME_LENGTH
+      || password.length > MAX_PASSWORD_LENGTH
+    ) {
       Alert.alert(t('login.error'), t('login.errorCredentials'));
       return;
     }
 
     setLoading(true);
-    const result = await login(username, password);
+    const result = await login(normalizedUsername, password);
     setLoading(false);
 
     if (!result.success) {
-      Alert.alert(t('login.errorAuth'), result.error || t('login.errorInvalid'));
+      const message = result.reason === 'connection'
+        ? t('login.errorConnection')
+        : t('login.errorInvalid');
+
+      Alert.alert(t('login.errorAuth'), message);
     }
   };
 
