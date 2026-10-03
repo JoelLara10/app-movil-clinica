@@ -6,16 +6,20 @@ import api from '../services/api';
 const AuthContext = createContext({});
 export const useAuth = () => useContext(AuthContext);
 
+const isValidUser = (user) => (
+  user
+  && typeof user === 'object'
+  && typeof user.id === 'string'
+  && typeof user.username === 'string'
+  && typeof user.role === 'string'
+);
+
 const isValidAuthResponse = (data) => (
   data
   && typeof data.token === 'string'
   && data.token.length > 0
   && data.token.length <= 4096
-  && data.user
-  && typeof data.user === 'object'
-  && typeof data.user.id === 'string'
-  && typeof data.user.username === 'string'
-  && typeof data.user.role === 'string'
+  && isValidUser(data.user)
 );
 
 // Helpers para storage cross-platform
@@ -56,13 +60,38 @@ export const AuthProvider = ({ children }) => {
       const storedUser = await storage.getItem('@ineo_user');
       const storedToken = await storage.getItem('@ineo_token');
 
-      if (storedUser && storedToken) {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-        api.defaults.headers.Authorization = `Bearer ${storedToken}`;
+      if (!storedUser || !storedToken) {
+        return;
       }
-    } catch (err) {
-      console.error('Error cargando sesión:', err);
+
+      const parsedUser = JSON.parse(storedUser);
+
+      // SEGURIDAD (Joel): los datos locales pueden quedar vencidos o ser
+      // alterados. Primero se valida su estructura antes de utilizarlos.
+      if (!isValidUser(parsedUser)) {
+        throw new Error('Invalid stored session');
+      }
+
+      api.defaults.headers.Authorization = `Bearer ${storedToken}`;
+
+      // SEGURIDAD (Joel): la sesión guardada se confirma con /auth/me.
+      // Solo después de que la API valide el JWT y el estado de la cuenta
+      // se permite que la aplicación muestre módulos autenticados.
+      const response = await api.get('/auth/me');
+
+      if (!isValidUser(response.data)) {
+        throw new Error('Invalid session response');
+      }
+
+      await storage.setItem('@ineo_user', JSON.stringify(response.data));
+      setUser(response.data);
+    } catch (_error) {
+      // SEGURIDAD (Joel): cualquier sesión inválida se elimina por completo
+      // y no se muestran tokens ni detalles internos en los registros.
+      await storage.removeItem('@ineo_token');
+      await storage.removeItem('@ineo_user');
+      delete api.defaults.headers.Authorization;
+      setUser(null);
     } finally {
       setLoading(false);
     }
