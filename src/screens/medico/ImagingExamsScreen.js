@@ -65,14 +65,13 @@ const ImagingExamsScreen = ({ navigation, route }) => {
 
       console.log("🌐 Cargando exámenes de gabinete desde API...");
       const response = await api.get("/exams/catalog?type=GABINETE");
-      console.log("Exámenes recibidos:", response.data);
 
       if (response.data && Array.isArray(response.data)) {
         // Guardar en caché
         await CacheService.set(CACHE_KEY_CATALOG, response.data, CACHE_TTL);
         setExams(response.data);
       } else {
-        console.error("Formato de respuesta inválido:", response.data);
+        console.error("Formato de respuesta de exámenes inválido");
         setExams([]);
       }
     } catch (error) {
@@ -114,7 +113,6 @@ const ImagingExamsScreen = ({ navigation, route }) => {
       const response = await api.get(
         `/exams/requested/${id_atencion}?type=GABINETE`,
       );
-      console.log("Solicitudes recibidas:", response.data);
       
       const historyData = response.data || [];
       // Guardar en caché

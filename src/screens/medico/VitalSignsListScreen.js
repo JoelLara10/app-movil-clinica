@@ -9,12 +9,11 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
-  Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../services/api';
+import { downloadAuthenticatedFile } from '../../services/fileService';
 import { useLanguage } from '../../context/LanguageContext';
 import moment from 'moment';
 import 'moment/locale/es';
@@ -60,21 +59,14 @@ const VitalSignsListScreen = ({ navigation, route }) => {
 
   const handleGeneratePDF = async (id_signos) => {
     try {
-      const token = await AsyncStorage.getItem('@ineo_token');
-      if (!token) {
-        Alert.alert(t('common.sessionExpired'), t('common.sessionExpired'));
-        return;
-      }
-
-      const baseUrl = api.defaults.baseURL;
-      const pdfUrl = `${baseUrl}/pdf/vital-signs/${id_signos}?token=${encodeURIComponent(token)}&id_atencion=${id_atencion}`;
-
-      Linking.openURL(pdfUrl).catch((err) => {
-        console.error('Error opening PDF:', err);
-        Alert.alert(t('common.error'), t('common.couldNotOpenPdf'));
-      });
-    } catch (error) {
-      console.error('Error generating PDF URL:', error);
+      const query = new URLSearchParams({
+        id_atencion: String(id_atencion),
+      }).toString();
+      await downloadAuthenticatedFile(
+        `/pdf/vital-signs/${id_signos}?${query}`,
+        `signos_vitales_${id_signos}.pdf`,
+      );
+    } catch (_error) {
       Alert.alert(t('common.error'), t('common.couldNotGenerate'));
     }
   };

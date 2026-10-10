@@ -1,0 +1,31 @@
+name: INEO Mobile CI
+
+on:
+  pull_request:
+    branches: [main, qa, develop]
+  push:
+    branches: [main, qa, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20.19.4
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npx expo-doctor
+      - name: Export production bundle
+        env:
+          APP_ENV: production
+          EXPO_PUBLIC_API_URL: https://api-hospital-cq3e.onrender.com/api/v1
+        run: npx expo export --platform web
+      - name: Audit runtime dependencies
+        run: npm audit --omit=dev --audit-level=critical

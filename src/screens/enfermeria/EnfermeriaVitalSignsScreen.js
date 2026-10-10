@@ -120,7 +120,6 @@ const EnfermeriaVitalSignsScreen = ({ navigation, route }) => {
       if (dataToSend[key] === null) delete dataToSend[key];
     });
 
-    console.log('📤 Enviando signos vitales (enfermería):', dataToSend);
 
     setLoading(true);
     try {

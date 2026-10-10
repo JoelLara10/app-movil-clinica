@@ -171,7 +171,6 @@ const LabExamsScreen = ({ navigation, route }) => {
         type: "LABORATORIO",
       });
 
-      console.log("Respuesta del servidor:", response.data);
 
       if (response.data) {
         Alert.alert(t('common.success'), t('common.exams'));
@@ -184,7 +183,7 @@ const LabExamsScreen = ({ navigation, route }) => {
         }
       }
     } catch (error) {
-      console.error("Error completo:", error.response?.data || error);
+      console.error("No fue posible guardar los exámenes");
       Alert.alert(
         t('common.error'),
         error.response?.data?.error || t('common.couldNotSaveExams'),
