@@ -59,9 +59,46 @@ function validateClinicalHistory({ id_atencion, Id_exp, formData = {} }) {
   };
 }
 
+function validatePrescription({ id_atencion, Id_exp, medications = [] }) {
+  const context = validateClinicalContext(id_atencion, Id_exp);
+  if (!context.ok) return context;
+  if (!Array.isArray(medications) || medications.length < 1 || medications.length > 10) {
+    return { ok: false, error: 'La receta debe contener entre 1 y 10 medicamentos.' };
+  }
+
+  const normalized = medications.map((med) => ({
+    medicamento: cleanText(med?.medicamento),
+    dosis: cleanText(med?.dosis),
+    frecuencia: cleanText(med?.frecuencia),
+    duracion: cleanText(med?.duracion),
+    indicaciones: cleanText(med?.indicaciones),
+  }));
+
+  const incomplete = normalized.some((med) =>
+    !med.medicamento || !med.dosis || !med.frecuencia || !med.duracion
+  );
+  if (incomplete) {
+    return { ok: false, error: 'Cada medicamento requiere nombre, dosis, frecuencia y duración.' };
+  }
+
+  const excessive = normalized.some((med) =>
+    med.medicamento.length > 120 ||
+    med.dosis.length > 80 ||
+    med.frecuencia.length > 120 ||
+    med.duracion.length > 80 ||
+    med.indicaciones.length > 1000
+  );
+  if (excessive) {
+    return { ok: false, error: 'Uno o más datos de la receta exceden el límite permitido.' };
+  }
+
+  return { ok: true, data: normalized };
+}
+
 module.exports = {
   getSafeClinicalError,
   isPositiveInteger,
   validateClinicalContext,
   validateClinicalHistory,
+  validatePrescription,
 };
