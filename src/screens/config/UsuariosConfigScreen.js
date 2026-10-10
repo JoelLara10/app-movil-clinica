@@ -29,6 +29,7 @@ export default function UsuariosConfigScreen({ navigation }) {
   const { t } = useLanguage();
   const [usuarios, setUsuarios] = useState([]);
   const [form, setForm] = useState(emptyForm);
+  const [editingUser, setEditingUser] = useState(null);
   const [page, setPage] = useState(1);
   const [refreshing, setRefreshing] = useState(false);
   const [rolePickerVisible, setRolePickerVisible] = useState(false);
@@ -56,25 +57,76 @@ export default function UsuariosConfigScreen({ navigation }) {
   const paged = useMemo(() => getPagedData(usuarios, page), [usuarios, page]);
   const totalPages = getTotalPages(usuarios);
 
+  const resetForm = () => {
+    setForm(emptyForm);
+    setEditingUser(null);
+  };
+
+  const startEdit = (user) => {
+    setEditingUser(user);
+    setForm({
+      ...emptyForm,
+      curp: user.curp || '',
+      nombre: user.nombre || '',
+      papell: user.papell || '',
+      sapell: user.sapell || '',
+      fecnac: user.fecnac || '',
+      telefono: user.telefono || '',
+      matricula: user.matricula || '',
+      cedula: user.cedula || '',
+      cargo: user.cargo || '',
+      email: user.email || '',
+      preguntaSeguridad: user.pregunta_seguridad || user.preguntaSeguridad || '',
+      username: user.username || user.usuario || '',
+      role: canonicalRole(user.role || user.rol) || 'medico',
+      password: '',
+    });
+  };
+
   const save = async () => {
     const username = form.username.trim();
     const nombre = form.nombre.trim();
-    if (!nombre || !username || !form.password || !form.role) {
+    if (!nombre || !username || !form.role || (!editingUser && !form.password)) {
       Alert.alert(t('config.userMissingData'), t('config.userMissingDataMsg'));
       return;
     }
     try {
-      const response = await configurationService.users.create({ ...form, nombre, username, role: canonicalRole(form.role) });
-      const created = { ...(response?.user || response || {}) };
-      delete created.password;
-      const nextUsers = [{ ...created, role: canonicalRole(created.role || form.role) }, ...usuarios.filter((user) => user.username !== username)];
-      await saveConfigSection('usuarios', nextUsers);
-      setUsuarios(nextUsers);
-      setForm(emptyForm);
-      setPage(1);
-      Alert.alert(t('config.userSavedTitle'), t('config.userSaved'));
+      if (editingUser) {
+        const id = editingUser.id || editingUser._id;
+        if (!id) return Alert.alert(t('config.error'), t('config.userIdNotFound'));
+        const payload = {
+          curp: form.curp,
+          nombre,
+          papell: form.papell,
+          sapell: form.sapell,
+          fecnac: form.fecnac,
+          telefono: form.telefono,
+          matricula: form.matricula,
+          cedula: form.cedula,
+          cargo: form.cargo,
+          email: form.email,
+          preguntaSeguridad: form.preguntaSeguridad,
+          username,
+          role: canonicalRole(form.role),
+        };
+        if (form.password) payload.password = form.password;
+        await configurationService.users.update(id, payload);
+        resetForm();
+        await load();
+        Alert.alert(t('config.userSavedTitle'), t('config.userUpdated'));
+      } else {
+        const response = await configurationService.users.create({ ...form, nombre, username, role: canonicalRole(form.role) });
+        const created = { ...(response?.user || response || {}) };
+        delete created.password;
+        const nextUsers = [{ ...created, role: canonicalRole(created.role || form.role) }, ...usuarios.filter((user) => user.username !== username)];
+        await saveConfigSection('usuarios', nextUsers);
+        setUsuarios(nextUsers);
+        resetForm();
+        setPage(1);
+        Alert.alert(t('config.userSavedTitle'), t('config.userSaved'));
+      }
     } catch (error) {
-      Alert.alert(t('config.error'), error.response?.data?.error || t('config.userSaveError'));
+      Alert.alert(t('config.error'), error.response?.data?.error || (editingUser ? t('config.userUpdateError') : t('config.userSaveError')));
     }
   };
 
@@ -99,7 +151,7 @@ export default function UsuariosConfigScreen({ navigation }) {
     <ScrollView style={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
       <ConfigHeader title={t('config.usersTitle')} navigation={navigation} onRefresh={onRefresh} />
       <View style={styles.content}>
-        <Text style={styles.sectionTitle}>👥 {t('config.registerUser')}</Text>
+        <Text style={styles.sectionTitle}>👥 {editingUser ? t('config.editUser') : t('config.registerUser')}</Text>
         <View style={styles.card}>
           <View style={styles.sectionBox}>
             <Text style={styles.subTitle}>{t('config.personalData')}</Text>
@@ -131,14 +183,14 @@ export default function UsuariosConfigScreen({ navigation }) {
             <Text style={styles.label}>{t('config.username')}</Text>
             <TextInput style={styles.input} value={form.username} onChangeText={(v) => setForm({ ...form, username: v })} placeholder={t('config.usernamePlaceholder')} autoCapitalize="none" />
             <Text style={styles.label}>{t('config.password')}</Text>
-            <TextInput style={styles.input} value={form.password} onChangeText={(v) => setForm({ ...form, password: v })} placeholder={t('config.passwordPlaceholder')} secureTextEntry />
+            <TextInput style={styles.input} value={form.password} onChangeText={(v) => setForm({ ...form, password: v })} placeholder={editingUser ? t('config.passwordOptionalPlaceholder') : t('config.passwordPlaceholder')} secureTextEntry />
             <Text style={styles.label}>{t('config.role')}</Text>
             <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('config.role')} style={styles.input} onPress={() => setRolePickerVisible(true)}><Text>{roleLabel(form.role, t)}</Text></TouchableOpacity>
           </View>
 
           <View style={styles.actionBar}>
-            <TouchableOpacity style={styles.secondaryButton} onPress={() => setForm(emptyForm)}><Text style={styles.secondaryText}>{t('config.cancel')}</Text></TouchableOpacity>
-            <TouchableOpacity style={[styles.primaryButton, { paddingHorizontal: 22 }]} onPress={save}><Text style={styles.primaryText}>💾 {t('config.saveUser')}</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.secondaryButton} onPress={resetForm}><Text style={styles.secondaryText}>{t('config.cancel')}</Text></TouchableOpacity>
+            <TouchableOpacity style={[styles.primaryButton, { paddingHorizontal: 22 }]} onPress={save}><Text style={styles.primaryText}>💾 {editingUser ? t('config.updateUser') : t('config.saveUser')}</Text></TouchableOpacity>
           </View>
         </View>
 
@@ -157,7 +209,7 @@ export default function UsuariosConfigScreen({ navigation }) {
             </View>
             <View style={[styles.between, { marginTop: 12 }]}>
               <View style={styles.badge}><Text style={styles.badgeText}>{u.activo ? t('config.active') : t('config.inactive')}</Text></View>
-              <TouchableOpacity style={styles.dangerButton} onPress={() => remove(u)}><Text style={styles.dangerText}>{t('config.delete')}</Text></TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: 8 }}><TouchableOpacity style={styles.secondaryButton} onPress={() => startEdit(u)}><Text style={styles.secondaryText}>{t('config.edit')}</Text></TouchableOpacity><TouchableOpacity style={styles.dangerButton} onPress={() => remove(u)}><Text style={styles.dangerText}>{t('config.delete')}</Text></TouchableOpacity></View>
             </View>
           </View>
         ))}
