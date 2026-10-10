@@ -1,52 +1,30 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const CACHE_PREFIX = '@ineo_admin_cache:';
-const memoryCache = new Map();
+let legacyCacheRemoved = false;
 
-const storageKey = (key) => `${CACHE_PREFIX}${key}`;
-
-export const getAdminCache = async (key, maxAge) => {
-  let cached = memoryCache.get(key);
-
-  if (!cached) {
-    try {
-      const stored = await AsyncStorage.getItem(storageKey(key));
-      cached = stored ? JSON.parse(stored) : null;
-
-      if (cached?.timestamp) {
-        memoryCache.set(key, cached);
-      }
-    } catch (error) {
-      console.log('ERROR LEYENDO CACHE ADMINISTRATIVO:', error.message);
-      return null;
-    }
+const removeLegacyCache = async () => {
+  if (legacyCacheRemoved) return;
+  try {
+    const keys = await AsyncStorage.getAllKeys();
+    const adminKeys = keys.filter((key) => key.startsWith(CACHE_PREFIX));
+    if (adminKeys.length) await AsyncStorage.multiRemove(adminKeys);
+    legacyCacheRemoved = true;
+  } catch (_error) {
+    // Reintentar en la siguiente consulta sin revelar datos clinicos.
+    console.warn('No se pudo eliminar el cache administrativo anterior.');
   }
-
-  if (!cached?.timestamp || cached.data === undefined) {
-    return null;
-  }
-
-  return {
-    data: cached.data,
-    timestamp: cached.timestamp,
-    isFresh: Date.now() - cached.timestamp < maxAge,
-  };
 };
 
-export const setAdminCache = async (key, data) => {
-  const cached = {
-    data,
-    timestamp: Date.now(),
-  };
+// Los expedientes y cuentas se consultan a la API autenticada en cada carga.
+// Se conserva la interfaz usada por las pantallas, sin cache en disco o memoria.
+export const getAdminCache = async (_key, _maxAge) => {
+  await removeLegacyCache();
+  return null;
+};
 
-  memoryCache.set(key, cached);
-
-  try {
-    await AsyncStorage.setItem(storageKey(key), JSON.stringify(cached));
-  } catch (error) {
-    console.log('ERROR GUARDANDO CACHE ADMINISTRATIVO:', error.message);
-  }
-
-  return cached;
+export const setAdminCache = async (_key, data) => {
+  await removeLegacyCache();
+  return { data, timestamp: Date.now() };
 };
 

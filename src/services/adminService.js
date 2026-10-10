@@ -107,15 +107,20 @@ const adminService = {
   downloadDocument: async (document) => {
     const endpoint = document?.endpoint;
 
-    if (!endpoint) {
-      throw new Error('La API no proporcionó la ruta del documento.');
+    // Solo documentos administrativos de la API. Nunca enviar el JWT a otra URL.
+    const allowedDocumentPath = /^(?:\/api\/v1)?\/pdf\/(?:initial-sheet|front-sheet|contract|consent|identification-sheet)\/[1-9]\d*\/[1-9]\d*$/;
+    if (typeof endpoint !== 'string' || !allowedDocumentPath.test(endpoint)) {
+      throw new Error('La ruta del documento no es válida.');
     }
 
     const normalizedEndpoint = endpoint.startsWith('/api/')
       ? endpoint.replace(/^\/api\/v1/, '')
       : endpoint;
-    const filename = document.filename ||
-      `${document.key || 'documento'}_${Date.now()}.pdf`;
+    const filename = document.filename ??
+      `${normalizedEndpoint.split('/')[2]}_${Date.now()}.pdf`;
+    if (typeof filename !== 'string' || !/^[A-Za-z0-9_-]{1,100}\.pdf$/i.test(filename)) {
+      throw new Error('El nombre del documento no es válido.');
+    }
 
     if (Platform.OS === 'web') {
       const response = await api.get(normalizedEndpoint, { responseType: 'blob' });
