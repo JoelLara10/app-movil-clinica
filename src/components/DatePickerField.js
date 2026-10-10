@@ -2,10 +2,8 @@ import React, { useMemo, useState } from 'react';
 import {
   Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
-  View,
   TouchableOpacity,
   View,
 } from 'react-native';
