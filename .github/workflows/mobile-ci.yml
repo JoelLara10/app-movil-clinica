@@ -25,7 +25,12 @@ jobs:
       - name: Export production bundle
         env:
           APP_ENV: production
-          EXPO_PUBLIC_API_URL: https://api-hospital-cq3e.onrender.com/api/v1
+          EXPO_PUBLIC_API_URL: https://api-clinica-jx4m.onrender.com/api/v1
         run: npx expo export --platform web
+      - name: Export QA bundle
+        env:
+          APP_ENV: qa
+          EXPO_PUBLIC_API_URL: https://ineo-pbl-entrega.onrender.com/api/v1
+        run: npx expo export --platform web --output-dir dist-qa
       - name: Audit runtime dependencies
         run: npm audit --omit=dev --audit-level=critical
