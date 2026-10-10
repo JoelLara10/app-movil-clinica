@@ -33,7 +33,7 @@ function fakeStorage(seed = {}) {
   };
 }
 
-test('ADM-02: no persiste ni devuelve datos clinicos del cache', async () => {
+test('ADM-01: no persiste ni devuelve datos clinicos del cache', async () => {
   const storage = fakeStorage({ '@ineo_token': 'test-session' });
   const cache = await loadModule('adminCache.js', {
     '@react-native-async-storage/async-storage': { default: storage },
@@ -44,7 +44,7 @@ test('ADM-02: no persiste ni devuelve datos clinicos del cache', async () => {
   assert.equal(storage.values.size, 1);
 });
 
-test('ADM-02: elimina cache legado y conserva la sesion y otros datos', async () => {
+test('ADM-01: elimina cache legado y conserva la sesion y otros datos', async () => {
   const storage = fakeStorage({
     '@ineo_admin_cache:patients': JSON.stringify({ data: { name: 'Prueba' }, timestamp: Date.now() }),
     '@ineo_token': 'test-session',
@@ -79,12 +79,19 @@ async function downloader(platform) {
   return { service: service.default, requests, files };
 }
 
-test('ADM-03: rechaza URL externas, rutas alteradas y nombres con traversal', async () => {
+test('ADM-02: rechaza URL externas y rutas alteradas antes de descargar', async () => {
   for (const platform of ['web', 'android']) {
     const { service, requests, files } = await downloader(platform);
     for (const endpoint of ['https://external.example.test/file', '//external.example.test/file', '/pdf/contract/1/2?token=x', '/pdf/contract/../2', '/pdf/contract/%2e%2e/2', '/auth/me', '/pdf/contract/0/2', {}, null]) {
       await assert.rejects(() => service.downloadDocument({ endpoint }), { message: /no es válida/ });
     }
+    assert.equal(requests.length + files.length, 0);
+  }
+});
+
+test('ADM-03: rechaza traversal y nombres invalidos antes de descargar', async () => {
+  for (const platform of ['web', 'android']) {
+    const { service, requests, files } = await downloader(platform);
     for (const filename of ['../../session.pdf', 'folder/file.pdf', 'file\\test.pdf', 'test.txt', {}]) {
       await assert.rejects(() => service.downloadDocument({ endpoint: '/pdf/contract/1/2', filename }), { message: /no es válido/ });
     }
@@ -92,7 +99,7 @@ test('ADM-03: rechaza URL externas, rutas alteradas y nombres con traversal', as
   }
 });
 
-test('ADM-03: conserva los cinco documentos validos en web y movil', async () => {
+test('Regresion: conserva los cinco documentos validos en web y movil', async () => {
   for (const platform of ['web', 'android']) {
     const { service, requests, files } = await downloader(platform);
     for (const key of ['initial-sheet', 'front-sheet', 'contract', 'consent', 'identification-sheet']) {
