@@ -272,14 +272,6 @@ const PacientesScreen = ({ navigation }) => {
     });
   }, [loadPatients]));
 
-  useEffect(() => {
-    loadPatients({
-      requestedPage: 1,
-      forceRefresh: true,
-      silent: true,
-    });
-  }, [debouncedSearch, loadPatients]);
-
   const onRefresh = () => {
     setRefreshing(true);
 
