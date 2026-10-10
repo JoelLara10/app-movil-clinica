@@ -19,6 +19,10 @@ import Pagination from '../../components/Pagination';
 import { useLanguage } from '../../context/LanguageContext';
 import moment from 'moment';
 import 'moment/locale/es';
+const {
+  getSafeClinicalError,
+  validatePrescription,
+} = require('../../utils/clinicalSecurity');
 
 const CACHE_KEY_PREFIX = 'prescriptions_';
 const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
@@ -105,17 +109,18 @@ const PrescriptionScreen = ({ navigation, route }) => {
   };
 
   const handleSubmit = async () => {
-    // Validar que al menos un medicamento tenga nombre
-    const hasValidMed = medications.some(med => med.medicamento.trim() !== '');
-    if (!hasValidMed) {
-      Alert.alert(t('common.warning'), t('common.addAtLeastOneMed'));
+    // SEGURIDAD (Zahid): verifica el paciente, limita la receta y exige datos
+    // mínimos por medicamento para evitar prescripciones ambiguas o manipuladas.
+    const validation = validatePrescription({ id_atencion, Id_exp, medications });
+    if (!validation.ok) {
+      Alert.alert(t('common.warning'), validation.error);
       return;
     }
 
     setLoading(true);
     try {
       const response = await api.post(`/appointments/${id_atencion}/prescriptions`, {
-        medicamentos: medications.filter(med => med.medicamento.trim() !== '')
+        medicamentos: validation.data,
       });
       if (response.data) {
         Alert.alert(t('common.success'), t('medico.savePrescription'));
@@ -131,8 +136,12 @@ const PrescriptionScreen = ({ navigation, route }) => {
         }
       }
     } catch (error) {
-      console.error('Error saving prescription:', error);
-      Alert.alert(t('common.error'), error.response?.data?.error || t('common.couldNotSaveExams'));
+      // SEGURIDAD (Zahid): traduce el estado HTTP sin revelar mensajes internos.
+      console.error('Error saving prescription request');
+      Alert.alert(
+        t('common.error'),
+        getSafeClinicalError(error, t('common.couldNotSaveExams')),
+      );
     } finally {
       setLoading(false);
     }

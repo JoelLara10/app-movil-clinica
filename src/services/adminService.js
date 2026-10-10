@@ -1,8 +1,5 @@
-import api, { API_URL } from './api';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
+import api from './api';
+import { downloadAuthenticatedFile } from './fileService';
 
 const buildParams = (params = {}) => (
   Object.fromEntries(
@@ -117,36 +114,7 @@ const adminService = {
     const filename = document.filename ||
       `${document.key || 'documento'}_${Date.now()}.pdf`;
 
-    if (Platform.OS === 'web') {
-      const response = await api.get(normalizedEndpoint, { responseType: 'blob' });
-      const url = URL.createObjectURL(response.data);
-      const anchor = window.document.createElement('a');
-      anchor.href = url;
-      anchor.download = filename;
-      anchor.click();
-      URL.revokeObjectURL(url);
-      return;
-    }
-
-    const token = await AsyncStorage.getItem('@ineo_token');
-    const result = await FileSystem.downloadAsync(
-      `${API_URL}${normalizedEndpoint}`,
-      `${FileSystem.cacheDirectory}${filename}`,
-      { headers: token ? { Authorization: `Bearer ${token}` } : {} }
-    );
-
-    if (result.status < 200 || result.status >= 300) {
-      throw new Error(`La API respondió con estado ${result.status}.`);
-    }
-
-    if (!(await Sharing.isAvailableAsync())) {
-      throw new Error(`Documento descargado en ${result.uri}`);
-    }
-
-    await Sharing.shareAsync(result.uri, {
-      mimeType: 'application/pdf',
-      dialogTitle: `Guardar o compartir ${document.title || 'documento'}`,
-    });
+    await downloadAuthenticatedFile(normalizedEndpoint, filename);
   },
 
   addCharge: (idAtencion, payload) => (

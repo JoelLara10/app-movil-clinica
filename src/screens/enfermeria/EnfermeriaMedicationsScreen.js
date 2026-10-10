@@ -18,6 +18,10 @@ import CacheService from '../../services/cacheService';
 import Pagination from '../../components/Pagination';
 import moment from 'moment';
 import { useLanguage } from '../../context/LanguageContext';
+const {
+  getSafeClinicalError,
+  validateMedicationAdministration,
+} = require('../../utils/clinicalSecurity');
 
 const CACHE_KEY_PREFIX = 'enfermeria_medications_';
 const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
@@ -103,16 +107,22 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
   };
 
   const handleSubmit = async () => {
-    const hasValidMed = medications.some(med => med.nombre.trim() !== '');
-    if (!hasValidMed) {
-      Alert.alert(t('common.warning'), t('enfermeria.noMedications'));
+    // SEGURIDAD (Jaime): exige trazabilidad completa de cada administración
+    // y bloquea fechas, límites o identificadores clínicos inválidos.
+    const validation = validateMedicationAdministration({
+      id_atencion,
+      Id_exp,
+      medications,
+    });
+    if (!validation.ok) {
+      Alert.alert(t('common.warning'), validation.error);
       return;
     }
 
     setLoading(true);
     try {
       const response = await api.post(`/appointments/${id_atencion}/medications`, {
-        medicamentos: medications.filter(med => med.nombre.trim() !== '')
+        medicamentos: validation.data,
       });
       if (response.data) {
         Alert.alert(t('common.success'), t('enfermeria.administrationRecord'));
@@ -124,8 +134,12 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
         await loadMedicationsHistory(true);
       }
     } catch (error) {
-      console.error('Error saving medications:', error);
-      Alert.alert(t('common.error'), error.response?.data?.error || t('enfermeria.couldNotLoad'));
+      // SEGURIDAD (Jaime): no expone trazas ni mensajes internos de la API.
+      console.error('Error saving medication administration request');
+      Alert.alert(
+        t('common.error'),
+        getSafeClinicalError(error, t('enfermeria.couldNotLoad')),
+      );
     } finally {
       setLoading(false);
     }

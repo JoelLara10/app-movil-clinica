@@ -11,11 +11,10 @@ import {
   Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { File, Paths } from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../services/api';
 import { useLanguage } from '../context/LanguageContext';
+import { downloadAuthenticatedFile } from '../services/fileService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -61,36 +60,12 @@ export default function ViewResultForm({ navigation, route }) {
 
     try {
       setDownloading(true);
-      const fileUrl = `${baseUrl}${selectedFile.url}`;
-      const fileName = selectedFile.nombre;
-      const destination = new File(Paths.document, fileName);
-      const downloadedFile = await File.downloadFileAsync(fileUrl, destination, {
-        idempotent: true,
-      });
-
-      if (downloadedFile.exists) {
-        Alert.alert(
-          t('studies.downloadOrShare'),
-          t('studies.openFileQuestion'),
-          [
-            { text: t('studies.cancel'), style: 'cancel' },
-            {
-              text: t('studies.open'),
-              onPress: async () => {
-                if (await Sharing.isAvailableAsync()) {
-                  await Sharing.shareAsync(downloadedFile.uri);
-                } else {
-                  Alert.alert(t('studies.error'), t('studies.cannotShare'));
-                }
-              },
-            },
-          ]
-        );
-      } else {
-        Alert.alert(t('studies.error'), t('studies.downloadError'));
-      }
-    } catch (err) {
-      console.error('Error downloading:', err);
+      await downloadAuthenticatedFile(
+        selectedFile.url,
+        selectedFile.nombre,
+        selectedFile.mimeType || 'application/octet-stream',
+      );
+    } catch (_err) {
       Alert.alert(t('studies.error'), t('studies.downloadError'));
     } finally {
       setDownloading(false);

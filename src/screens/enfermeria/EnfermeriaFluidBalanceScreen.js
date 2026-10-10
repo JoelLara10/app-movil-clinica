@@ -18,6 +18,10 @@ import CacheService from '../../services/cacheService';
 import Pagination from '../../components/Pagination';
 import moment from 'moment';
 import { useLanguage } from '../../context/LanguageContext';
+const {
+  getSafeClinicalError,
+  validateFluidBalance,
+} = require('../../utils/clinicalSecurity');
 
 const CACHE_KEY_PREFIX = 'enfermeria_fluid_balance_';
 const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
@@ -80,15 +84,17 @@ const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
   };
 
   const handleSubmit = async () => {
-    const hasData = Object.values(formData).some(value => value.trim() !== '');
-    if (!hasData) {
-      Alert.alert(t('common.warning'), t('enfermeria.newFluidRecord'));
+    // SEGURIDAD (Jesús): acepta únicamente volúmenes numéricos, no negativos
+    // y clínicamente acotados antes de calcular o transmitir el balance.
+    const validation = validateFluidBalance({ id_atencion, Id_exp, formData });
+    if (!validation.ok) {
+      Alert.alert(t('common.warning'), validation.error);
       return;
     }
 
     setLoading(true);
     try {
-      const response = await api.post(`/appointments/${id_atencion}/fluid-balance`, formData);
+      const response = await api.post(`/appointments/${id_atencion}/fluid-balance`, validation.data);
       if (response.data) {
         Alert.alert(t('common.success'), t('enfermeria.fluidBalance'));
         setFormData({
@@ -101,8 +107,12 @@ const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
         await loadFluidBalanceHistory(true);
       }
     } catch (error) {
-      console.error('Error saving fluid balance:', error);
-      Alert.alert(t('common.error'), error.response?.data?.error || t('enfermeria.couldNotLoad'));
+      // SEGURIDAD (Jesús): evita que errores del servidor revelen datos técnicos.
+      console.error('Error saving fluid balance request');
+      Alert.alert(
+        t('common.error'),
+        getSafeClinicalError(error, t('enfermeria.couldNotLoad')),
+      );
     } finally {
       setLoading(false);
     }

@@ -1,7 +1,15 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
+import {
+  clearStoredSession,
+  getStoredUser,
+  getToken,
+  setStoredUser,
+  setToken,
+} from '../services/secureStorage';
+import CacheService from '../services/cacheService';
+import { clearAdminCache } from '../services/adminCache';
+import { clearEstudiosCache } from '../services/EstudiosCache';
 
 const AuthContext = createContext({});
 export const useAuth = () => useContext(AuthContext);
@@ -22,30 +30,6 @@ const isValidAuthResponse = (data) => (
   && isValidUser(data.user)
 );
 
-// Helpers para storage cross-platform
-const storage = {
-  async getItem(key) {
-    if (Platform.OS === 'web') {
-      return localStorage.getItem(key);
-    }
-    return AsyncStorage.getItem(key);
-  },
-  async setItem(key, value) {
-    if (Platform.OS === 'web') {
-      localStorage.setItem(key, value);
-      return;
-    }
-    return AsyncStorage.setItem(key, value);
-  },
-  async removeItem(key) {
-    if (Platform.OS === 'web') {
-      localStorage.removeItem(key);
-      return;
-    }
-    return AsyncStorage.removeItem(key);
-  },
-};
-
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -57,8 +41,8 @@ export const AuthProvider = ({ children }) => {
 
   const loadStoredData = async () => {
     try {
-      const storedUser = await storage.getItem('@ineo_user');
-      const storedToken = await storage.getItem('@ineo_token');
+      const storedUser = await getStoredUser();
+      const storedToken = await getToken();
 
       if (!storedUser || !storedToken) {
         return;
@@ -83,13 +67,12 @@ export const AuthProvider = ({ children }) => {
         throw new Error('Invalid session response');
       }
 
-      await storage.setItem('@ineo_user', JSON.stringify(response.data));
+      await setStoredUser(response.data);
       setUser(response.data);
     } catch (_error) {
       // SEGURIDAD (Joel): cualquier sesión inválida se elimina por completo
       // y no se muestran tokens ni detalles internos en los registros.
-      await storage.removeItem('@ineo_token');
-      await storage.removeItem('@ineo_user');
+      await clearStoredSession();
       delete api.defaults.headers.Authorization;
       setUser(null);
     } finally {
@@ -111,8 +94,8 @@ export const AuthProvider = ({ children }) => {
 
       const { token, user: userData } = response.data;
 
-      await storage.setItem('@ineo_token', token);
-      await storage.setItem('@ineo_user', JSON.stringify(userData));
+      await setToken(token);
+      await setStoredUser(userData);
 
       api.defaults.headers.Authorization = `Bearer ${token}`;
       setUser(userData);
@@ -133,15 +116,25 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    await storage.removeItem('@ineo_token');
-    await storage.removeItem('@ineo_user');
-    setUser(null);
-    delete api.defaults.headers.Authorization;
+    try {
+      await api.post('/auth/logout');
+    } catch (_error) {
+      // La sesión local siempre se cierra aunque la red no esté disponible.
+    } finally {
+      await clearStoredSession();
+      await Promise.all([
+        CacheService.clear(),
+        clearAdminCache(),
+        clearEstudiosCache(),
+      ]);
+      setUser(null);
+      delete api.defaults.headers.Authorization;
+    }
   };
 
   const updateUser = async (userData) => {
     setUser(userData);
-    await storage.setItem('@ineo_user', JSON.stringify(userData));
+    await setStoredUser(userData);
   };
 
   return (
