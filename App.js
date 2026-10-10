@@ -7,8 +7,10 @@ import { PatientProvider } from './src/context/PatientContext';
 import { LanguageProvider } from './src/context/LanguageContext';
 import AuthNavigator from './src/navigation/AuthNavigator';
 import MainNavigator from './src/navigation/MainNavigator';
+import { usePreventScreenCapture } from 'expo-screen-capture';
 
 function AppContent() {
+  usePreventScreenCapture('ineo-clinical-data');
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
