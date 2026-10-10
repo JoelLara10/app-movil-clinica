@@ -139,11 +139,39 @@ function validateMedicationAdministration({ id_atencion, Id_exp, medications = [
   return { ok: true, data: normalized };
 }
 
+function validateFluidBalance({ id_atencion, Id_exp, formData = {} }) {
+  const context = validateClinicalContext(id_atencion, Id_exp);
+  if (!context.ok) return context;
+
+  const fields = ['ingresos_orales', 'ingresos_iv', 'egresos_orina', 'egresos_drenajes'];
+  const values = {};
+  for (const field of fields) {
+    const raw = cleanText(formData[field]);
+    const numeric = raw === '' ? 0 : Number(raw);
+    if (!Number.isFinite(numeric) || numeric < 0 || numeric > 100000) {
+      return { ok: false, error: 'Los volúmenes deben ser números entre 0 y 100000 ml.' };
+    }
+    values[field] = numeric;
+  }
+
+  if (Object.values(values).every((value) => value === 0)) {
+    return { ok: false, error: 'Captura al menos un ingreso o egreso mayor que cero.' };
+  }
+
+  const observations = cleanText(formData.observaciones);
+  if (observations.length > 1000) {
+    return { ok: false, error: 'Las observaciones no pueden exceder 1000 caracteres.' };
+  }
+
+  return { ok: true, data: { ...values, observaciones: observations } };
+}
+
 module.exports = {
   getSafeClinicalError,
   isPositiveInteger,
   validateClinicalContext,
   validateClinicalHistory,
+  validateFluidBalance,
   validateMedicationAdministration,
   validatePrescription,
 };

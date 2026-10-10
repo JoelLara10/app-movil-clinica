@@ -139,3 +139,51 @@ test('Jaime MED-03: oculta el detalle técnico ante demasiados intentos', () => 
   assert.equal(message, 'Se realizaron demasiados intentos. Espera un momento.');
   assert.doesNotMatch(message, /user:123|rate key/);
 });
+
+const { validateFluidBalance } = require('../src/utils/clinicalSecurity');
+
+const validBalance = {
+  ingresos_orales: '500',
+  ingresos_iv: '250',
+  egresos_orina: '400',
+  egresos_drenajes: '50',
+  observaciones: 'Paciente estable',
+};
+
+test('Jesús BAL-01: rechaza balance asociado a una atención manipulada', () => {
+  const result = validateFluidBalance({
+    id_atencion: -1,
+    Id_exp: 20,
+    formData: validBalance,
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.error, /atención|expediente/i);
+});
+
+test('Jesús BAL-02: rechaza volúmenes negativos, no numéricos o extremos', () => {
+  for (const invalidValue of ['-1', 'abc', '100001']) {
+    const result = validateFluidBalance({
+      id_atencion: 10,
+      Id_exp: 20,
+      formData: { ...validBalance, ingresos_orales: invalidValue },
+    });
+    assert.equal(result.ok, false);
+  }
+
+  const normalized = validateFluidBalance({
+    id_atencion: 10,
+    Id_exp: 20,
+    formData: validBalance,
+  });
+  assert.equal(normalized.ok, true);
+  assert.equal(normalized.data.ingresos_orales, 500);
+});
+
+test('Jesús BAL-03: un error 500 nunca revela detalles de base de datos', () => {
+  const message = getSafeClinicalError(
+    { response: { status: 500, data: { error: 'MongoServerError at mongodb://internal' } } },
+    'No fue posible guardar el balance.',
+  );
+  assert.equal(message, 'No fue posible guardar el balance.');
+  assert.doesNotMatch(message, /Mongo|mongodb/);
+});
