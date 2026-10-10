@@ -17,13 +17,12 @@ credenciales, JWT y llaves privadas nunca deben usar variables
 | Ambiente | APP_ENV | EXPO_PUBLIC_API_URL |
 |---|---|---|
 | Desarrollo | `development` | API local, por ejemplo `http://10.0.2.2:5001/api/v1` |
-| QA | `qa` | URL HTTPS del API QA configurada en EAS |
-| Producción | `production` | `https://api-hospital-cq3e.onrender.com/api/v1` |
+| QA | `qa` | `https://ineo-pbl-entrega.onrender.com/api/v1` (QA) |
+| Producción | `production` | `https://api-clinica-jx4m.onrender.com/api/v1` |
 
 Antes de compilar QA:
 
 ```bash
-eas env:create --environment preview --name EXPO_PUBLIC_API_URL --value https://TU-API-QA/api/v1
 eas build --profile preview --platform android
 ```
 

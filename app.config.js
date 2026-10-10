@@ -1,7 +1,7 @@
 const baseConfig = require('./app.base.json');
 
 const ENVIRONMENTS = new Set(['development', 'qa', 'production']);
-const DEFAULT_PRODUCTION_API = 'https://api-hospital-cq3e.onrender.com/api/v1';
+const DEFAULT_PRODUCTION_API = 'https://api-clinica-jx4m.onrender.com/api/v1';
 
 function resolveEnvironment() {
   const environment = process.env.APP_ENV || 'production';

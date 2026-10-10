@@ -17,7 +17,8 @@
       "environment": "preview",
       "distribution": "internal",
       "env": {
-        "APP_ENV": "qa"
+        "APP_ENV": "qa",
+        "EXPO_PUBLIC_API_URL": "https://ineo-pbl-entrega.onrender.com/api/v1"
       }
     },
     "production": {
@@ -25,7 +26,7 @@
       "autoIncrement": true,
       "env": {
         "APP_ENV": "production",
-        "EXPO_PUBLIC_API_URL": "https://api-hospital-cq3e.onrender.com/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://api-clinica-jx4m.onrender.com/api/v1"
       }
     }
   },
