@@ -14,6 +14,18 @@ function withApiUrl(value, callback) {
   }
 }
 
+test('production defaults to the main API', () => {
+  withApiUrl(undefined, () => {
+    assert.equal(resolveApiUrl('production'), 'https://api-clinica-jx4m.onrender.com/api/v1');
+  });
+});
+
+test('qa uses the QA API endpoint', () => {
+  withApiUrl('https://ineo-pbl-entrega.onrender.com/api/v1', () => {
+    assert.equal(resolveApiUrl('qa'), 'https://ineo-pbl-entrega.onrender.com/api/v1');
+  });
+});
+
 test('production requires HTTPS', () => {
   withApiUrl('http://example.com/api/v1', () => {
     assert.throws(() => resolveApiUrl('production'), /HTTPS/);
