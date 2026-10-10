@@ -94,3 +94,48 @@ test('Zahid RX-03: devuelve mensajes seguros para falta de autorización', () =>
   assert.equal(message, 'No tienes permiso para realizar esta operación.');
   assert.doesNotMatch(message, /stack|role_required/);
 });
+
+const { validateMedicationAdministration } = require('../src/utils/clinicalSecurity');
+
+const validAdministration = [{
+  nombre: 'Ceftriaxona',
+  dosis: '1 g',
+  frecuencia: 'Cada 24 horas',
+  via: 'IV',
+  fecha_aplicacion: '01/01/2025',
+}];
+
+test('Jaime MED-01: rechaza administración ligada a expediente inválido', () => {
+  const result = validateMedicationAdministration({
+    id_atencion: 10,
+    Id_exp: 'abc',
+    medications: validAdministration,
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.error, /atención|expediente/i);
+});
+
+test('Jaime MED-02: exige datos completos y una fecha clínica válida', () => {
+  const incomplete = validateMedicationAdministration({
+    id_atencion: 10,
+    Id_exp: 20,
+    medications: [{ ...validAdministration[0], dosis: '' }],
+  });
+  assert.equal(incomplete.ok, false);
+
+  const futureDate = validateMedicationAdministration({
+    id_atencion: 10,
+    Id_exp: 20,
+    medications: [{ ...validAdministration[0], fecha_aplicacion: '31/12/2999' }],
+  });
+  assert.equal(futureDate.ok, false);
+});
+
+test('Jaime MED-03: oculta el detalle técnico ante demasiados intentos', () => {
+  const message = getSafeClinicalError(
+    { response: { status: 429, data: { error: 'rate key user:123' } } },
+    'No fue posible guardar la administración.',
+  );
+  assert.equal(message, 'Se realizaron demasiados intentos. Espera un momento.');
+  assert.doesNotMatch(message, /user:123|rate key/);
+});

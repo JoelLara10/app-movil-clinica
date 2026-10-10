@@ -95,10 +95,55 @@ function validatePrescription({ id_atencion, Id_exp, medications = [] }) {
   return { ok: true, data: normalized };
 }
 
+function isValidClinicalDate(value) {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(cleanText(value));
+  if (!match) return false;
+  const [, dd, mm, yyyy] = match;
+  const date = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+  return date.getFullYear() === Number(yyyy) &&
+    date.getMonth() === Number(mm) - 1 &&
+    date.getDate() === Number(dd) &&
+    date <= today;
+}
+
+function validateMedicationAdministration({ id_atencion, Id_exp, medications = [] }) {
+  const context = validateClinicalContext(id_atencion, Id_exp);
+  if (!context.ok) return context;
+  if (!Array.isArray(medications) || medications.length < 1 || medications.length > 10) {
+    return { ok: false, error: 'El registro debe contener entre 1 y 10 medicamentos.' };
+  }
+
+  const normalized = medications.map((med) => ({
+    nombre: cleanText(med?.nombre),
+    dosis: cleanText(med?.dosis),
+    frecuencia: cleanText(med?.frecuencia),
+    via: cleanText(med?.via),
+    fecha_aplicacion: cleanText(med?.fecha_aplicacion),
+  }));
+
+  if (normalized.some((med) => !med.nombre || !med.dosis || !med.frecuencia || !med.via)) {
+    return { ok: false, error: 'Cada administración requiere medicamento, dosis, frecuencia y vía.' };
+  }
+  if (normalized.some((med) => !isValidClinicalDate(med.fecha_aplicacion))) {
+    return { ok: false, error: 'La fecha debe ser válida, usar DD/MM/AAAA y no estar en el futuro.' };
+  }
+  if (normalized.some((med) =>
+    med.nombre.length > 120 || med.dosis.length > 80 ||
+    med.frecuencia.length > 120 || med.via.length > 60
+  )) {
+    return { ok: false, error: 'Uno o más datos de administración exceden el límite permitido.' };
+  }
+
+  return { ok: true, data: normalized };
+}
+
 module.exports = {
   getSafeClinicalError,
   isPositiveInteger,
   validateClinicalContext,
   validateClinicalHistory,
+  validateMedicationAdministration,
   validatePrescription,
 };
