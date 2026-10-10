@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import Pagination from '../../components/Pagination';
 import adminService from '../../services/adminService';
@@ -263,11 +264,19 @@ const PacientesScreen = ({ navigation }) => {
     return () => clearTimeout(timer);
   }, [search]);
 
+  useFocusEffect(useCallback(() => {
+    loadPatients({
+      requestedPage: 1,
+      forceRefresh: true,
+      silent: true,
+    });
+  }, [loadPatients]));
+
   useEffect(() => {
     loadPatients({
       requestedPage: 1,
-      forceRefresh: false,
-      silent: false,
+      forceRefresh: true,
+      silent: true,
     });
   }, [debouncedSearch, loadPatients]);
 
