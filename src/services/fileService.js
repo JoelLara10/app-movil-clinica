@@ -17,6 +17,14 @@ function safeFilename(filename = 'documento.pdf') {
   return filename.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120);
 }
 
+function addPdfToken(endpoint, token) {
+  if (!endpoint.startsWith('/pdf/') || /[?&]token=/.test(endpoint)) {
+    return endpoint;
+  }
+  const separator = endpoint.includes('?') ? '&' : '?';
+  return `${endpoint}${separator}token=${encodeURIComponent(token)}`;
+}
+
 export async function downloadAuthenticatedFile(
   endpoint,
   filename,
@@ -24,27 +32,31 @@ export async function downloadAuthenticatedFile(
 ) {
   const normalizedEndpoint = normalizeEndpoint(endpoint);
   const normalizedFilename = safeFilename(filename);
+  const token = await getToken();
+  if (!token) {
+    throw new Error('Sesión expirada');
+  }
+  // Los endpoints PDF heredados reciben el token y la atención como parámetros
+  // de consulta; se conserva el encabezado Bearer para las descargas normales.
+  const downloadEndpoint = addPdfToken(normalizedEndpoint, token);
 
   if (Platform.OS === 'web') {
-    const response = await api.get(normalizedEndpoint, { responseType: 'blob' });
+    const response = await api.get(downloadEndpoint, { responseType: 'blob' });
     const url = URL.createObjectURL(response.data);
     const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = normalizedFilename;
     anchor.rel = 'noopener';
     anchor.click();
-    URL.revokeObjectURL(url);
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     return;
   }
 
-  const token = await getToken();
-  if (!token) {
-    throw new Error('Sesión expirada');
-  }
-
+  const destination = `${FileSystem.cacheDirectory}${normalizedFilename}`;
+  await FileSystem.deleteAsync(destination, { idempotent: true });
   const result = await FileSystem.downloadAsync(
-    `${API_URL}${normalizedEndpoint}`,
-    `${FileSystem.cacheDirectory}${normalizedFilename}`,
+    `${API_URL}${downloadEndpoint}`,
+    destination,
     { headers: { Authorization: `Bearer ${token}` } },
   );
 
