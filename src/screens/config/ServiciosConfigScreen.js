@@ -124,7 +124,17 @@ export default function ServiciosConfigScreen({ navigation }) {
             </React.Fragment>
           ))}
           <Text style={styles.label}>{t('config.serviceUnit')}</Text>
-          <View style={styles.wrapRow}>{['CONSULTA', 'EQUIPO', 'ESTUDIO', 'HORA', 'SERVICIO'].map((v) => <Choice key={v} value={v} label={v} current={form.serv_umed} onPress={(serv_umed) => setForm({ ...form, serv_umed })} />)}</View>
+          <View style={styles.wrapRow}>
+            {[
+              ['CONSULTA', t('config.serviceUnitConsultation')],
+              ['EQUIPO', t('config.serviceUnitEquipment')],
+              ['ESTUDIO', t('config.serviceUnitStudy')],
+              ['HORA', t('config.serviceUnitHour')],
+              ['SERVICIO', t('config.serviceUnitService')],
+            ].map(([value, label]) => (
+              <Choice key={value} value={value} label={label} current={form.serv_umed} onPress={(serv_umed) => setForm({ ...form, serv_umed })} />
+            ))}
+          </View>
           <Text style={styles.label}>{t('config.serviceType')}</Text>
           <View style={styles.wrapRow}>{Object.entries(tipos).map(([v, label]) => <Choice key={v} value={v} label={label} current={String(form.tipo)} onPress={(tipo) => setForm({ ...form, tipo })} />)}</View>
           <Text style={styles.label}>{t('config.serviceState')}</Text>
