@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Modal,
+  Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +18,7 @@ import api from '../../services/api';
 import CacheService from '../../services/cacheService';
 import Pagination from '../../components/Pagination';
 import { useLanguage } from '../../context/LanguageContext';
+import { downloadAuthenticatedFile } from '../../services/fileService';
 import moment from 'moment';
 import 'moment/locale/es';
 
@@ -37,6 +39,7 @@ const StudyResultsScreen = ({ navigation, route }) => {
   const [gabinete, setGabinete] = useState([]);
   const [selectedExam, setSelectedExam] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [downloadingAttachment, setDownloadingAttachment] = useState(null);
   
   // Estados de paginación
   const [labCurrentPage, setLabCurrentPage] = useState(1);
@@ -140,6 +143,47 @@ const StudyResultsScreen = ({ navigation, route }) => {
   const handleViewResult = (exam) => {
     setSelectedExam(exam);
     setModalVisible(true);
+  };
+
+  const getAttachmentPaths = (exam) => {
+    const paths = (Array.isArray(exam?.detalles) ? exam.detalles : [])
+      .flatMap((detail) => {
+        const stored = detail?.archivo_resultado;
+        if (Array.isArray(stored)) return stored;
+        return typeof stored === 'string' ? stored.split(',') : [];
+      })
+      .map((path) => String(path || '').trim())
+      .filter(Boolean);
+    return [...new Set(paths)];
+  };
+
+  const handleOpenAttachment = async (path) => {
+    if (!selectedExam?.id_examen || !path) return;
+    setDownloadingAttachment(path);
+    try {
+      if (/^https?:\\/\\//i.test(path)) {
+        await Linking.openURL(path);
+        return;
+      }
+      const filename = path.replace(/\\\\/g, '/').split('/').pop() || `resultado_${selectedExam.id_examen}`;
+      const extension = filename.split('.').pop()?.toLowerCase();
+      const mimeType = extension === 'pdf'
+        ? 'application/pdf'
+        : extension === 'png'
+          ? 'image/png'
+          : ['jpg', 'jpeg'].includes(extension)
+            ? 'image/jpeg'
+            : extension === 'dicom' || extension === 'dcm'
+              ? 'application/dicom'
+              : 'application/octet-stream';
+      const endpoint = `/exams/${selectedExam.id_examen}/results/file?filename=${encodeURIComponent(path)}`;
+      await downloadAuthenticatedFile(endpoint, filename, mimeType);
+    } catch (error) {
+      console.error('Error opening study attachment:', error);
+      Alert.alert(t('common.error'), t('common.couldNotGenerate'));
+    } finally {
+      setDownloadingAttachment(null);
+    }
   };
 
   // Calcular páginas para laboratorio
@@ -354,17 +398,25 @@ const StudyResultsScreen = ({ navigation, route }) => {
                 </View>
               )}
               
-              {selectedExam.detalles && selectedExam.detalles.some(d => d.archivo_resultado) && (
-                <TouchableOpacity
-                  style={styles.downloadButton}
-                  onPress={() => {
-                    Alert.alert(t('common.attention'), t('common.downloadComingSoon'));
-                  }}
-                >
-                  <Ionicons name="download-outline" size={20} color="#fff" />
-                  <Text style={styles.downloadButtonText}>{t('common.downloadAttachment')}</Text>
-                </TouchableOpacity>
-              )}
+              {getAttachmentPaths(selectedExam).map((path, index) => {
+                const filename = path.replace(/\\\\/g, '/').split('/').pop() || `${t('common.downloadAttachment')} ${index + 1}`;
+                const isDownloading = downloadingAttachment === path;
+                return (
+                  <TouchableOpacity
+                    key={`${selectedExam.id_examen}_attachment_${index}`}
+                    style={styles.downloadButton}
+                    disabled={Boolean(downloadingAttachment)}
+                    onPress={() => handleOpenAttachment(path)}
+                  >
+                    {isDownloading
+                      ? <ActivityIndicator size="small" color="#fff" />
+                      : <Ionicons name="download-outline" size={20} color="#fff" />}
+                    <Text style={styles.downloadButtonText}>
+                      {isDownloading ? t('medico.loadingResults') : `${t('common.downloadAttachment')}: ${filename}`}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           </View>
         </View>
