@@ -21,6 +21,7 @@ import { useLanguage } from '../../context/LanguageContext';
 const {
   getSafeClinicalError,
   validateFluidBalance,
+  normalizeFluidBalanceRecord,
 } = require('../../utils/clinicalSecurity');
 
 const CACHE_KEY_PREFIX = 'enfermeria_fluid_balance_';
@@ -119,10 +120,11 @@ const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
   };
 
   const renderHistoryItem = ({ item }) => {
-    const balance = item.balance || {};
-    const totalIngresos = (parseFloat(balance.ingresos_orales) || 0) + (parseFloat(balance.ingresos_iv) || 0);
-    const totalEgresos = (parseFloat(balance.egresos_orina) || 0) + (parseFloat(balance.egresos_drenajes) || 0);
-    const balanceNeto = totalIngresos - totalEgresos;
+    // El API de QA devuelve cada campo en la raíz; soportamos ambas estructuras.
+    const balance = normalizeFluidBalanceRecord(item);
+    const totalIngresos = balance.total_ingresos;
+    const totalEgresos = balance.total_egresos;
+    const balanceNeto = balance.balance_neto;
 
     return (
       <View style={styles.historyItem}>
