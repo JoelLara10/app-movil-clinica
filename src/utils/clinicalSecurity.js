@@ -166,8 +166,45 @@ function validateFluidBalance({ id_atencion, Id_exp, formData = {} }) {
   return { ok: true, data: { ...values, observaciones: observations } };
 }
 
+
+function normalizeFluidBalanceRecord(record = {}) {
+  // La API devuelve actualmente los campos del balance en la raíz del registro.
+  // También aceptamos la forma anidada usada por versiones anteriores de la app.
+  const source = record?.balance && typeof record.balance === 'object'
+    ? record.balance
+    : record;
+  const asNumber = (value) => {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : 0;
+  };
+  const ingresosOrales = asNumber(source.ingresos_orales);
+  const ingresosIv = asNumber(source.ingresos_iv);
+  const egresosOrina = asNumber(source.egresos_orina);
+  const egresosDrenajes = asNumber(source.egresos_drenajes);
+  const totalIngresos = source.total_ingresos == null
+    ? ingresosOrales + ingresosIv
+    : asNumber(source.total_ingresos);
+  const totalEgresos = source.total_egresos == null
+    ? egresosOrina + egresosDrenajes
+    : asNumber(source.total_egresos);
+
+  return {
+    ingresos_orales: ingresosOrales,
+    ingresos_iv: ingresosIv,
+    egresos_orina: egresosOrina,
+    egresos_drenajes: egresosDrenajes,
+    total_ingresos: totalIngresos,
+    total_egresos: totalEgresos,
+    balance_neto: source.balance_neto == null
+      ? totalIngresos - totalEgresos
+      : asNumber(source.balance_neto),
+    observaciones: cleanText(source.observaciones),
+  };
+}
+
 module.exports = {
   getSafeClinicalError,
+  normalizeFluidBalanceRecord,
   isPositiveInteger,
   validateClinicalContext,
   validateClinicalHistory,
