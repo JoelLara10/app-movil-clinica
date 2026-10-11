@@ -553,17 +553,13 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
                     styles.menuItem,
                     !isEnabled && styles.menuItemDisabled,
                   ]}
+                  disabled={!isEnabled}
                   onPress={() => {
                     if (isEnabled) {
                       handleNavigation(
                         item.screen,
                         item.params,
                         item.subScreen,
-                      );
-                    } else {
-                      Alert.alert(
-                        t("sidebar.info"),
-                        t("sidebar.selectPatient"),
                       );
                     }
                   }}
