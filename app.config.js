@@ -37,14 +37,19 @@ function resolveApiUrl(environment) {
 module.exports = () => {
   const environment = resolveEnvironment();
   const apiUrl = resolveApiUrl(environment);
-  const selectedIcon = ENVIRONMENT_ICONS[environment] || baseConfig.expo.icon;
+  const environmentIcon = ENVIRONMENT_ICONS[environment];
+  const selectedIcon = environmentIcon || baseConfig.expo.icon;
+  const baseAdaptiveIcon = baseConfig.expo.android?.adaptiveIcon || {};
+  const adaptiveIcon = environmentIcon
+    ? {
+        ...baseAdaptiveIcon,
+        foregroundImage: environmentIcon,
+        backgroundColor: '#02194D',
+      }
+    : baseAdaptiveIcon;
   const android = {
     ...baseConfig.expo.android,
-    adaptiveIcon: {
-      ...baseConfig.expo.android?.adaptiveIcon,
-      foregroundImage: selectedIcon,
-      backgroundColor: '#02194D',
-    },
+    adaptiveIcon,
   };
 
   return {
