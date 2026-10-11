@@ -161,11 +161,11 @@ const StudyResultsScreen = ({ navigation, route }) => {
     if (!selectedExam?.id_examen || !path) return;
     setDownloadingAttachment(path);
     try {
-      if (/^https?:\\/\\//i.test(path)) {
+      if (path.startsWith('http://') || path.startsWith('https://')) {
         await Linking.openURL(path);
         return;
       }
-      const filename = path.replace(/\\\\/g, '/').split('/').pop() || `resultado_${selectedExam.id_examen}`;
+      const filename = path.split('/').pop()?.split(String.fromCharCode(92)).pop() || `resultado_${selectedExam.id_examen}`;
       const extension = filename.split('.').pop()?.toLowerCase();
       const mimeType = extension === 'pdf'
         ? 'application/pdf'
@@ -399,7 +399,7 @@ const StudyResultsScreen = ({ navigation, route }) => {
               )}
               
               {getAttachmentPaths(selectedExam).map((path, index) => {
-                const filename = path.replace(/\\\\/g, '/').split('/').pop() || `${t('common.downloadAttachment')} ${index + 1}`;
+                const filename = path.split('/').pop()?.split(String.fromCharCode(92)).pop() || `${t('common.downloadAttachment')} ${index + 1}`;
                 const isDownloading = downloadingAttachment === path;
                 return (
                   <TouchableOpacity
