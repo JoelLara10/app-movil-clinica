@@ -179,8 +179,12 @@ const StudyResultsScreen = ({ navigation, route }) => {
       const endpoint = `/exams/${selectedExam.id_examen}/results/file?filename=${encodeURIComponent(path)}`;
       await downloadAuthenticatedFile(endpoint, filename, mimeType);
     } catch (error) {
-      console.error('Error opening study attachment:', error);
-      Alert.alert(t('common.error'), t('common.couldNotGenerate'));
+      const status = error.response?.status;
+      console.error('Error opening study attachment:', status || error.message);
+      const message = status
+        ? `${t('common.couldNotGenerate')} (HTTP ${status})`
+        : t('common.couldNotGenerate');
+      Alert.alert(t('common.error'), message);
     } finally {
       setDownloadingAttachment(null);
     }
