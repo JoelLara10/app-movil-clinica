@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
-import api, { API_URL } from './api';
+import api from './api';
 import { getToken } from './secureStorage';
 
 function normalizeEndpoint(endpoint) {
@@ -15,6 +15,30 @@ function normalizeEndpoint(endpoint) {
 
 function safeFilename(filename = 'documento.pdf') {
   return filename.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120);
+}
+
+function arrayBufferToBase64(value) {
+  const bytes = value instanceof ArrayBuffer
+    ? new Uint8Array(value)
+    : ArrayBuffer.isView(value)
+      ? new Uint8Array(value.buffer, value.byteOffset, value.byteLength)
+      : new Uint8Array(value || []);
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  let output = '';
+
+  for (let index = 0; index < bytes.length; index += 3) {
+    const hasSecond = index + 1 < bytes.length;
+    const hasThird = index + 2 < bytes.length;
+    const block = (bytes[index] << 16)
+      | ((hasSecond ? bytes[index + 1] : 0) << 8)
+      | (hasThird ? bytes[index + 2] : 0);
+    output += alphabet[(block >> 18) & 63];
+    output += alphabet[(block >> 12) & 63];
+    output += hasSecond ? alphabet[(block >> 6) & 63] : '=';
+    output += hasThird ? alphabet[block & 63] : '=';
+  }
+
+  return output;
 }
 
 function addPdfToken(endpoint, token) {
@@ -54,22 +78,26 @@ export async function downloadAuthenticatedFile(
 
   const destination = `${FileSystem.cacheDirectory}${normalizedFilename}`;
   await FileSystem.deleteAsync(destination, { idempotent: true });
-  const result = await FileSystem.downloadAsync(
-    `${API_URL}${downloadEndpoint}`,
-    destination,
-    { headers: { Authorization: `Bearer ${token}` } },
-  );
 
-  if (result.status < 200 || result.status >= 300) {
-    await FileSystem.deleteAsync(result.uri, { idempotent: true });
-    throw new Error('No fue posible descargar el documento');
+  // Usa el mismo cliente autenticado que consulta resultados y la versión web.
+  // Así se conserva el interceptor Bearer y se evita una segunda ruta de descarga
+  // con diferencias de URL o encabezados entre Android, iOS y web.
+  const response = await api.get(downloadEndpoint, { responseType: 'arraybuffer' });
+  const base64 = arrayBufferToBase64(response.data);
+  if (!base64) {
+    throw new Error('El documento descargado está vacío');
   }
 
+  await FileSystem.writeAsStringAsync(destination, base64, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+
   if (!(await Sharing.isAvailableAsync())) {
+    await FileSystem.deleteAsync(destination, { idempotent: true });
     throw new Error('El dispositivo no permite compartir el documento');
   }
 
-  await Sharing.shareAsync(result.uri, {
+  await Sharing.shareAsync(destination, {
     mimeType,
     dialogTitle: 'Guardar o compartir documento INEO',
   });
