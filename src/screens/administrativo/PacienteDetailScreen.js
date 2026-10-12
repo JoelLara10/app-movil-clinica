@@ -14,7 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Pagination from '../../components/Pagination';
 import adminService from '../../services/adminService';
-import { getAdminCache, setAdminCache } from '../../services/adminCache';
+import { clearAdminCache, getAdminCache, setAdminCache } from '../../services/adminCache';
 import { useLanguage } from '../../context/LanguageContext';
 
 const fallbackPatient = {
@@ -471,6 +471,7 @@ const PacienteDetailScreen = ({ navigation, route }) => {
       setSaving(true);
 
       const response = await adminService.closeAccount(idAtencion);
+      await clearAdminCache();
       const nextAccount = response.account || response;
 
       setAccount(nextAccount);

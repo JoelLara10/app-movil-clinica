@@ -15,6 +15,10 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
 import CacheService from '../../services/cacheService';
 import { useLanguage } from '../../context/LanguageContext';
+const {
+  getSafeClinicalError,
+  validateClinicalHistory,
+} = require('../../utils/clinicalSecurity');
 
 const CACHE_KEY_PREFIX = 'historia_clinica_';
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
@@ -144,20 +148,18 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
   };
 
   const handleSubmit = async () => {
-    if (!formData.motivo_consulta.trim()) {
-      Alert.alert(t('common.warning'), t('common.requiredReason'));
+    // SEGURIDAD (Joel): valida el contexto y limita los textos clínicos antes de enviarlos.
+    // Evita asociar información a otro expediente y reduce cargas manipuladas o excesivas.
+    const validation = validateClinicalHistory({ id_atencion, Id_exp, formData });
+    if (!validation.ok) {
+      Alert.alert(t('common.warning'), validation.error);
       return;
     }
 
     setLoading(true);
     try {
       // Convertir arrays a strings separados por comas para enviar
-      const dataToSend = {
-        ...formData,
-        sintomatologia: formData.sintomatologia.join(','),
-        heredo: formData.heredo.join(','),
-        nopat: formData.nopat.join(','),
-      };
+      const dataToSend = validation.data;
       
       const response = await api.post(`/historia-clinica/${id_atencion}/${Id_exp}`, dataToSend);
       if (response.data) {
@@ -169,8 +171,12 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
         navigation.goBack();
       }
     } catch (error) {
-      console.error('Error saving historia clinica:', error);
-      Alert.alert(t('common.error'), error.response?.data?.error || t('common.couldNotSaveData'));
+      // SEGURIDAD (Joel): no mostramos detalles internos enviados por la API.
+      console.error('Error saving historia clinica request');
+      Alert.alert(
+        t('common.error'),
+        getSafeClinicalError(error, t('common.couldNotSaveData')),
+      );
     } finally {
       setLoading(false);
     }

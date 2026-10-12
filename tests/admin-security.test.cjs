@@ -33,14 +33,14 @@ function fakeStorage(seed = {}) {
   };
 }
 
-test('ADM-01: no persiste ni devuelve datos clinicos del cache', async () => {
+test('ADM-01: mantiene los datos administrativos solo en memoria', async () => {
   const storage = fakeStorage({ '@ineo_token': 'test-session' });
   const cache = await loadModule('adminCache.js', {
     '@react-native-async-storage/async-storage': { default: storage },
   });
   const result = await cache.setAdminCache('patients', { name: 'Paciente de prueba' });
   assert.equal(typeof result.timestamp, 'number');
-  assert.equal(await cache.getAdminCache('patients', 60000), null);
+  assert.equal((await cache.getAdminCache('patients', 60000)).data.name, 'Paciente de prueba');
   assert.equal(storage.values.size, 1);
 });
 
@@ -61,22 +61,17 @@ test('ADM-01: elimina cache legado y conserva la sesion y otros datos', async ()
 
 async function downloader(platform) {
   const requests = [];
-  const files = [];
-  const api = { async get(url) { requests.push(url); return { data: {} }; } };
-  const service = await loadModule('adminService.js', {
-    './api': { default: api, API_URL: 'https://api.example.test/api/v1' },
-    '@react-native-async-storage/async-storage': { default: fakeStorage() },
-    'react-native': { Platform: { OS: platform } },
-    'expo-file-system/legacy': {
-      cacheDirectory: 'file:///cache/',
-      async downloadAsync(url, target) { files.push({ url, target }); return { status: 200, uri: target }; },
+  const api = { async get(url) { requests.push({ endpoint: url }); return { data: {} }; } };
+  const fileService = {
+    async downloadAuthenticatedFile(endpoint, filename) {
+      requests.push({ endpoint, filename });
     },
-    'expo-sharing': { async isAvailableAsync() { return true; }, async shareAsync() {} },
-  }, {
-    URL: { createObjectURL() { return 'blob:test'; }, revokeObjectURL() {} },
-    window: { document: { createElement() { return { click() {} }; } } },
+  };
+  const service = await loadModule('adminService.js', {
+    './api': { default: api },
+    './fileService': { downloadAuthenticatedFile: fileService.downloadAuthenticatedFile },
   });
-  return { service: service.default, requests, files };
+  return { service: service.default, requests, files: [] };
 }
 
 test('ADM-02: rechaza URL externas y rutas alteradas antes de descargar', async () => {

@@ -1,7 +1,5 @@
-// services/cache.js
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const DEFAULT_TTL = 5 * 60 * 1000; // 5 minutos
+const DEFAULT_TTL = 5 * 60 * 1000;
+const memoryCache = new Map();
 
 export const CacheKeys = {
   estudiosAll: (type, status) => `estudios_all_${type}_${status}`,
@@ -11,49 +9,29 @@ export const CacheKeys = {
 };
 
 export const getCache = async (key) => {
-  try {
-    const item = await AsyncStorage.getItem(key);
-    if (!item) return null;
-    const parsed = JSON.parse(item);
-    if (parsed.expiry && Date.now() > parsed.expiry) {
-      await AsyncStorage.removeItem(key);
-      return null;
-    }
-    return parsed.value;
-  } catch (error) {
-    console.error('Cache get error:', error);
+  const item = memoryCache.get(key);
+  if (!item) return null;
+  if (Date.now() > item.expiry) {
+    memoryCache.delete(key);
     return null;
   }
+  return item.value;
 };
 
 export const setCache = async (key, value, ttl = DEFAULT_TTL) => {
-  try {
-    const item = {
-      value,
-      expiry: Date.now() + ttl,
-    };
-    await AsyncStorage.setItem(key, JSON.stringify(item));
-  } catch (error) {
-    console.error('Cache set error:', error);
-  }
+  memoryCache.set(key, { value, expiry: Date.now() + ttl });
 };
 
 export const removeCache = async (key) => {
-  try {
-    await AsyncStorage.removeItem(key);
-  } catch (error) {
-    console.error('Cache remove error:', error);
-  }
+  memoryCache.delete(key);
 };
 
 export const invalidateCachePrefix = async (prefix) => {
-  try {
-    const keys = await AsyncStorage.getAllKeys();
-    const keysToRemove = keys.filter(key => key.startsWith(prefix));
-    if (keysToRemove.length > 0) {
-      await AsyncStorage.multiRemove(keysToRemove);
-    }
-  } catch (error) {
-    console.error('Cache invalidate prefix error:', error);
+  for (const key of memoryCache.keys()) {
+    if (key.startsWith(prefix)) memoryCache.delete(key);
   }
+};
+
+export const clearEstudiosCache = async () => {
+  memoryCache.clear();
 };

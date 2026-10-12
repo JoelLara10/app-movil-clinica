@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import adminService from '../../services/adminService';
 import { useLanguage } from '../../context/LanguageContext';
+import DatePickerField from '../../components/DatePickerField';
 
 const areas = ['Consulta', 'Preparacion', 'Recuperacion'];
 const reasons = ['Consulta', 'Cirugia', 'Urgencia', 'Estudio'];
@@ -52,6 +53,10 @@ const NuevoPacienteScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [apiNotice, setApiNotice] = useState('');
+  const [patientQuery, setPatientQuery] = useState('');
+  const [patientMatches, setPatientMatches] = useState([]);
+  const [searchingPatients, setSearchingPatients] = useState(false);
+  const [patientSearchError, setPatientSearchError] = useState('');
 
   const doctorOptions = useMemo(() => (
     (options.medicos || []).map((doctor) => ({
@@ -115,6 +120,34 @@ const NuevoPacienteScreen = ({ navigation, route }) => {
 
     loadData();
   }, []);
+
+  useEffect(() => {
+    const query = patientQuery.trim();
+    if (mode !== 'create' || query.length < 2) {
+      setPatientMatches([]);
+      setPatientSearchError('');
+      setSearchingPatients(false);
+      return undefined;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setSearchingPatients(true);
+      setPatientSearchError('');
+      try {
+        const response = await adminService.searchPatients(query, 8);
+        const matches = Array.isArray(response) ? response : response?.data || [];
+        if (!cancelled) setPatientMatches(matches);
+      } catch (error) {
+        if (!cancelled) {
+          setPatientMatches([]);
+          setPatientSearchError(error.response?.data?.error || 'No se pudo buscar el expediente.');
+        }
+      } finally {
+        if (!cancelled) setSearchingPatients(false);
+      }
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [mode, patientQuery]);
 
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
 
@@ -192,22 +225,28 @@ const NuevoPacienteScreen = ({ navigation, route }) => {
         </TouchableOpacity>
       </LinearGradient>
 
-      <View style={styles.lookupCard}>
-        <View style={styles.lookupIcon}>
-          <Ionicons name="search-outline" size={22} color="#667eea" />
+      {mode === 'create' ? (
+        <View style={styles.lookupCard}>
+          <View style={styles.lookupIcon}><Ionicons name="search-outline" size={22} color="#667eea" /></View>
+          <View style={styles.lookupBody}>
+            <Text style={styles.lookupTitle}>Buscar expediente previo</Text>
+            <TextInput value={patientQuery} onChangeText={setPatientQuery} placeholder="CURP o nombre del paciente atendido anteriormente" placeholderTextColor="#a0aec0" autoCapitalize="characters" style={styles.lookupInput} />
+            {searchingPatients ? <Text style={styles.searchResultText}>Buscando...</Text> : null}
+            {patientSearchError ? <Text style={styles.searchResultText}>{patientSearchError}</Text> : null}
+            {patientMatches.map((match, index) => {
+              const active = Boolean(match.hasActiveAttention);
+              const name = match.name || match.patient || [match.nom_pac, match.papell, match.sapell].filter(Boolean).join(' ');
+              const recordId = match.Id_exp || match.id_exp || match.record;
+              return (
+                <TouchableOpacity key={recordId || index} disabled={active || !recordId} onPress={() => navigation.replace('NuevoPaciente', { mode: 'edit', patient: match, reactivation: true })} style={[styles.chip, active && { opacity: 0.55 }]} accessibilityRole="button">
+                  <Text style={styles.chipText}>{name} · {match.record || ('INEO-' + recordId)} · {active ? 'Ya tiene una atención activa' : 'Reactivar en una nueva atención'}</Text>
+                </TouchableOpacity>
+              );
+            })}
+            {patientQuery.trim().length >= 2 && !searchingPatients && !patientSearchError && patientMatches.length === 0 ? <Text style={styles.searchResultText}>No se encontraron expedientes.</Text> : null}
+          </View>
         </View>
-        <View style={styles.lookupBody}>
-          <Text style={styles.lookupTitle}>{t('administrative.search')}</Text>
-          <TextInput
-            value={form.curp}
-            onChangeText={(value) => update('curp', value.toUpperCase())}
-            placeholder="Escribe CURP o nombre del paciente..."
-            placeholderTextColor="#a0aec0"
-            autoCapitalize="characters"
-            style={styles.lookupInput}
-          />
-        </View>
-      </View>
+      ) : null}
 
       {apiNotice ? (
         <View style={styles.noticeBox}>
@@ -228,7 +267,7 @@ const NuevoPacienteScreen = ({ navigation, route }) => {
         <Field label={t('administrative.firstSurname')} value={form.papell} onChangeText={(value) => update('papell', value)} placeholder={t('administrative.firstSurname')} />
         <Field label={t('administrative.secondSurname')} value={form.sapell} onChangeText={(value) => update('sapell', value)} placeholder={t('administrative.secondSurname')} />
         <Field label={t('administrative.names')} value={form.nom_pac} onChangeText={(value) => update('nom_pac', value)} placeholder={t('administrative.names')} />
-        <Field label={t('administrative.birthDate')} value={form.fecnac} onChangeText={(value) => update('fecnac', value)} placeholder="AAAA-MM-DD" />
+        <DatePickerField label={t('administrative.birthDate')} value={form.fecnac} onChange={(value) => update('fecnac', value)} placeholder="Selecciona una fecha" />
         <Field label={t('administrative.phone')} value={form.tel} onChangeText={(value) => update('tel', value)} placeholder={t('administrative.phone')} keyboardType="phone-pad" />
       </FormSection>
 
@@ -381,6 +420,7 @@ const styles = StyleSheet.create({
   },
   lookupBody: { flex: 1 },
   lookupTitle: { color: '#2d3748', fontSize: 14, fontWeight: '800' },
+  searchResultText: { color: '#718096', fontSize: 12, marginTop: 8 },
   lookupInput: {
     minHeight: 36,
     marginTop: 4,

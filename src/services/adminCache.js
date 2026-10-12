@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const CACHE_PREFIX = '@ineo_admin_cache:';
+const memoryCache = new Map();
 let legacyCacheRemoved = false;
 
 const removeLegacyCache = async () => {
@@ -11,20 +12,28 @@ const removeLegacyCache = async () => {
     if (adminKeys.length) await AsyncStorage.multiRemove(adminKeys);
     legacyCacheRemoved = true;
   } catch (_error) {
-    // Reintentar en la siguiente consulta sin revelar datos clinicos.
     console.warn('No se pudo eliminar el cache administrativo anterior.');
   }
 };
 
-// Los expedientes y cuentas se consultan a la API autenticada en cada carga.
-// Se conserva la interfaz usada por las pantallas, sin cache en disco o memoria.
-export const getAdminCache = async (_key, _maxAge) => {
+export const getAdminCache = async (key, maxAge) => {
   await removeLegacyCache();
-  return null;
+  const cached = memoryCache.get(key);
+  if (!cached?.timestamp || cached.data === undefined) return null;
+  return {
+    data: cached.data,
+    timestamp: cached.timestamp,
+    isFresh: Date.now() - cached.timestamp < maxAge,
+  };
 };
 
-export const setAdminCache = async (_key, data) => {
+export const setAdminCache = async (key, data) => {
   await removeLegacyCache();
-  return { data, timestamp: Date.now() };
+  const cached = { data, timestamp: Date.now() };
+  memoryCache.set(key, cached);
+  return cached;
 };
 
+export const clearAdminCache = async () => {
+  memoryCache.clear();
+};

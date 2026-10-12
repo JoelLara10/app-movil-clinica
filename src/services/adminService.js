@@ -1,8 +1,5 @@
-import api, { API_URL } from './api';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
+import api from './api';
+import { downloadAuthenticatedFile } from './fileService';
 
 const buildParams = (params = {}) => (
   Object.fromEntries(
@@ -106,52 +103,21 @@ const adminService = {
 
   downloadDocument: async (document) => {
     const endpoint = document?.endpoint;
-
-    // Solo documentos administrativos de la API. Nunca enviar el JWT a otra URL.
-    const allowedDocumentPath = /^(?:\/api\/v1)?\/pdf\/(?:initial-sheet|front-sheet|contract|consent|identification-sheet)\/[1-9]\d*\/[1-9]\d*$/;
+    const allowedDocumentPath = /^(?:[/]api[/]v1)?[/]pdf[/](?:initial-sheet|front-sheet|contract|consent|identification-sheet)[/][1-9][0-9]*[/][1-9][0-9]*$/;
     if (typeof endpoint !== 'string' || !allowedDocumentPath.test(endpoint)) {
       throw new Error('La ruta del documento no es válida.');
     }
 
     const normalizedEndpoint = endpoint.startsWith('/api/')
-      ? endpoint.replace(/^\/api\/v1/, '')
+      ? endpoint.replace(/^[/]api[/]v1/, '')
       : endpoint;
     const filename = document.filename ??
       `${normalizedEndpoint.split('/')[2]}_${Date.now()}.pdf`;
-    if (typeof filename !== 'string' || !/^[A-Za-z0-9_-]{1,100}\.pdf$/i.test(filename)) {
+    if (typeof filename !== 'string' || !/^[A-Za-z0-9_-]{1,100}[.]pdf$/i.test(filename)) {
       throw new Error('El nombre del documento no es válido.');
     }
 
-    if (Platform.OS === 'web') {
-      const response = await api.get(normalizedEndpoint, { responseType: 'blob' });
-      const url = URL.createObjectURL(response.data);
-      const anchor = window.document.createElement('a');
-      anchor.href = url;
-      anchor.download = filename;
-      anchor.click();
-      URL.revokeObjectURL(url);
-      return;
-    }
-
-    const token = await AsyncStorage.getItem('@ineo_token');
-    const result = await FileSystem.downloadAsync(
-      `${API_URL}${normalizedEndpoint}`,
-      `${FileSystem.cacheDirectory}${filename}`,
-      { headers: token ? { Authorization: `Bearer ${token}` } : {} }
-    );
-
-    if (result.status < 200 || result.status >= 300) {
-      throw new Error(`La API respondió con estado ${result.status}.`);
-    }
-
-    if (!(await Sharing.isAvailableAsync())) {
-      throw new Error(`Documento descargado en ${result.uri}`);
-    }
-
-    await Sharing.shareAsync(result.uri, {
-      mimeType: 'application/pdf',
-      dialogTitle: `Guardar o compartir ${document.title || 'documento'}`,
-    });
+    await downloadAuthenticatedFile(normalizedEndpoint, filename);
   },
 
   addCharge: (idAtencion, payload) => (

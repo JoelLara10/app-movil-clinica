@@ -5,14 +5,29 @@
   },
   "build": {
     "development": {
+      "environment": "development",
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "APP_ENV": "development",
+        "EXPO_PUBLIC_API_URL": "http://10.0.2.2:5001/api/v1"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "environment": "preview",
+      "distribution": "internal",
+      "env": {
+        "APP_ENV": "qa",
+        "EXPO_PUBLIC_API_URL": "https://ineo-pbl-entrega.onrender.com/api/v1"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "environment": "production",
+      "autoIncrement": true,
+      "env": {
+        "APP_ENV": "production",
+        "EXPO_PUBLIC_API_URL": "https://api-clinica-jx4m.onrender.com/api/v1"
+      }
     }
   },
   "submit": {

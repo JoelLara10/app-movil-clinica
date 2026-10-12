@@ -8,15 +8,14 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-  Linking,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../../services/api";
 import CacheService from "../../services/cacheService";
 import { usePatient } from "../../context/PatientContext";
 import { useLanguage } from "../../context/LanguageContext";
+import { downloadAuthenticatedFile } from "../../services/fileService";
 
 const DOCS_CACHE_TTL = 2 * 60 * 1000;
 
@@ -65,19 +64,11 @@ const PrintDocsScreen = ({ navigation, route }) => {
 
   const handlePrint = async (documentType) => {
     try {
-      const token = await AsyncStorage.getItem("@ineo_token");
-      if (!token) {
-        Alert.alert(t('common.sessionExpired'), t('common.sessionExpired'));
-        return;
-      }
-
-      const baseUrl = api.defaults.baseURL;
       const queryParams = new URLSearchParams({
-        token,
         id_atencion: String(id_atencion),
-        _ts: String(Date.now()),
       }).toString();
-      let url = "";
+      let endpoint = "";
+      const filename = `${documentType}_${id_atencion}.pdf`;
 
       switch (documentType) {
         case "vital-signs": {
@@ -86,7 +77,7 @@ const PrintDocsScreen = ({ navigation, route }) => {
             `/appointments/${id_atencion}/vital-signs`
           );
           if (data?.length > 0) {
-            url = `${baseUrl}/pdf/vital-signs/${data[0].id_signos}?${queryParams}`;
+            endpoint = `/pdf/vital-signs/${data[0].id_signos}?${queryParams}`;
           } else {
             Alert.alert(t('common.attention'), t('medico.vitalSigns'));
             return;
@@ -99,7 +90,7 @@ const PrintDocsScreen = ({ navigation, route }) => {
             `/appointments/${id_atencion}/medical-notes`
           );
           if (data?.length > 0) {
-            url = `${baseUrl}/pdf/medical-note/${data[0].id_nota}?${queryParams}`;
+            endpoint = `/pdf/medical-note/${data[0].id_nota}?${queryParams}`;
           } else {
             Alert.alert(t('common.attention'), t('medico.noPreviousNotes') || t('common.noPreviousNotes'));
             return;
@@ -112,7 +103,7 @@ const PrintDocsScreen = ({ navigation, route }) => {
             `/appointments/${id_atencion}/diagnosis`
           );
           if (data?.id_diagnostico) {
-            url = `${baseUrl}/pdf/diagnosis/${data.id_diagnostico}?${queryParams}`;
+            endpoint = `/pdf/diagnosis/${data.id_diagnostico}?${queryParams}`;
           } else {
             Alert.alert(t('common.attention'), t('common.noResultsYet'));
             return;
@@ -125,7 +116,7 @@ const PrintDocsScreen = ({ navigation, route }) => {
             `/appointments/${id_atencion}/prescriptions`
           );
           if (data?.length > 0) {
-            url = `${baseUrl}/pdf/prescription/${data[0].id_receta}?${queryParams}`;
+            endpoint = `/pdf/prescription/${data[0].id_receta}?${queryParams}`;
           } else {
             Alert.alert(t('common.attention'), t('common.noPreviousPrescriptions'));
             return;
@@ -139,7 +130,7 @@ const PrintDocsScreen = ({ navigation, route }) => {
             true
           );
           if (data?.length > 0) {
-            url = `${baseUrl}/pdf/lab/${data[0].id_examen}?${queryParams}`;
+            endpoint = `/pdf/lab/${data[0].id_examen}?${queryParams}`;
           } else {
             Alert.alert(t('common.attention'), t('common.noExamsAvailable'));
             return;
@@ -152,7 +143,7 @@ const PrintDocsScreen = ({ navigation, route }) => {
             `/exams/requested/${id_atencion}?type=GABINETE`
           );
           if (data?.length > 0) {
-            url = `${baseUrl}/pdf/imaging/${data[0].id_examen}?${queryParams}`;
+            endpoint = `/pdf/imaging/${data[0].id_examen}?${queryParams}`;
           } else {
             Alert.alert(t('common.attention'), t('common.noImagingExamsError'));
             return;
@@ -163,10 +154,8 @@ const PrintDocsScreen = ({ navigation, route }) => {
           return;
       }
 
-      console.log("📄 URL del PDF:", url);
-      await Linking.openURL(url);
-    } catch (error) {
-      console.error(error);
+      await downloadAuthenticatedFile(endpoint, filename);
+    } catch (_error) {
       Alert.alert(t('common.error'), t('common.couldNotGenerate'));
     }
   };

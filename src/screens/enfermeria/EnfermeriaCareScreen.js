@@ -129,6 +129,11 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
     const estado = item.estado || 'EN_PROCESO';
     const estadoColor = getEstadoColor(estado);
     const estadoEmoji = getEstadoEmoji(estado);
+    const estadoLabel = {
+      EN_PROCESO: t('enfermeria.careStateInProgress'),
+      PENDIENTE: t('enfermeria.careStatePending'),
+      COMPLETADO: t('enfermeria.careStateCompleted'),
+    }[estado] || t('common.notSpecified');
 
     return (
       <View style={styles.historyItem}>
@@ -148,47 +153,27 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
           </View>
           <View style={[styles.estadoBadge, { backgroundColor: estadoColor + '20' }]}>
             <Text style={[styles.estadoBadgeText, { color: estadoColor }]}>
-              {estadoEmoji} {estado}
+              {estadoEmoji} {estadoLabel}
             </Text>
           </View>
         </View>
         
         <View style={styles.historyContent}>
-          {item.diagnostico_enfermeria && (
-            <View style={styles.historyField}>
-              <Ionicons name="clipboard-outline" size={14} color="#667eea" />
-              <Text style={styles.historyFieldLabel}>{t('enfermeria.careType')}:</Text>
-              <Text style={styles.historyFieldValue}>{item.diagnostico_enfermeria}</Text>
+          {[
+            { icon: 'clipboard-outline', color: '#667eea', label: t('enfermeria.careType'), value: item.diagnostico_enfermeria },
+            { icon: 'flag-outline', color: '#48bb78', label: t('enfermeria.objectives'), value: item.objetivos },
+            { icon: 'hand-left-outline', color: '#4299e1', label: t('enfermeria.interventions'), value: item.intervenciones },
+            { icon: 'analytics-outline', color: '#ed8936', label: t('enfermeria.evaluation'), value: item.evaluacion },
+            { icon: 'document-text-outline', color: '#718096', label: t('common.observations'), value: item.observaciones },
+          ].map((field) => (
+            <View key={field.label} style={styles.historyField}>
+              <Ionicons name={field.icon} size={14} color={field.color} />
+              <Text style={styles.historyFieldLabel}>{field.label}:</Text>
+              <Text style={styles.historyFieldValue}>
+                {field.value || (field.label === t('common.observations') ? t('enfermeria.noObservations') : t('common.notSpecified'))}
+              </Text>
             </View>
-          )}
-          {item.objetivos && (
-            <View style={styles.historyField}>
-              <Ionicons name="flag-outline" size={14} color="#48bb78" />
-              <Text style={styles.historyFieldLabel}>{t('enfermeria.description')}:</Text>
-              <Text style={styles.historyFieldValue}>{item.objetivos}</Text>
-            </View>
-          )}
-          {item.intervenciones && (
-            <View style={styles.historyField}>
-              <Ionicons name="hand-left-outline" size={14} color="#4299e1" />
-              <Text style={styles.historyFieldLabel}>{t('enfermeria.interventions')}:</Text>
-              <Text style={styles.historyFieldValue}>{item.intervenciones}</Text>
-            </View>
-          )}
-          {item.evaluacion && (
-            <View style={styles.historyField}>
-              <Ionicons name="analytics-outline" size={14} color="#ed8936" />
-              <Text style={styles.historyFieldLabel}>{t('enfermeria.evaluation')}:</Text>
-              <Text style={styles.historyFieldValue}>{item.evaluacion}</Text>
-            </View>
-          )}
-          {item.observaciones && (
-            <View style={styles.historyField}>
-              <Ionicons name="document-text-outline" size={14} color="#718096" />
-              <Text style={styles.historyFieldLabel}>{t('common.observations')}:</Text>
-              <Text style={styles.historyFieldValue}>{item.observaciones}</Text>
-            </View>
-          )}
+          ))}
         </View>
       </View>
     );

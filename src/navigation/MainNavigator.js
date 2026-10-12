@@ -83,8 +83,8 @@ const roleLabels = {
   admin: { es: "ADMIN", en: "ADMIN" },
   administrativo: { es: "ADMINISTRATIVO", en: "ADMINISTRATIVE" },
   medico: { es: "MEDICO", en: "MEDICAL" },
-  enfermero: { es: "ENFERMERIA", en: "NURSING" },
-  enfermeria: { es: "ENFERMERIA", en: "NURSING" },
+  enfermero: { es: "ENFERMERO", en: "NURSE" },
+  enfermeria: { es: "ENFERMERO", en: "NURSE" },
   estudios: { es: "ESTUDIOS", en: "STUDIES" },
 };
 
@@ -553,17 +553,13 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
                     styles.menuItem,
                     !isEnabled && styles.menuItemDisabled,
                   ]}
+                  disabled={!isEnabled}
                   onPress={() => {
                     if (isEnabled) {
                       handleNavigation(
                         item.screen,
                         item.params,
                         item.subScreen,
-                      );
-                    } else {
-                      Alert.alert(
-                        t("sidebar.info"),
-                        t("sidebar.selectPatient"),
                       );
                     }
                   }}

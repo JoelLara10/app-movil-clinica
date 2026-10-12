@@ -1,8 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
-import api, { API_URL } from './api';
+import api from './api';
+import { downloadAuthenticatedFile } from './fileService';
 
 const LONG_TIMEOUT = 10 * 60 * 1000;
 
@@ -39,34 +36,18 @@ const configurationService = {
       await api.delete(`/backup/${encodeURIComponent(filename)}`)
     ).data,
     download: async (filename) => {
-      if (Platform.OS === 'web') {
-        const response = await api.get(
-          `/backup/download/${encodeURIComponent(filename)}`,
-          { responseType: 'blob', timeout: LONG_TIMEOUT },
-        );
-        const url = URL.createObjectURL(response.data);
-        const anchor = document.createElement('a');
-        anchor.href = url;
-        anchor.download = filename;
-        anchor.click();
-        URL.revokeObjectURL(url);
-        return;
-      }
-
-      const token = await AsyncStorage.getItem('@ineo_token');
-      const destination = `${FileSystem.cacheDirectory}${filename}`;
-      const result = await FileSystem.downloadAsync(
-        `${API_URL}/backup/download/${encodeURIComponent(filename)}`,
-        destination,
-        { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+      await downloadAuthenticatedFile(
+        `/backup/download/${encodeURIComponent(filename)}`,
+        filename,
+        'application/json',
       );
-      if (!(await Sharing.isAvailableAsync())) {
-        throw new Error(`Archivo descargado en ${result.uri}`);
-      }
-      await Sharing.shareAsync(result.uri, {
-        dialogTitle: 'Guardar o compartir respaldo INEO',
-      });
     },
+  },
+  users: {
+    list: async () => (await api.get('/auth/users')).data,
+    create: async (data) => (await api.post('/auth/users', data)).data,
+    update: async (id, data) => (await api.put(`/auth/users/${id}`, data)).data,
+    remove: async (id) => (await api.delete(`/auth/users/${id}`)).data,
   },
   automation: {
     get: async () => (await api.get('/backup/automation')).data,

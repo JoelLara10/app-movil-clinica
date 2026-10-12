@@ -63,10 +63,7 @@ export default function UploadResultForm({ navigation, route }) {
         copyToCacheDirectory: true,
       });
 
-      console.log('DocumentPicker result:', JSON.stringify(result, null, 2));
-
       if (result.canceled || result.type === 'cancel') {
-        console.log('Selection cancelled');
         return;
       }
 
@@ -148,8 +145,6 @@ export default function UploadResultForm({ navigation, route }) {
 
       formData.append('observaciones', observaciones);
       formData.append('type', tipo);
-
-      console.log('Sending files:', archivos.map(f => ({ name: f.name, uri: f.uri, type: f.type })));
 
       await api.post(`/exams/${id_examen}/results/upload`, formData, {
         headers: {

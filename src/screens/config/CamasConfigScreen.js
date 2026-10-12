@@ -17,6 +17,19 @@ const getPagedData = (data, page) => data.slice((page - 1) * ITEMS_PER_PAGE, pag
 
 export default function CamasConfigScreen({ navigation }) {
   const { t } = useLanguage();
+  const areaOptions = [
+    { value: 'Hospitalizado', label: t('config.bedAreaInpatient') },
+    { value: 'Urgencias', label: t('config.bedAreaEmergency') },
+  ];
+  const roomTypeOptions = [
+    { value: 'General', label: t('config.bedRoomGeneral') },
+    { value: 'Observación', label: t('config.bedRoomObservation') },
+    { value: 'Terapia intensiva', label: t('config.bedRoomIntensiveCare') },
+    { value: 'Recuperación', label: t('config.bedRoomRecovery') },
+    { value: 'Consulta', label: t('config.bedRoomConsultation') },
+  ];
+  const localizedOption = (options, value) =>
+    options.find((option) => option.value === value)?.label || value || '—';
   const [camas, setCamas] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
@@ -108,9 +121,9 @@ export default function CamasConfigScreen({ navigation }) {
           <Text style={styles.label}>{t('config.bedNumber')}</Text>
           <TextInput style={styles.input} value={form.numero} onChangeText={(numero) => setForm({ ...form, numero })} placeholder={t('config.bedNumberPlaceholder')} />
           <Text style={styles.label}>{t('config.bedArea')}</Text>
-          <View style={styles.wrapRow}>{['Hospitalizado', 'Urgencias'].map((v) => <Choice key={v} value={v} label={v} current={form.area} onPress={(area) => setForm({ ...form, area })} />)}</View>
+          <View style={styles.wrapRow}>{areaOptions.map((option) => <Choice key={option.value} value={option.value} label={option.label} current={form.area} onPress={(area) => setForm({ ...form, area })} />)}</View>
           <Text style={styles.label}>{t('config.bedRoomType')}</Text>
-          <View style={styles.wrapRow}>{['General', 'Observación', 'Terapia intensiva', 'Recuperación', 'Consulta'].map((v) => <Choice key={v} value={v} label={v} current={form.tipo_habitacion} onPress={(tipo_habitacion) => setForm({ ...form, tipo_habitacion })} />)}</View>
+          <View style={styles.wrapRow}>{roomTypeOptions.map((option) => <Choice key={option.value} value={option.value} label={option.label} current={form.tipo_habitacion} onPress={(tipo_habitacion) => setForm({ ...form, tipo_habitacion })} />)}</View>
           <Text style={styles.label}>{t('config.bedFloor')}</Text>
           <TextInput style={styles.input} value={String(form.piso || '')} onChangeText={(piso) => setForm({ ...form, piso })} />
           <Text style={styles.label}>{t('config.bedSection')}</Text>
@@ -136,7 +149,7 @@ export default function CamasConfigScreen({ navigation }) {
             <View style={styles.between}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.cardTitle}>Cama {cama.numero}</Text>
-                <Text style={styles.cardSubtitle}>{cama.area} · {cama.tipo_habitacion || 'General'} · {t('config.bedFloor')} {cama.piso || 'N/A'} · {t('config.bedSection')} {cama.seccion || 'N/A'}</Text>
+                <Text style={styles.cardSubtitle}>{localizedOption(areaOptions, cama.area)} · {localizedOption(roomTypeOptions, cama.tipo_habitacion || 'General')} · {t('config.bedFloor')} {cama.piso || 'N/A'} · {t('config.bedSection')} {cama.seccion || 'N/A'}</Text>
               </View>
               <View style={styles.badge}><Text style={styles.badgeText}>{cama.ocupada ? t('config.bedOccupied').toUpperCase() : t('config.bedFree').toUpperCase()}</Text></View>
             </View>
