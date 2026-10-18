@@ -43,6 +43,12 @@ const configurationService = {
       );
     },
   },
+  users: {
+    list: async () => (await api.get('/auth/users')).data,
+    create: async (data) => (await api.post('/auth/users', data)).data,
+    update: async (id, data) => (await api.put(`/auth/users/${id}`, data)).data,
+    remove: async (id) => (await api.delete(`/auth/users/${id}`)).data,
+  },
   automation: {
     get: async () => (await api.get('/backup/automation')).data,
     update: async (data) => (await api.put('/backup/automation', data)).data,

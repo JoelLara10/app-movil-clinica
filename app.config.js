@@ -2,6 +2,10 @@ const baseConfig = require('./app.base.json');
 
 const ENVIRONMENTS = new Set(['development', 'qa', 'production']);
 const DEFAULT_PRODUCTION_API = 'https://api-clinica-jx4m.onrender.com/api/v1';
+const ENVIRONMENT_ICONS = {
+  qa: './assets/ineo-icon-qa.png',
+  production: './assets/ineo-icon-production.png',
+};
 
 function resolveEnvironment() {
   const environment = process.env.APP_ENV || 'production';
@@ -33,6 +37,20 @@ function resolveApiUrl(environment) {
 module.exports = () => {
   const environment = resolveEnvironment();
   const apiUrl = resolveApiUrl(environment);
+  const environmentIcon = ENVIRONMENT_ICONS[environment];
+  const selectedIcon = environmentIcon || baseConfig.expo.icon;
+  const baseAdaptiveIcon = baseConfig.expo.android?.adaptiveIcon || {};
+  const adaptiveIcon = environmentIcon
+    ? {
+        ...baseAdaptiveIcon,
+        foregroundImage: environmentIcon,
+        backgroundColor: '#02194D',
+      }
+    : baseAdaptiveIcon;
+  const android = {
+    ...baseConfig.expo.android,
+    adaptiveIcon,
+  };
 
   return {
     ...baseConfig.expo,
@@ -40,6 +58,8 @@ module.exports = () => {
       ? baseConfig.expo.name
       : `${baseConfig.expo.name} ${environment.toUpperCase()}`,
     slug: baseConfig.expo.slug,
+    icon: selectedIcon,
+    android,
     extra: {
       ...baseConfig.expo.extra,
       APP_ENV: environment,

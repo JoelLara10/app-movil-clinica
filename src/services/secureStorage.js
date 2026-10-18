@@ -5,7 +5,7 @@ import * as SecureStore from 'expo-secure-store';
 // SecureStore solo acepta caracteres alfanuméricos, punto, guion y guion bajo.
 // Se conserva la clave anterior únicamente para el almacenamiento web.
 const WEB_TOKEN_KEY = '@ineo_token';
-const NATIVE_TOKEN_KEY = 'ineo.token';
+const NATIVE_TOKEN_KEY = 'ineo_token';
 const USER_KEY = '@ineo_user';
 const SENSITIVE_PREFIXES = [
   '@ineo_cache_',

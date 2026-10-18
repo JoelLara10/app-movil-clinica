@@ -187,3 +187,47 @@ test('Jesús BAL-03: un error 500 nunca revela detalles de base de datos', () =>
   assert.equal(message, 'No fue posible guardar el balance.');
   assert.doesNotMatch(message, /Mongo|mongodb/);
 });
+
+
+const { normalizeFluidBalanceRecord } = require('../src/utils/clinicalSecurity');
+
+test('Jesús BAL-04: interpreta los campos planos devueltos por la API móvil', () => {
+  const balance = normalizeFluidBalanceRecord({
+    ingresos_orales: 750,
+    ingresos_iv: 250,
+    egresos_orina: 400,
+    egresos_drenajes: 100,
+    total_ingresos: 1000,
+    total_egresos: 500,
+    balance_neto: 500,
+    observaciones: 'Paciente estable',
+  });
+
+  assert.deepEqual(balance, {
+    ingresos_orales: 750,
+    ingresos_iv: 250,
+    egresos_orina: 400,
+    egresos_drenajes: 100,
+    total_ingresos: 1000,
+    total_egresos: 500,
+    balance_neto: 500,
+    observaciones: 'Paciente estable',
+  });
+});
+
+test('Jesús BAL-05: mantiene compatibilidad con balances anidados y calcula totales faltantes', () => {
+  const balance = normalizeFluidBalanceRecord({
+    balance: {
+      ingresos_orales: '300',
+      ingresos_iv: 200,
+      egresos_orina: 100,
+      egresos_drenajes: 50,
+      observaciones: '  Vigilar  ',
+    },
+  });
+
+  assert.equal(balance.total_ingresos, 500);
+  assert.equal(balance.total_egresos, 150);
+  assert.equal(balance.balance_neto, 350);
+  assert.equal(balance.observaciones, 'Vigilar');
+});
