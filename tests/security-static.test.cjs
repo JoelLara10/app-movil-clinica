@@ -27,3 +27,14 @@ test('JWT is only accessed through secureStorage', () => {
     assert.doesNotMatch(source, /AsyncStorage\.getItem\(['"]@ineo_token/, file);
   }
 });
+
+test('SecureStore usa una clave nativa válida', () => {
+  const source = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'services', 'secureStorage.js'),
+    'utf8',
+  );
+  const match = source.match(/const NATIVE_TOKEN_KEY = '([^']+)'/);
+  assert.ok(match, 'Debe existir una clave separada para SecureStore');
+  assert.match(match[1], /^[A-Za-z0-9._-]+$/);
+  assert.doesNotMatch(match[1], /@/);
+});
