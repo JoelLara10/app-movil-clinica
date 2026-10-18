@@ -2,8 +2,10 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 
-const TOKEN_KEY = 'ineo_token';
+// SecureStore solo acepta caracteres alfanuméricos, punto, guion y guion bajo.
+// Se conserva la clave anterior únicamente para el almacenamiento web.
 const WEB_TOKEN_KEY = '@ineo_token';
+const NATIVE_TOKEN_KEY = 'ineo_token';
 const USER_KEY = '@ineo_user';
 const SENSITIVE_PREFIXES = [
   '@ineo_cache_',
@@ -25,7 +27,7 @@ export async function getToken() {
   if (Platform.OS === 'web') {
     return webStorage()?.getItem(WEB_TOKEN_KEY) || null;
   }
-  return SecureStore.getItemAsync(TOKEN_KEY);
+  return SecureStore.getItemAsync(NATIVE_TOKEN_KEY);
 }
 
 export async function setToken(token) {
@@ -33,7 +35,7 @@ export async function setToken(token) {
     webStorage()?.setItem(WEB_TOKEN_KEY, token);
     return;
   }
-  await SecureStore.setItemAsync(TOKEN_KEY, token, {
+  await SecureStore.setItemAsync(NATIVE_TOKEN_KEY, token, {
     keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
   });
 }
@@ -43,7 +45,7 @@ export async function removeToken() {
     webStorage()?.removeItem(WEB_TOKEN_KEY);
     return;
   }
-  await SecureStore.deleteItemAsync(TOKEN_KEY);
+  await SecureStore.deleteItemAsync(NATIVE_TOKEN_KEY);
 }
 
 export async function getStoredUser() {

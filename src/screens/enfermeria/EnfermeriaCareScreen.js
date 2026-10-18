@@ -18,6 +18,11 @@ import CacheService from '../../services/cacheService';
 import Pagination from '../../components/Pagination';
 import moment from 'moment';
 import { useLanguage } from '../../context/LanguageContext';
+import {
+  getSafeClinicalError,
+  validateClinicalContext,
+  validateNursingCare,
+} from '../../utils/clinicalSecurity';
 
 const CACHE_KEY_PREFIX = 'enfermeria_care_';
 const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
@@ -32,6 +37,7 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState([]);
   const [currentHistoryPage, setCurrentHistoryPage] = useState(1);
+  const [historyStatus, setHistoryStatus] = useState('loading');
   const [formData, setFormData] = useState({
     diagnostico_enfermeria: '',
     objetivos: '',
@@ -47,34 +53,35 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
   }, []);
 
   const loadCareHistory = async (forceRefresh = false) => {
+    const context = validateClinicalContext(id_atencion, Id_exp);
+    if (!context.ok) {
+      setHistoryStatus('error');
+      setLoadingHistory(false);
+      return;
+    }
+
+    const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}`;
     try {
       setLoadingHistory(true);
-      const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}`;
+      setHistoryStatus('loading');
 
-      if (!forceRefresh) {
-        const cachedData = await CacheService.get(cacheKey);
-        if (cachedData) {
-          console.log('📦 Historial de cuidados cargado desde caché');
-          setHistory(cachedData);
-          setLoadingHistory(false);
-          return;
-        }
-      }
-
-      console.log('🌐 Cargando historial de cuidados desde API...');
+      // Consulta remota real: GET protegido por el interceptor JWT de api.js.
       const response = await api.get(`/appointments/${id_atencion}/nursing-care`);
-      
-      await CacheService.set(cacheKey, response.data, CACHE_TTL);
-      setHistory(response.data || []);
+      const remoteHistory = Array.isArray(response.data) ? response.data : [];
+
+      await CacheService.set(cacheKey, remoteHistory, CACHE_TTL);
+      setHistory(remoteHistory);
+      setHistoryStatus('remote');
       if (forceRefresh) setCurrentHistoryPage(1);
     } catch (error) {
-      console.error('Error loading care history:', error);
-      
-      const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}`;
+      // Si falla la red se usa únicamente una copia temporal, nunca como fuente principal.
       const cachedData = await CacheService.get(cacheKey);
-      if (cachedData) {
-        console.log('📦 Historial de cuidados cargado desde caché (fallback)');
+      if (Array.isArray(cachedData)) {
         setHistory(cachedData);
+        setHistoryStatus('cache');
+      } else {
+        setHistory([]);
+        setHistoryStatus('error');
       }
     } finally {
       setLoadingHistory(false);
@@ -96,17 +103,21 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
   };
 
   const handleSubmit = async () => {
-    const hasData = Object.values(formData).some(value => value.trim() !== '');
-    if (!hasData) {
-      Alert.alert(t('common.warning'), t('enfermeria.newCare'));
+    // Seguridad: valida contexto, obligatorios, longitudes y estado antes del POST.
+    const validation = validateNursingCare({ id_atencion, Id_exp, formData });
+    if (!validation.ok) {
+      Alert.alert(t('common.warning'), validation.error);
       return;
     }
 
     setLoading(true);
     try {
-      const response = await api.post(`/appointments/${id_atencion}/nursing-care`, formData);
+      const response = await api.post(
+        `/appointments/${id_atencion}/nursing-care`,
+        validation.data,
+      );
       if (response.data) {
-        Alert.alert(t('common.success'), t('enfermeria.nursingCare'));
+        Alert.alert(t('common.success'), t('enfermeria.careSaved'));
         setFormData({
           diagnostico_enfermeria: '',
           objetivos: '',
@@ -118,8 +129,11 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
         await loadCareHistory(true);
       }
     } catch (error) {
-      console.error('Error saving nursing care:', error);
-      Alert.alert(t('common.error'), error.response?.data?.error || t('enfermeria.couldNotLoad'));
+      // Nunca se muestra al usuario el mensaje técnico devuelto por el servidor.
+      Alert.alert(
+        t('common.error'),
+        getSafeClinicalError(error, t('enfermeria.couldNotSaveCare')),
+      );
     } finally {
       setLoading(false);
     }
@@ -233,6 +247,28 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
         </View>
       </View>
 
+      {historyStatus !== 'loading' && (
+        <View style={[
+          styles.connectionStatus,
+          historyStatus === 'remote' && styles.connectionRemote,
+          historyStatus === 'cache' && styles.connectionCache,
+          historyStatus === 'error' && styles.connectionError,
+        ]}>
+          <Ionicons
+            name={historyStatus === 'remote' ? 'cloud-done-outline' : 'cloud-offline-outline'}
+            size={18}
+            color={historyStatus === 'remote' ? '#276749' : '#9c4221'}
+          />
+          <Text style={styles.connectionStatusText}>
+            {historyStatus === 'remote'
+              ? t('enfermeria.remoteDataLoaded')
+              : historyStatus === 'cache'
+                ? t('enfermeria.cachedDataWarning')
+                : t('enfermeria.remoteConnectionError')}
+          </Text>
+        </View>
+      )}
+
       {/* Tarjeta principal - Nuevo cuidado */}
       <View style={styles.mainCard}>
         <LinearGradient 
@@ -252,7 +288,7 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
           <View style={styles.fieldGroup}>
             <View style={styles.fieldLabel}>
               <Ionicons name="clipboard-outline" size={16} color="#48bb78" />
-              <Text style={styles.fieldLabelText}>{t('enfermeria.careType')}</Text>
+              <Text style={styles.fieldLabelText}>{t('enfermeria.careType')} *</Text>
             </View>
             <TextInput
               style={[styles.fieldInput, styles.textArea]}
@@ -261,6 +297,7 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
               multiline
               numberOfLines={3}
               textAlignVertical="top"
+              maxLength={1000}
               value={formData.diagnostico_enfermeria}
               onChangeText={(text) => setFormData({ ...formData, diagnostico_enfermeria: text })}
             />
@@ -270,7 +307,7 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
           <View style={styles.fieldGroup}>
             <View style={styles.fieldLabel}>
               <Ionicons name="flag-outline" size={16} color="#48bb78" />
-              <Text style={styles.fieldLabelText}>{t('enfermeria.description')}</Text>
+              <Text style={styles.fieldLabelText}>{t('enfermeria.objectives')} *</Text>
             </View>
             <TextInput
               style={[styles.fieldInput, styles.textArea]}
@@ -279,6 +316,7 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
               multiline
               numberOfLines={3}
               textAlignVertical="top"
+              maxLength={1000}
               value={formData.objetivos}
               onChangeText={(text) => setFormData({ ...formData, objetivos: text })}
             />
@@ -288,7 +326,7 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
           <View style={styles.fieldGroup}>
             <View style={styles.fieldLabel}>
               <Ionicons name="hand-left-outline" size={16} color="#48bb78" />
-              <Text style={styles.fieldLabelText}>{t('enfermeria.description')}</Text>
+              <Text style={styles.fieldLabelText}>{t('enfermeria.interventions')} *</Text>
             </View>
             <TextInput
               style={[styles.fieldInput, styles.textArea]}
@@ -297,6 +335,7 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
               multiline
               numberOfLines={3}
               textAlignVertical="top"
+              maxLength={1000}
               value={formData.intervenciones}
               onChangeText={(text) => setFormData({ ...formData, intervenciones: text })}
             />
@@ -306,7 +345,7 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
           <View style={styles.fieldGroup}>
             <View style={styles.fieldLabel}>
               <Ionicons name="analytics-outline" size={16} color="#48bb78" />
-              <Text style={styles.fieldLabelText}>{t('enfermeria.description')}</Text>
+              <Text style={styles.fieldLabelText}>{t('enfermeria.evaluation')}</Text>
             </View>
             <TextInput
               style={[styles.fieldInput, styles.textArea]}
@@ -315,6 +354,7 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
               multiline
               numberOfLines={3}
               textAlignVertical="top"
+              maxLength={1000}
               value={formData.evaluacion}
               onChangeText={(text) => setFormData({ ...formData, evaluacion: text })}
             />
@@ -361,6 +401,7 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
               multiline
               numberOfLines={3}
               textAlignVertical="top"
+              maxLength={1000}
               value={formData.observaciones}
               onChangeText={(text) => setFormData({ ...formData, observaciones: text })}
             />
@@ -486,6 +527,21 @@ const styles = StyleSheet.create({
   patientMeta: { flexDirection: 'row', gap: 12, flexWrap: 'wrap' },
   patientMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   patientMetaText: { fontSize: 12, color: '#718096' },
+  connectionStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  connectionRemote: { backgroundColor: '#f0fff4', borderColor: '#9ae6b4' },
+  connectionCache: { backgroundColor: '#fffaf0', borderColor: '#fbd38d' },
+  connectionError: { backgroundColor: '#fff5f5', borderColor: '#feb2b2' },
+  connectionStatusText: { flex: 1, fontSize: 12, color: '#2d3748' },
   mainCard: {
     backgroundColor: '#fff',
     marginHorizontal: 16,
