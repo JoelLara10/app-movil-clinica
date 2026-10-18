@@ -166,6 +166,39 @@ function validateFluidBalance({ id_atencion, Id_exp, formData = {} }) {
   return { ok: true, data: { ...values, observaciones: observations } };
 }
 
+function validateNursingCare({ id_atencion, Id_exp, formData = {} }) {
+  const context = validateClinicalContext(id_atencion, Id_exp);
+  if (!context.ok) return context;
+
+  // Lista permitida: evita enviar propiedades inesperadas al servicio remoto.
+  const fields = [
+    'diagnostico_enfermeria', 'objetivos', 'intervenciones',
+    'evaluacion', 'observaciones',
+  ];
+  const normalized = Object.fromEntries(
+    fields.map((field) => [field, cleanText(formData[field])]),
+  );
+  normalized.estado = cleanText(formData.estado) || 'EN_PROCESO';
+
+  for (const field of ['diagnostico_enfermeria', 'objetivos', 'intervenciones']) {
+    if (normalized[field].length < 3 || normalized[field].length > 1000) {
+      return {
+        ok: false,
+        error: 'Diagnóstico, objetivos e intervenciones deben tener entre 3 y 1000 caracteres.',
+      };
+    }
+  }
+
+  if (normalized.evaluacion.length > 1000 || normalized.observaciones.length > 1000) {
+    return { ok: false, error: 'Los campos clínicos no pueden exceder 1000 caracteres.' };
+  }
+  if (!['EN_PROCESO', 'PENDIENTE', 'COMPLETADO'].includes(normalized.estado)) {
+    return { ok: false, error: 'El estado del cuidado no es válido.' };
+  }
+
+  return { ok: true, data: normalized };
+}
+
 module.exports = {
   getSafeClinicalError,
   isPositiveInteger,
@@ -173,5 +206,6 @@ module.exports = {
   validateClinicalHistory,
   validateFluidBalance,
   validateMedicationAdministration,
+  validateNursingCare,
   validatePrescription,
 };
