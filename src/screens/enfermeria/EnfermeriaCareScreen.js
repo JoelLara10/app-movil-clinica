@@ -102,6 +102,12 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
     return '📌';
   };
 
+  const getEstadoLabel = (estado) => ({
+    EN_PROCESO: t('enfermeria.careStateInProgress'),
+    PENDIENTE: t('enfermeria.careStatePending'),
+    COMPLETADO: t('enfermeria.careStateCompleted'),
+  }[estado] || t('common.notSpecified'));
+
   const handleSubmit = async () => {
     // Seguridad: valida contexto, obligatorios, longitudes y estado antes del POST.
     const validation = validateNursingCare({ id_atencion, Id_exp, formData });
@@ -143,11 +149,7 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
     const estado = item.estado || 'EN_PROCESO';
     const estadoColor = getEstadoColor(estado);
     const estadoEmoji = getEstadoEmoji(estado);
-    const estadoLabel = {
-      EN_PROCESO: t('enfermeria.careStateInProgress'),
-      PENDIENTE: t('enfermeria.careStatePending'),
-      COMPLETADO: t('enfermeria.careStateCompleted'),
-    }[estado] || t('common.notSpecified');
+    const estadoLabel = getEstadoLabel(estado);
 
     return (
       <View style={styles.historyItem}>
@@ -174,7 +176,7 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
         
         <View style={styles.historyContent}>
           {[
-            { icon: 'clipboard-outline', color: '#667eea', label: t('enfermeria.careType'), value: item.diagnostico_enfermeria },
+            { icon: 'clipboard-outline', color: '#667eea', label: t('enfermeria.nursingDiagnosis'), value: item.diagnostico_enfermeria },
             { icon: 'flag-outline', color: '#48bb78', label: t('enfermeria.objectives'), value: item.objetivos },
             { icon: 'hand-left-outline', color: '#4299e1', label: t('enfermeria.interventions'), value: item.intervenciones },
             { icon: 'analytics-outline', color: '#ed8936', label: t('enfermeria.evaluation'), value: item.evaluacion },
@@ -288,11 +290,11 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
           <View style={styles.fieldGroup}>
             <View style={styles.fieldLabel}>
               <Ionicons name="clipboard-outline" size={16} color="#48bb78" />
-              <Text style={styles.fieldLabelText}>{t('enfermeria.careType')} *</Text>
+              <Text style={styles.fieldLabelText}>{t('enfermeria.nursingDiagnosis')} *</Text>
             </View>
             <TextInput
               style={[styles.fieldInput, styles.textArea]}
-              placeholder={t('enfermeria.descriptionPlaceholder')}
+              placeholder={t('enfermeria.nursingDiagnosisPlaceholder')}
               placeholderTextColor="#a0aec0"
               multiline
               numberOfLines={3}
@@ -311,7 +313,7 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
             </View>
             <TextInput
               style={[styles.fieldInput, styles.textArea]}
-              placeholder={t('enfermeria.descriptionPlaceholder')}
+              placeholder={t('enfermeria.objectivesPlaceholder')}
               placeholderTextColor="#a0aec0"
               multiline
               numberOfLines={3}
@@ -330,7 +332,7 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
             </View>
             <TextInput
               style={[styles.fieldInput, styles.textArea]}
-              placeholder={t('enfermeria.descriptionPlaceholder')}
+              placeholder={t('enfermeria.interventionsPlaceholder')}
               placeholderTextColor="#a0aec0"
               multiline
               numberOfLines={3}
@@ -349,7 +351,7 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
             </View>
             <TextInput
               style={[styles.fieldInput, styles.textArea]}
-              placeholder={t('enfermeria.descriptionPlaceholder')}
+              placeholder={t('enfermeria.evaluationPlaceholder')}
               placeholderTextColor="#a0aec0"
               multiline
               numberOfLines={3}
@@ -381,7 +383,7 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
                     styles.estadoButtonText,
                     formData.estado === estado && { color: getEstadoColor(estado), fontWeight: '700' },
                   ]}>
-                    {getEstadoEmoji(estado)} {estado}
+                    {getEstadoEmoji(estado)} {getEstadoLabel(estado)}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -396,7 +398,7 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
             </View>
             <TextInput
               style={[styles.fieldInput, styles.textArea]}
-              placeholder={t('enfermeria.observations')}
+              placeholder={t('enfermeria.observationsPlaceholder')}
               placeholderTextColor="#a0aec0"
               multiline
               numberOfLines={3}
