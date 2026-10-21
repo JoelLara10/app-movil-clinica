@@ -122,3 +122,17 @@ test('patients: beds view loads all free and occupied beds, not only admission o
   assert.equal(beds.length, 2);
   assert.equal(beds[0].current_patient.Id_exp, 12);
 });
+
+test('patient identity: incomplete records never receive demo identities or invented IDs', async () => {
+  const module = await loadModule('patientPresentation.js', {});
+  const empty = module.normalizePatient();
+  assert.equal(empty.name, '—');
+  assert.equal(empty.record, '');
+  assert.equal(empty.attention, '');
+  assert.equal(empty.phone, undefined);
+  const partial = module.normalizePatient({ Id_exp: 42, nom_pac: 'Sintetico', papell: 'Prueba', sapell: 'Datos' });
+  assert.equal(partial.name, 'Prueba Datos Sintetico');
+  assert.equal(partial.record, 42);
+  assert.equal(partial.attention, '');
+  assert.equal(partial.age, undefined);
+});
