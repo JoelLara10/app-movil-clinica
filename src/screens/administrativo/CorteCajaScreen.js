@@ -17,82 +17,8 @@ import adminService from '../../services/adminService';
 import { getAdminCache, setAdminCache } from '../../services/adminCache';
 import { useLanguage } from '../../context/LanguageContext';
 
-const movements = [
-  {
-    id: 'M-1042',
-    time: '09:18',
-    patient: 'Mariana Lopez Ruiz',
-    concept: 'Anticipo',
-    method: 'Tarjeta',
-    amount: 5000,
-  },
-  {
-    id: 'M-1041',
-    time: '08:52',
-    patient: 'Hector Garcia Neri',
-    concept: 'Consulta',
-    method: 'Efectivo',
-    amount: 1200,
-  },
-  {
-    id: 'M-1038',
-    time: '08:10',
-    patient: 'Lucia Moreno Paz',
-    concept: 'Paquete quirurgico',
-    method: 'Transferencia',
-    amount: 18000,
-  },
-  {
-    id: 'M-1037',
-    time: '07:35',
-    patient: 'Rafael Torres Luna',
-    concept: 'Medicamento',
-    method: 'Efectivo',
-    amount: 850,
-  },
-];
-
-const activeAccounts = [
-  {
-    record: 'INEO-000341',
-    attention: 'A-2381',
-    bed: 'CONS-02',
-    patient: 'Mariana Lopez Ruiz',
-    doctor: 'Dra. Sandoval',
-    area: 'Consulta',
-    subtotal: 12400,
-    tax: 1984,
-    total: 14384,
-    advance: 5000,
-    admittedAt: '17 Jun 2026',
-  },
-  {
-    record: 'INEO-000331',
-    attention: 'A-2376',
-    bed: 'PREP-01',
-    patient: 'Lucia Moreno Paz',
-    doctor: 'Dra. Castillo',
-    area: 'Preparacion',
-    subtotal: 24500,
-    tax: 3920,
-    total: 28420,
-    advance: 18000,
-    admittedAt: '17 Jun 2026',
-  },
-  {
-    record: 'INEO-000326',
-    attention: 'A-2371',
-    bed: 'REC-03',
-    patient: 'Rafael Torres Luna',
-    doctor: 'Dr. Herrera',
-    area: 'Recuperacion',
-    subtotal: 8200,
-    tax: 1312,
-    total: 9512,
-    advance: 3500,
-    admittedAt: '16 Jun 2026',
-  },
-];
+const movements = [];
+const activeAccounts = [];
 
 const money = (value) =>
   `$${Number(value || 0)
@@ -106,7 +32,7 @@ const CorteCajaScreen = ({ navigation }) => {
   const [search, setSearch] = useState('');
 
   const [cashCut, setCashCut] = useState({
-    period: { label: '17 Jun 2026' },
+    period: { label: '' },
     summary: null,
     movements,
     activeAccounts,
@@ -280,11 +206,11 @@ const CorteCajaScreen = ({ navigation }) => {
         setApiNotice('Mostrando información guardada en caché.');
       } else if (target === 'all') {
         setApiNotice(
-          'Mostrando datos locales. No se pudo consultar el corte en la API.'
+          'No se pudo consultar el corte. Actualiza para volver a intentar.'
         );
 
         setCashCut({
-          period: { label: '17 Jun 2026' },
+          period: { label: '' },
           summary: null,
           movements,
           activeAccounts,
