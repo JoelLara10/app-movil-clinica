@@ -89,6 +89,9 @@ const MedicoScreen = ({ navigation }) => {
       setConsulta(consultaData);
       setUrgencias(urgenciasData);
       setHospitalizados(hospitalizadosData);
+      setPageConsulta((page) => Math.min(page, Math.max(1, Math.ceil(consultaData.length / ITEMS_PER_PAGE))));
+      setPageUrgencias((page) => Math.min(page, Math.max(1, Math.ceil(urgenciasData.length / ITEMS_PER_PAGE))));
+      setPageHospitalizados((page) => Math.min(page, Math.max(1, Math.ceil(hospitalizadosData.length / ITEMS_PER_PAGE))));
 
       console.log(`✅ Médicos cargados: Consulta ${consultaData.length}, Urgencias ${urgenciasData.length}, Hospitalizados ${hospitalizadosData.length}`);
 
