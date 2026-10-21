@@ -106,3 +106,19 @@ test('Regresion: conserva los cinco documentos validos en web y movil', async ()
     files.forEach((file) => assert.equal(file.target, 'file:///cache/documento_2.pdf'));
   }
 });
+
+test('patients: beds view loads all free and occupied beds, not only admission options', async () => {
+  const rows = [
+    { id_cama: 2, ocupada: 1, current_patient: { Id_exp: 12, nombre: 'Paciente Sintético' } },
+    { id_cama: 3, ocupada: 0 },
+  ];
+  const requests = [];
+  const service = await loadModule('adminService.js', {
+    './api': { default: { async get(url) { requests.push(url); return { data: rows }; } } },
+    './fileService': { downloadAuthenticatedFile: async () => {} },
+  });
+  const beds = await service.default.getBeds();
+  assert.deepEqual(requests, ['/beds']);
+  assert.equal(beds.length, 2);
+  assert.equal(beds[0].current_patient.Id_exp, 12);
+});
