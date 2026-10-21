@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import api from '../../services/api';
+import { useFocusEffect } from '@react-navigation/native';
 import CacheService from '../../services/cacheService';
 import moment from 'moment';
 import 'moment/locale/es';
@@ -42,9 +43,9 @@ const EnfermeriaScreen = ({ navigation }) => {
     moment.locale(lang === 'es' ? 'es' : 'en-gb');
   }, [lang]);
 
-  useEffect(() => {
-    loadPatients();
-  }, []);
+  useFocusEffect(useCallback(() => {
+    loadPatients(true);
+  }, []));
 
   const loadPatients = async (forceRefresh = false) => {
     try {
@@ -86,6 +87,9 @@ const EnfermeriaScreen = ({ navigation }) => {
       setConsulta(consultaData);
       setUrgencias(urgenciasData);
       setHospitalizados(hospitalizadosData);
+      setPageConsulta((page) => Math.min(page, Math.max(1, Math.ceil(consultaData.length / ITEMS_PER_PAGE))));
+      setPageUrgencias((page) => Math.min(page, Math.max(1, Math.ceil(urgenciasData.length / ITEMS_PER_PAGE))));
+      setPageHospitalizados((page) => Math.min(page, Math.max(1, Math.ceil(hospitalizadosData.length / ITEMS_PER_PAGE))));
 
       console.log(`✅ Cargados: Consulta ${consultaData.length}, Urgencias ${urgenciasData.length}, Hospitalizados ${hospitalizadosData.length}`);
 

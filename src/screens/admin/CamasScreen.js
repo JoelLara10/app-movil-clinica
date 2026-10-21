@@ -14,58 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import adminService from '../../services/adminService';
 
-const initialBeds = [
-  {
-    id: '1',
-    number: 'H-101',
-    area: 'Hospitalizacion',
-    roomType: 'Individual',
-    floor: '1',
-    section: 'A',
-    status: 'LIBRE',
-    patient: '',
-  },
-  {
-    id: '2',
-    number: 'H-102',
-    area: 'Hospitalizacion',
-    roomType: 'Compartida',
-    floor: '1',
-    section: 'A',
-    status: 'OCUPADA',
-    patient: 'Lucia Moreno Paz',
-  },
-  {
-    id: '3',
-    number: 'U-201',
-    area: 'Urgencias',
-    roomType: 'Observacion',
-    floor: '2',
-    section: 'B',
-    status: 'LIBRE',
-    patient: '',
-  },
-  {
-    id: '4',
-    number: 'R-301',
-    area: 'Recuperacion',
-    roomType: 'Suite',
-    floor: '3',
-    section: 'C',
-    status: 'MANTENIMIENTO',
-    patient: '',
-  },
-  {
-    id: '5',
-    number: 'C-004',
-    area: 'Consulta',
-    roomType: 'Consultorio',
-    floor: 'PB',
-    section: 'D',
-    status: 'OCUPADA',
-    patient: 'Mariana Lopez Ruiz',
-  },
-];
+const initialBeds = [];
 
 const areas = ['Hospitalizacion', 'Urgencias', 'Recuperacion', 'Consulta'];
 const statuses = ['LIBRE', 'OCUPADA', 'MANTENIMIENTO'];
@@ -97,7 +46,7 @@ const normalizeBed = (bed, index = 0) => {
     floor: String(bed.piso || bed.floor || 'N/A'),
     section: String(bed.seccion || bed.section || 'N/A'),
     status: maintenance ? 'MANTENIMIENTO' : occupied ? 'OCUPADA' : 'LIBRE',
-    patient: bed.patient || bed.paciente || '',
+    patient: bed.current_patient?.nombre || bed.patient || bed.paciente || '',
   };
 };
 
@@ -119,7 +68,7 @@ const CamasScreen = ({ navigation }) => {
       setBeds(source.map(normalizeBed));
       setApiNotice('');
     } catch (error) {
-      setApiNotice('Mostrando camas locales. Si tu API usa otra ruta para camas, pasame routes/beds.py y la ajusto.');
+      setApiNotice('No se pudieron cargar las camas. Actualiza para volver a intentar.');
       setBeds((current) => (current.length ? current : initialBeds));
     } finally {
       setLoading(false);
