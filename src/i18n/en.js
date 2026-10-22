@@ -15,6 +15,8 @@ const en = {
 
   // Dashboard
   dashboard: {
+    monitoring: 'Patient monitoring',
+    monitoringDesc: 'ESP32 readings and possible fall alerts',
     greeting: 'Hello',
     activePatients: 'Active Patients',
     occupiedBeds: 'Occupied Beds',
@@ -897,3 +899,4 @@ const en = {
 };
 
 export default en;
+
