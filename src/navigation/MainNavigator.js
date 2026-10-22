@@ -200,7 +200,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
     });
   }
 
-  if (isAdminRole || isMedicoRole || isEnfermeriaRole) principalItems.push({ name: 'Monitoreo de pacientes', icon: 'pulse-outline', screen: 'Monitoreo', params: {}, requiresPatient: false });
+  if (isAdminRole || isMedicoRole || isEnfermeriaRole) principalItems.push({ name: t('patientMonitoring.title'), icon: 'pulse-outline', screen: 'Monitoreo', params: {}, requiresPatient: false });
 
   if (principalItems.length) {
     menuSections.push({ title: t("sidebar.principal"), items: principalItems });
