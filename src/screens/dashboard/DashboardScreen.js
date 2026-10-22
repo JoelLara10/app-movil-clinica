@@ -139,6 +139,16 @@ const DashboardScreen = ({ navigation }) => {
       });
     }
 
+    if (["admin", "medico", "enfermero", "enfermeria"].includes(role)) {
+      options.push({
+        name: t('dashboard.monitoring'),
+        icon: "pulse-outline",
+        screen: "Monitoreo",
+        color: "#667eea",
+        description: t('dashboard.monitoringDesc'),
+      });
+    }
+
     return options;
   };
 
@@ -387,3 +397,4 @@ const styles = StyleSheet.create({
 });
 
 export default DashboardScreen;
+

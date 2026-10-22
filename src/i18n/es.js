@@ -15,6 +15,8 @@ const es = {
 
   // Dashboard
   dashboard: {
+    monitoring: 'Monitoreo de pacientes',
+    monitoringDesc: 'Lecturas del ESP32 y alertas de posibles caídas',
     greeting: 'Hola',
     activePatients: 'Pacientes Activos',
     occupiedBeds: 'Camas Ocupadas',
@@ -897,3 +899,4 @@ const es = {
 };
 
 export default es;
+
