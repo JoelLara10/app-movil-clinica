@@ -5,7 +5,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { monitoringService, readingState, readingTime, readingValue, alertTitle } from '../../services/monitoringService';
+import { useLanguage } from '../../context/LanguageContext';
 export default function MonitoringScreen({ navigation, route }) {
+  const { t, lang } = useLanguage();
   const patientId = route.params?.patientId;
   const insets = useSafeAreaInsets();
   const goBack = () => patientId ? (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Monitoreo')) : navigation.navigate('Dashboard');
@@ -22,7 +24,7 @@ export default function MonitoringScreen({ navigation, route }) {
       if (AppState.currentState !== 'active' || pending) return;
       pending = true;
       try { const next = await (patientId ? monitoringService.patient(patientId) : monitoringService.patients()); if (active) { setData(next); setError(''); } }
-      catch { if (active) setError('No se pudo actualizar el monitoreo. Las lecturas mostradas pueden estar desactualizadas.'); }
+      catch { if (active) setError('patientMonitoring.loadError'); }
       finally { pending = false; }
     };
     load(); const timer = setInterval(load, 10000);
@@ -32,36 +34,36 @@ export default function MonitoringScreen({ navigation, route }) {
   async function acknowledge(id) {
     setBusy(id);
     try { await monitoringService.acknowledge(id); setRevision(value => value + 1); }
-    catch { setError('No se pudo reconocer la alerta. Intenta nuevamente.'); }
+    catch { setError('patientMonitoring.ackError'); }
     finally { setBusy(null); }
   }
   const patients = patientId ? (data ? [data] : []) : data || [];
   return <View style={styles.container}>
     <LinearGradient colors={['#667eea', '#764ba2']} style={[styles.header, { paddingTop: Math.max(insets.top, 16) + 12 }]}>
       <View style={styles.headerRow}>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel={patientId ? 'Volver a pacientes' : 'Volver al inicio'} style={styles.backButton} onPress={goBack}><Ionicons name="arrow-back" size={24} color="#fff" /></TouchableOpacity>
-        <Text style={styles.title}>Monitoreo de pacientes</Text>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={patientId ? t('patientMonitoring.backPatients') : t('patientMonitoring.backHome')} style={styles.backButton} onPress={goBack}><Ionicons name="arrow-back" size={24} color="#fff" /></TouchableOpacity>
+        <Text style={styles.title}>{t('patientMonitoring.title')}</Text>
         <View style={styles.headerIcon}><Ionicons name="pulse-outline" size={25} color="#fff" /></View>
       </View>
-      <Text style={styles.subtitle}>{patientId ? 'Lecturas y seguimiento del paciente' : 'Seguimiento de lecturas y alertas'}</Text>
+      <Text style={styles.subtitle}>{patientId ? t('patientMonitoring.patientSubtitle') : t('patientMonitoring.listSubtitle')}</Text>
     </LinearGradient>
     <ScrollView contentContainerStyle={styles.content}>
-      <Text style={styles.text}>Lecturas del ESP32 y alertas. Se actualizan cada 10 segundos mientras esta pantalla está abierta.</Text>
-      <TouchableOpacity accessibilityRole="button" style={styles.button} onPress={() => setRevision(v => v + 1)}><Text style={styles.buttonText}>Actualizar</Text></TouchableOpacity>
-      {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
-      {!data && !error && <ActivityIndicator accessibilityLabel="Cargando monitoreo" color="#667eea" />}
-      {data && !patients.length && <Text style={styles.text}>No hay pacientes disponibles para monitoreo.</Text>}
+      <Text style={styles.text}>{t('patientMonitoring.description')}</Text>
+      <TouchableOpacity accessibilityRole="button" style={styles.button} onPress={() => setRevision(v => v + 1)}><Text style={styles.buttonText}>{t('patientMonitoring.refresh')}</Text></TouchableOpacity>
+      {!!error && <Text accessibilityRole="alert" style={styles.error}>{t(error)}</Text>}
+      {!data && !error && <ActivityIndicator accessibilityLabel={t('patientMonitoring.loading')} color="#667eea" />}
+      {data && !patients.length && <Text style={styles.text}>{t('patientMonitoring.empty')}</Text>}
       {patients.map(patient => <View style={styles.card} key={patient.patient_id}>
-        <View style={styles.patientHeading}><View style={styles.patientIcon}><Ionicons name="person-outline" size={22} color="#764ba2" /></View><Text style={styles.name}>{patient.name}</Text></View><Text style={styles.status}>{readingState(patient)}</Text>
-        <Text style={styles.text}>Dispositivo: {patient.device?.device_id || 'Sin asignar'}</Text>
-        <Text style={styles.text}>Última lectura: {readingTime(patient.latest?.timestamp)}</Text>
-        <View style={styles.readings}>{[['Pulso',patient.latest?.heart_rate,'lpm','heart-outline'],['SpO₂',patient.latest?.spo2,'%','water-outline'],['Movimiento',patient.latest?.movement == null ? null : patient.latest.movement ? 'Detectado' : 'En reposo','','walk-outline'],['Temperatura del sensor',patient.latest?.temperature,'°C','thermometer-outline']].map(([label,value,unit,icon]) => <View style={styles.reading} key={label}><Ionicons name={icon} size={21} color="#764ba2" /><Text style={styles.text}>{label}</Text><Text style={styles.value}>{readingValue(value,unit)}</Text></View>)}</View>
-        <Text style={styles.note}>La temperatura del sensor no corresponde a la temperatura corporal.</Text>
-        {!patientId ? <><Text style={styles.text}>{(patient.alerts || []).filter(a => !a.acknowledged).length} alertas pendientes</Text><TouchableOpacity accessibilityRole="button" style={styles.button} onPress={() => navigation.navigate('MonitoreoDetalle',{patientId:patient.patient_id})}><Text style={styles.buttonText}>Ver lecturas y alertas</Text></TouchableOpacity></> : <>
-          <Text style={styles.name}>Alertas</Text>{!(patient.alerts || []).length && <Text style={styles.text}>Sin alertas registradas.</Text>}
-          {(patient.alerts || []).map(alert => <View style={[styles.alert, alert.acknowledged && styles.alertAcknowledged]} key={alert.id}><Text style={styles.alertTitle}>{alertTitle(alert)}</Text><Text style={styles.text}>{readingTime(alert.timestamp)}</Text><Text style={styles.text}>{alert.acknowledged ? 'Reconocida' : 'Pendiente de revisión'}</Text>{!alert.acknowledged && <TouchableOpacity accessibilityRole="button" disabled={busy !== null} style={[styles.button,busy !== null && styles.disabled]} onPress={() => acknowledge(alert.id)}><Text style={styles.buttonText}>{busy === alert.id ? 'Guardando…' : 'Reconocer alerta'}</Text></TouchableOpacity>}</View>)}
-          <Text style={styles.name}>Historial reciente</Text>{!(patient.history || []).length && <Text style={styles.text}>Sin mediciones registradas.</Text>}
-          {(patient.history || []).map((reading,index) => <View style={styles.history} key={reading.id || index}><Text style={styles.text}>{readingTime(reading.timestamp)}</Text><Text style={styles.text}>Pulso: {readingValue(reading.heart_rate,'lpm')} · SpO₂: {readingValue(reading.spo2,'%')}</Text></View>)}
+        <View style={styles.patientHeading}><View style={styles.patientIcon}><Ionicons name="person-outline" size={22} color="#764ba2" /></View><Text style={styles.name}>{patient.name}</Text></View><Text style={styles.status}>{readingState(patient, t)}</Text>
+        <Text style={styles.text}>{t('patientMonitoring.device')}: {patient.device?.device_id || t('patientMonitoring.unassigned')}</Text>
+        <Text style={styles.text}>{t('patientMonitoring.lastReading')}: {readingTime(patient.latest?.timestamp, lang, t)}</Text>
+        <View style={styles.readings}>{[[t('patientMonitoring.pulse'),patient.latest?.heart_rate,t('patientMonitoring.pulseUnit'),'heart-outline'],[t('patientMonitoring.oxygen'),patient.latest?.spo2,'%','water-outline'],[t('patientMonitoring.movement'),patient.latest?.movement == null ? null : patient.latest.movement ? t('patientMonitoring.detected') : t('patientMonitoring.resting'),'','walk-outline'],[t('patientMonitoring.sensorTemperature'),patient.latest?.temperature,'°C','thermometer-outline']].map(([label,value,unit,icon]) => <View style={styles.reading} key={label}><Ionicons name={icon} size={21} color="#764ba2" /><Text style={styles.text}>{label}</Text><Text style={styles.value}>{readingValue(value,unit,t)}</Text></View>)}</View>
+        <Text style={styles.note}>{t('patientMonitoring.sensorNote')}</Text>
+        {!patientId ? <><Text style={styles.text}>{t('patientMonitoring.pendingCount', { count: (patient.alerts || []).filter(a => !a.acknowledged).length })}</Text><TouchableOpacity accessibilityRole="button" style={styles.button} onPress={() => navigation.navigate('MonitoreoDetalle',{patientId:patient.patient_id})}><Text style={styles.buttonText}>{t('patientMonitoring.viewDetails')}</Text></TouchableOpacity></> : <>
+          <Text style={styles.name}>{t('patientMonitoring.alerts')}</Text>{!(patient.alerts || []).length && <Text style={styles.text}>{t('patientMonitoring.noAlerts')}</Text>}
+          {(patient.alerts || []).map(alert => <View style={[styles.alert, alert.acknowledged && styles.alertAcknowledged]} key={alert.id}><Text style={styles.alertTitle}>{alertTitle(alert, t)}</Text><Text style={styles.text}>{readingTime(alert.timestamp, lang, t)}</Text><Text style={styles.text}>{alert.acknowledged ? t('patientMonitoring.acknowledged') : t('patientMonitoring.pendingReview')}</Text>{!alert.acknowledged && <TouchableOpacity accessibilityRole="button" disabled={busy !== null} style={[styles.button,busy !== null && styles.disabled]} onPress={() => acknowledge(alert.id)}><Text style={styles.buttonText}>{busy === alert.id ? t('patientMonitoring.saving') : t('patientMonitoring.acknowledge')}</Text></TouchableOpacity>}</View>)}
+          <Text style={styles.name}>{t('patientMonitoring.history')}</Text>{!(patient.history || []).length && <Text style={styles.text}>{t('patientMonitoring.noHistory')}</Text>}
+          {(patient.history || []).map((reading,index) => <View style={styles.history} key={reading.id || index}><Text style={styles.text}>{readingTime(reading.timestamp, lang, t)}</Text><Text style={styles.text}>{t('patientMonitoring.pulse')}: {readingValue(reading.heart_rate,t('patientMonitoring.pulseUnit'),t)} · {t('patientMonitoring.oxygen')}: {readingValue(reading.spo2,'%',t)}</Text></View>)}
         </>}
       </View>)}
     </ScrollView>
