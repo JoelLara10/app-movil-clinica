@@ -18,7 +18,8 @@
       "distribution": "internal",
       "env": {
         "APP_ENV": "qa",
-        "EXPO_PUBLIC_API_URL": "https://ineo-pbl-entrega.onrender.com/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://ineo-pbl-entrega.onrender.com/api/v1",
+        "EXPO_ROUTER_DISABLE_RN_NAVIGATION_CHECK": "1"
       }
     },
     "production": {

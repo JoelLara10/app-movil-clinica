@@ -8,7 +8,9 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "test": "node --experimental-vm-modules --test tests/*.test.cjs",
-    "check": "npm test && npx expo-doctor && npx expo export --platform web"
+    "check": "npm test && npx expo-doctor && npx expo export --platform web",
+    "start:qa": "node scripts/expo-qa.cjs start",
+    "export:qa": "node scripts/expo-qa.cjs export --platform web --output-dir dist-qa"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
