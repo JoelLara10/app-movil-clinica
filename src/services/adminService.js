@@ -135,13 +135,8 @@ const adminService = {
   closeAccount: (idAtencion) =>
     api.post(`/accounts/${idAtencion}/close`).then(unwrap),
 
-  getBeds: (page = 1, limit = 5) =>
-    api.get('/options', {
-      params: buildParams({
-        page,
-        limit,
-      }),
-    }).then(unwrap),
+  // The options endpoint only contains free beds; this view needs all beds.
+  getBeds: () => api.get('/beds').then(unwrap),
 
   createBed: (payload) => api.post('/beds', payload).then(unwrap),
 

@@ -14,28 +14,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Pagination from '../../components/Pagination';
 import adminService from '../../services/adminService';
+import { normalizePatient } from '../../services/patientPresentation';
+import { useFocusEffect } from '@react-navigation/native';
 import { clearAdminCache, getAdminCache, setAdminCache } from '../../services/adminCache';
 import { useLanguage } from '../../context/LanguageContext';
-
-const fallbackPatient = {
-  record: 'INEO-000341',
-  attention: 'A-2381',
-  name: 'Mariana Lopez Ruiz',
-  age: '54',
-  phone: '55 1234 9988',
-  bed: 'CONS-02',
-  area: 'Consulta',
-  doctor: 'Dra. Sandoval',
-  admittedAt: '17 Jun 2026',
-  reason: 'Valoracion oftalmologica',
-};
-
-const initialCharges = [
-  { id: 'C-01', date: '17 Jun 2026', description: 'Consulta oftalmologica', quantity: 1, price: 1200 },
-  { id: 'C-02', date: '17 Jun 2026', description: 'Paquete de cirugia menor', quantity: 1, price: 8500 },
-  { id: 'C-03', date: '17 Jun 2026', description: 'Medicamento postoperatorio', quantity: 2, price: 650 },
-  { id: 'C-04', date: '17 Jun 2026', description: 'Material quirurgico', quantity: 1, price: 1400 },
-];
 
 const documents = [
   { key: 'initial-sheet', title: 'Hoja inicial', icon: 'document-text-outline', color: '#667eea' },
@@ -48,15 +30,7 @@ const documents = [
 const ACCOUNTS_PER_PAGE = 5;
 const CACHE_TIME = 1000 * 60 * 5;
 
-const money = (value) => `$${Number(value || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
-
-const normalizePatient = (patient = {}) => ({
-  ...fallbackPatient,
-  ...patient,
-  name: patient.name || patient.patient || fallbackPatient.name,
-  attention: patient.attention || patient.id_atencion || fallbackPatient.attention,
-  record: patient.record || patient.Id_exp || fallbackPatient.record,
-});
+const money = (value) => value == null ? '—' : `$${Number(value || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 
 const extractAccounts = (response) => {
   if (Array.isArray(response)) return response;
@@ -151,15 +125,10 @@ const PacienteDetailScreen = ({ navigation, route }) => {
       };
     }
 
-    const subtotal = initialCharges.reduce((sum, item) => sum + item.quantity * item.price, 0);
-    const iva = subtotal * 0.16;
-    const total = subtotal + iva;
-    const advances = 5000;
-
-    return { subtotal, iva, total, advances, balance: total - advances };
+    return { subtotal: null, iva: null, total: null, advances: null, balance: null };
   }, [account]);
 
-  const charges = account?.charges || account?.items || initialCharges;
+  const charges = account?.charges || account?.items || [];
   const documentItems = account?.documents?.length
     ? account.documents
     : documents.map((document) => ({
@@ -306,7 +275,7 @@ const PacienteDetailScreen = ({ navigation, route }) => {
 
         setApiNotice('Mostrando información guardada en caché.');
       } else {
-        setApiNotice('Mostrando datos locales. No se pudo consultar la cuenta en la API.');
+        setApiNotice('No se pudo consultar la cuenta. Actualiza para volver a intentar.');
       }
     } finally {
       setLoading(false);
@@ -336,9 +305,9 @@ const PacienteDetailScreen = ({ navigation, route }) => {
     return () => clearTimeout(timer);
   }, [accountSearch]);
 
-  useEffect(() => {
-    loadAccount();
-  }, [loadAccount]);
+  useFocusEffect(useCallback(() => {
+    loadAccount({ forceRefresh: true });
+  }, [loadAccount]));
 
   const onRefresh = () => {
     setRefreshing(true);

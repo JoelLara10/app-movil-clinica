@@ -25,30 +25,7 @@ const censusSections = [
     accent: '#4299e1',
     icon: 'people-outline',
     roomLabel: 'Consultorio',
-    data: [
-      {
-        account: 'A-2381',
-        room: 'CONS-02',
-        admittedAt: '17 Jun 2026 - 08:35',
-        patient: 'Mariana Lopez Ruiz',
-        age: '54',
-        reason: 'Valoracion oftalmologica',
-        record: 'INEO-000341',
-        doctor: 'Dra. Sandoval',
-        notice: 'Sin aviso',
-      },
-      {
-        account: 'A-2379',
-        room: 'CONS-04',
-        admittedAt: '17 Jun 2026 - 07:50',
-        patient: 'Hector Garcia Neri',
-        age: '62',
-        reason: 'Revision postoperatoria',
-        record: 'INEO-000338',
-        doctor: 'Dr. Ramos',
-        notice: 'Pendiente firma',
-      },
-    ],
+    data: [],
   },
   {
     key: 'preparacion',
@@ -57,19 +34,7 @@ const censusSections = [
     accent: '#f56565',
     icon: 'alert-circle-outline',
     roomLabel: 'Espacio',
-    data: [
-      {
-        account: 'A-2376',
-        room: 'PREP-01',
-        admittedAt: '17 Jun 2026 - 06:20',
-        patient: 'Lucia Moreno Paz',
-        age: '47',
-        reason: 'Cirugia programada',
-        record: 'INEO-000331',
-        doctor: 'Dra. Castillo',
-        notice: 'Alergia penicilina',
-      },
-    ],
+    data: [],
   },
   {
     key: 'recuperacion',
@@ -78,30 +43,7 @@ const censusSections = [
     accent: '#48bb78',
     icon: 'bed-outline',
     roomLabel: 'Consultorio',
-    data: [
-      {
-        account: 'A-2371',
-        room: 'REC-03',
-        admittedAt: '16 Jun 2026 - 18:45',
-        patient: 'Rafael Torres Luna',
-        age: '70',
-        reason: 'Observacion posterior',
-        record: 'INEO-000326',
-        doctor: 'Dr. Herrera',
-        notice: 'Alta probable',
-      },
-      {
-        account: 'A-2369',
-        room: 'REC-05',
-        admittedAt: '16 Jun 2026 - 16:10',
-        patient: 'Ana Sofia Perez',
-        age: '39',
-        reason: 'Tratamiento intravitreo',
-        record: 'INEO-000321',
-        doctor: 'Dra. Vega',
-        notice: 'Revisar cuenta',
-      },
-    ],
+    data: [],
   },
 ];
 
@@ -121,7 +63,7 @@ const CensoScreen = ({ navigation }) => {
   });
 
   const [sections, setSections] = useState(censusSections);
-  const [summary, setSummary] = useState({ activos: 5, areas: 3, avisos: 3 });
+  const [summary, setSummary] = useState({ activos: 0, areas: 3, avisos: 0 });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [apiNotice, setApiNotice] = useState('');
@@ -307,7 +249,7 @@ const CensoScreen = ({ navigation }) => {
         setLastUpdated(cachedData.timestamp);
         setApiNotice('Mostrando información guardada en caché.');
       } else if (!sectionKey) {
-        setApiNotice('Mostrando datos locales. No se pudo consultar el censo en la API.');
+        setApiNotice('No se pudo consultar el censo. Actualiza para volver a intentar.');
         setSections(censusSections);
       } else {
         setApiNotice('No se pudo cambiar la página del censo.');
