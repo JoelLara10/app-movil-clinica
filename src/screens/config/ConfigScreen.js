@@ -29,6 +29,7 @@ export default function ConfigScreen({ navigation }) {
       showsVerticalScrollIndicator={false}
     >
       <LinearGradient colors={['#667eea', '#764ba2']} style={styles.hero}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Volver al inicio" onPress={() => navigation.getParent()?.navigate('Dashboard')} style={[styles.backButton, { width: 44, height: 44, marginBottom: 16 }]}><Ionicons name="arrow-back" size={24} color="#fff" /></TouchableOpacity>
         <Text style={styles.heroTitle}>{t('config.systemConfig')}</Text>
         <Text style={styles.heroSubtitle}>{t('config.systemConfigDesc')}</Text>
       </LinearGradient>
