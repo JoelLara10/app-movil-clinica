@@ -99,6 +99,6 @@ export async function downloadAuthenticatedFile(
 
   await Sharing.shareAsync(destination, {
     mimeType,
-    dialogTitle: 'Guardar o compartir documento INEO',
+    dialogTitle: 'Guardar o compartir documento OftalCore',
   });
 }

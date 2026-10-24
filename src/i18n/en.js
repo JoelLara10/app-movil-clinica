@@ -71,7 +71,7 @@ const en = {
     errorAuth: 'Authentication error',
     errorInvalid: 'Invalid credentials',
     errorConnection: 'Connection error',
-    footer: 'INEO v2.0 - Hospital Management System',
+    footer: 'OftalCore v2.0 - Hospital Management System',
   },
 
   // Dashboard
@@ -285,7 +285,7 @@ const en = {
   config: {
     // ConfigScreen
     systemConfig: 'System Settings',
-    systemConfigDesc: 'Manage modules, catalogs, users, backups and INEO system parameters.',
+    systemConfigDesc: 'Manage modules, catalogs, users, backups and OftalCore system parameters.',
     bedsManagement: 'Bed Management',
     bedsManagementDesc: 'Manage hospital bed availability and assignment',
     staffManagement: 'Staff Management',
@@ -568,7 +568,7 @@ const en = {
     allRequestsCompleted: 'All studies are completed',
     noResultsUploaded: 'No results have been uploaded yet',
     helloDoctor: 'Hello, Dr. {{user}}!', total: 'Total', loadingStudies: 'Loading studies...',
-    hospitalFooter: 'INEO v2.0 - Hospital Management System',
+    hospitalFooter: 'OftalCore v2.0 - Hospital Management System',
     couldNotLoadInfo: 'Could not load information.',
     notice: 'Notice', error: 'Error', success: 'Success',
     noFileObtained: 'No file obtained. Please try again.',

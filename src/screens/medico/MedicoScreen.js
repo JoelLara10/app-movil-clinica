@@ -319,7 +319,7 @@ const MedicoScreen = ({ navigation }) => {
       <View style={styles.footer}>
         <Text style={styles.footerText}>
           <Ionicons name="shield-checkmark-outline" size={12} color="rgba(0,0,0,0.4)" />
-          {' '}INEO v2.0 - Sistema de Gestión Hospitalaria
+          {' '}OftalCore v2.0 - Sistema de Gestión Hospitalaria
         </Text>
       </View>
     </ScrollView>

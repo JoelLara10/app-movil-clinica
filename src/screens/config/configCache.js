@@ -7,7 +7,7 @@ const nowIso = () => new Date().toISOString();
 
 export const defaultConfigData = {
   general: {
-    nombreClinica: 'INEO Hospital',
+    nombreClinica: 'OftalCore Hospital',
     telefono: '722 000 0000',
     direccion: 'Toluca, México',
     moneda: 'MXN',

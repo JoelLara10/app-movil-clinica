@@ -538,7 +538,7 @@ const Sidebar = ({ navigation }) => {
     <View style={styles.container}>
       <LinearGradient colors={["#667eea", "#764ba2"]} style={styles.header}>
         <View style={styles.brandContainer}>
-          <Text style={styles.brandTitle}>INEO</Text>
+          <Text style={styles.brandTitle}>OftalCore</Text>
           <View style={styles.brandRight}>
             <TouchableOpacity style={styles.langToggle} onPress={toggleLanguage}>
               <Ionicons name="globe-outline" size={14} color="#fff" />
