@@ -88,7 +88,7 @@ const LoginScreen = ({ navigation }) => {
             <View style={styles.iconContainer}>
               <Ionicons name="medical-outline" size={70} color="#fff" />
             </View>
-            <Text style={styles.brandTitle}>INEO</Text>
+            <Text style={styles.brandTitle}>OftalCore</Text>
             <Text style={styles.brandSubtitle}>{t('login.title')}</Text>
           </View>
 

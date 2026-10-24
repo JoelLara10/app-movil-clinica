@@ -515,7 +515,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
         style={styles.sidebarHeader}
       >
         <View style={styles.brandContainer}>
-          <Text style={styles.brandTitle}>INEO</Text>
+          <Text style={styles.brandTitle}>OftalCore</Text>
           <View style={styles.brandRight}>
             <TouchableOpacity
               style={styles.langToggle}
