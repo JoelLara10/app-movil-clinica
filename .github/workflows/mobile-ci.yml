@@ -1,4 +1,4 @@
-name: INEO Mobile CI
+name: OftalCore Mobile CI
 
 on:
   pull_request:

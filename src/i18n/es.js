@@ -71,7 +71,7 @@ const es = {
     errorAuth: 'Error de autenticacion',
     errorInvalid: 'Credenciales incorrectas',
     errorConnection: 'Error de conexion',
-    footer: 'INEO v2.0 - Sistema de Gestion Hospitalaria',
+    footer: 'OftalCore v2.0 - Sistema de Gestion Hospitalaria',
   },
 
   // Dashboard
@@ -285,7 +285,7 @@ const es = {
   config: {
     // ConfigScreen
     systemConfig: 'Configuración del Sistema',
-    systemConfigDesc: 'Administra módulos, catálogos, usuarios, respaldos y parámetros del sistema INEO.',
+    systemConfigDesc: 'Administra módulos, catálogos, usuarios, respaldos y parámetros del sistema OftalCore.',
     bedsManagement: 'Gestión de Camas',
     bedsManagementDesc: 'Administra la disponibilidad y asignación de camas hospitalarias',
     staffManagement: 'Gestión de Personal',
@@ -568,7 +568,7 @@ const es = {
     allRequestsCompleted: 'Todos los estudios han sido completados',
     noResultsUploaded: 'Aún no se han subido resultados',
     helloDoctor: '¡Hola, Dr. {{user}}!', total: 'Total', loadingStudies: 'Cargando estudios...',
-    hospitalFooter: 'INEO v2.0 - Sistema de Gestión Hospitalaria',
+    hospitalFooter: 'OftalCore v2.0 - Sistema de Gestión Hospitalaria',
     couldNotLoadInfo: 'No se pudo cargar la información.',
     notice: 'Aviso', error: 'Error', success: 'Éxito',
     noFileObtained: 'No se obtuvo ningún archivo. Inténtalo nuevamente.',
