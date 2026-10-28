@@ -1,5 +1,22 @@
 const en = {
   patientMonitoring: {
+    "previous": "Previous",
+    "next": "Next",
+    "page": "Page {{page}} of {{pages}} · {{total}} records",
+    "patientsPages": "Patient pages",
+    "search": "Search by name or record",
+    "refreshing": "Refreshing in the background…",
+    "cached": "Showing saved data from this session. It may be out of date.",
+    "updated": "Last refresh: {{time}}",
+    "pushEnable": "Enable notifications",
+    "pushDisable": "Disable notifications",
+    "pushEnabled": "Notifications enabled on this device.",
+    "pushDisabled": "Notifications disabled.",
+    "pushDenied": "Notification permission denied. You can enable it in your phone settings.",
+    "pushUnavailable": "Notifications require an APK configured with Firebase.",
+    "pushError": "Could not enable notifications. Please try again.",
+    "pushInfo": "Receive a notice about new alerts even when the app is closed.",
+
   "title": "Patient monitoring",
   "subtitle": "ESP32 readings and pending alerts · updates every 10 seconds",
   "listSubtitle": "Readings and alert monitoring",

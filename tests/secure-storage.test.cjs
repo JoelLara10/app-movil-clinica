@@ -38,6 +38,7 @@ async function loadSecureStorage(platform, webStore = undefined) {
     { context },
   );
   await mod.link(async (name) => {
+    if (name === './monitoringCache') return new vm.SourceTextModule(fs.readFileSync(path.join(__dirname, '../src/services/monitoringCache.js'),'utf8'), {context});
     const exports = name === 'react-native'
       ? { Platform: { OS: platform } }
       : name === '@react-native-async-storage/async-storage'

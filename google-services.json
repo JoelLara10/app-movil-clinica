@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1070690884383",
+    "project_id": "oftalcore-qa",
+    "storage_bucket": "oftalcore-qa.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1070690884383:android:eafab7e81f79da3b442e2a",
+        "android_client_info": {
+          "package_name": "com.ineo.hospital"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAmD3-Z3iL6klMQeHZi7Z9IzWmYmKfcCag"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
