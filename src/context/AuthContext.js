@@ -1,3 +1,5 @@
+import { unregisterMonitoringPush } from '../services/monitoringNotifications';
+import { clearMonitoringCache } from '../services/monitoringCache';
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import api from '../services/api';
 import {
@@ -81,6 +83,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (username, password) => {
+    clearMonitoringCache();
     setError(null);
 
     try {
@@ -117,6 +120,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
+      try { await unregisterMonitoringPush(); } catch { /* Server logout also removes this session's registrations. */ }
       await api.post('/auth/logout');
     } catch (_error) {
       // La sesión local siempre se cierra aunque la red no esté disponible.
