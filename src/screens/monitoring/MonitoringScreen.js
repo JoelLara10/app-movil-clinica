@@ -1,5 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { AppState, View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { registerMonitoringPush, unregisterMonitoringPush } from '../../services/monitoringNotifications';
+import { useAuth } from '../../context/AuthContext';
+import { getMonitoringCache, loadMonitoringCache, monitoringCacheKey } from '../../services/monitoringCache';
+import React, { useEffect, useState, useRef } from 'react';
+import { AppState, View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,36 +11,73 @@ import { monitoringService, readingState, readingTime, readingValue, alertTitle 
 import { useLanguage } from '../../context/LanguageContext';
 export default function MonitoringScreen({ navigation, route }) {
   const { t, lang } = useLanguage();
+  const { user } = useAuth();
   const patientId = route.params?.patientId;
   const insets = useSafeAreaInsets();
   const goBack = () => patientId ? (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Monitoreo')) : navigation.navigate('Dashboard');
   const focused = useIsFocused();
-  const [data, setData] = useState(null);
+  const [page, setPage] = useState(1);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [alertsPage, setAlertsPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [query, setQuery] = useState('');
+  const historyBefore = useRef(null);
+  const [snapshot, setSnapshot] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [fromCache, setFromCache] = useState(false);
+  const owner = user?.id || user?.username || 'session';
+  const key = monitoringCacheKey(owner, patientId, page, historyPage, alertsPage, query, historyPage > 1 ? historyBefore.current : null);
+  const data = snapshot?.key === key ? snapshot.data : null;
+  useEffect(() => {
+    setHistoryPage(1); setAlertsPage(1); historyBefore.current = null;
+  }, [patientId]);
+  useEffect(() => {
+    const timer = setTimeout(() => { setQuery(search.trim()); setPage(1); }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(null);
   const [revision, setRevision] = useState(0);
+  const [pushStatus, setPushStatus] = useState(null);
+  const [pushBusy, setPushBusy] = useState(false);
+  async function togglePush() {
+    setPushBusy(true);
+    try { if (pushStatus === 'pushEnabled') { await unregisterMonitoringPush(); setPushStatus('pushDisabled'); }
+      else setPushStatus(await registerMonitoringPush(lang, true)); }
+    catch { setPushStatus('pushError'); } finally { setPushBusy(false); }
+  }
   useEffect(() => {
     if (!focused) return;
     let active = true, pending = false;
-    setData(null); setError('');
+    const cached = getMonitoringCache(key);
+    setSnapshot(cached ? { ...cached, key } : null); setFromCache(!!cached); setError('');
     const load = async () => {
       if (AppState.currentState !== 'active' || pending) return;
       pending = true;
-      try { const next = await (patientId ? monitoringService.patient(patientId) : monitoringService.patients()); if (active) { setData(next); setError(''); } }
-      catch { if (active) setError('patientMonitoring.loadError'); }
-      finally { pending = false; }
+      if (active) setRefreshing(true);
+      try {
+        const next = await loadMonitoringCache(key, () => patientId
+          ? monitoringService.patient(patientId, historyPage, alertsPage, historyPage > 1 ? historyBefore.current : undefined)
+          : monitoringService.patients(page, query));
+        if (active) {
+          setSnapshot({ ...next, key }); setFromCache(false); setError('');
+          if (patientId && historyPage === 1) historyBefore.current = next.data?.history_pagination?.as_of || null;
+        }
+      }
+      catch (error) { if (active && error.code !== 'ERR_SESSION_CHANGED') setError('patientMonitoring.loadError'); }
+      finally { pending = false; if (active) setRefreshing(false); }
     };
     load(); const timer = setInterval(load, 10000);
     const subscription = AppState.addEventListener('change', state => { if (state === 'active') load(); });
     return () => { active = false; clearInterval(timer); subscription.remove(); };
-  }, [patientId, focused, revision]);
+  }, [patientId, focused, revision, key]);
   async function acknowledge(id) {
     setBusy(id);
     try { await monitoringService.acknowledge(id); setRevision(value => value + 1); }
     catch { setError('patientMonitoring.ackError'); }
     finally { setBusy(null); }
   }
-  const patients = patientId ? (data ? [data] : []) : data || [];
+  const patients = patientId ? (data ? [data] : []) : (Array.isArray(data) ? data : data?.data) || [];
   return <View style={styles.container}>
     <LinearGradient colors={['#667eea', '#764ba2']} style={[styles.header, { paddingTop: Math.max(insets.top, 16) + 12 }]}>
       <View style={styles.headerRow}>
@@ -49,6 +89,13 @@ export default function MonitoringScreen({ navigation, route }) {
     </LinearGradient>
     <ScrollView contentContainerStyle={styles.content}>
       <Text style={styles.text}>{t('patientMonitoring.description')}</Text>
+      <View style={styles.card}><Text style={styles.text}>{t('patientMonitoring.pushInfo')}</Text>
+        {pushStatus && <Text accessibilityLiveRegion="polite" style={styles.note}>{t(`patientMonitoring.${pushStatus}`)}</Text>}
+        <TouchableOpacity accessibilityRole="button" disabled={pushBusy} style={[styles.button, pushBusy && styles.disabled]} onPress={togglePush}><Text style={styles.buttonText}>{t(pushStatus === 'pushEnabled' ? 'patientMonitoring.pushDisable' : 'patientMonitoring.pushEnable')}</Text></TouchableOpacity>
+      </View>
+      {!patientId && <TextInput accessibilityLabel={t('patientMonitoring.search')} placeholder={t('patientMonitoring.search')} value={search} onChangeText={setSearch} style={styles.search} />}
+      {(refreshing || snapshot) && <Text accessibilityLiveRegion="polite" style={styles.note}>{refreshing ? t('patientMonitoring.refreshing') : fromCache ? t('patientMonitoring.cached') : t('patientMonitoring.updated', { time: readingTime(snapshot?.savedAt, lang, t) })}</Text>}
+      {!patientId && <MonitoringPager meta={data?.pagination} onChange={setPage} disabled={refreshing} t={t} label={t('patientMonitoring.patientsPages')} />}
       <TouchableOpacity accessibilityRole="button" style={styles.button} onPress={() => setRevision(v => v + 1)}><Text style={styles.buttonText}>{t('patientMonitoring.refresh')}</Text></TouchableOpacity>
       {!!error && <Text accessibilityRole="alert" style={styles.error}>{t(error)}</Text>}
       {!data && !error && <ActivityIndicator accessibilityLabel={t('patientMonitoring.loading')} color="#667eea" />}
@@ -59,17 +106,28 @@ export default function MonitoringScreen({ navigation, route }) {
         <Text style={styles.text}>{t('patientMonitoring.lastReading')}: {readingTime(patient.latest?.timestamp, lang, t)}</Text>
         <View style={styles.readings}>{[[t('patientMonitoring.pulse'),patient.latest?.heart_rate,t('patientMonitoring.pulseUnit'),'heart-outline'],[t('patientMonitoring.oxygen'),patient.latest?.spo2,'%','water-outline'],[t('patientMonitoring.movement'),patient.latest?.movement == null ? null : patient.latest.movement ? t('patientMonitoring.detected') : t('patientMonitoring.resting'),'','walk-outline'],[t('patientMonitoring.sensorTemperature'),patient.latest?.temperature,'°C','thermometer-outline']].map(([label,value,unit,icon]) => <View style={styles.reading} key={label}><Ionicons name={icon} size={21} color="#764ba2" /><Text style={styles.text}>{label}</Text><Text style={styles.value}>{readingValue(value,unit,t)}</Text></View>)}</View>
         <Text style={styles.note}>{t('patientMonitoring.sensorNote')}</Text>
-        {!patientId ? <><Text style={styles.text}>{t('patientMonitoring.pendingCount', { count: (patient.alerts || []).filter(a => !a.acknowledged).length })}</Text><TouchableOpacity accessibilityRole="button" style={styles.button} onPress={() => navigation.navigate('MonitoreoDetalle',{patientId:patient.patient_id})}><Text style={styles.buttonText}>{t('patientMonitoring.viewDetails')}</Text></TouchableOpacity></> : <>
-          <Text style={styles.name}>{t('patientMonitoring.alerts')}</Text>{!(patient.alerts || []).length && <Text style={styles.text}>{t('patientMonitoring.noAlerts')}</Text>}
+        {!patientId ? <><Text style={styles.text}>{t('patientMonitoring.pendingCount', { count: patient.pending_alert_count ?? (patient.alerts || []).filter(a => !a.acknowledged).length })}</Text><TouchableOpacity accessibilityRole="button" style={styles.button} onPress={() => navigation.navigate('MonitoreoDetalle',{patientId:patient.patient_id})}><Text style={styles.buttonText}>{t('patientMonitoring.viewDetails')}</Text></TouchableOpacity></> : <>
+          <Text style={styles.name}>{t('patientMonitoring.alerts')}</Text><MonitoringPager meta={patient.alerts_pagination} onChange={setAlertsPage} disabled={refreshing} t={t} label={t('patientMonitoring.alerts')} />{!(patient.alerts || []).length && <Text style={styles.text}>{t('patientMonitoring.noAlerts')}</Text>}
           {(patient.alerts || []).map(alert => <View style={[styles.alert, alert.acknowledged && styles.alertAcknowledged]} key={alert.id}><Text style={styles.alertTitle}>{alertTitle(alert, t)}</Text><Text style={styles.text}>{readingTime(alert.timestamp, lang, t)}</Text><Text style={styles.text}>{alert.acknowledged ? t('patientMonitoring.acknowledged') : t('patientMonitoring.pendingReview')}</Text>{!alert.acknowledged && <TouchableOpacity accessibilityRole="button" disabled={busy !== null} style={[styles.button,busy !== null && styles.disabled]} onPress={() => acknowledge(alert.id)}><Text style={styles.buttonText}>{busy === alert.id ? t('patientMonitoring.saving') : t('patientMonitoring.acknowledge')}</Text></TouchableOpacity>}</View>)}
-          <Text style={styles.name}>{t('patientMonitoring.history')}</Text>{!(patient.history || []).length && <Text style={styles.text}>{t('patientMonitoring.noHistory')}</Text>}
+          <Text style={styles.name}>{t('patientMonitoring.history')}</Text><MonitoringPager meta={patient.history_pagination} onChange={setHistoryPage} disabled={refreshing} t={t} label={t('patientMonitoring.history')} />{!(patient.history || []).length && <Text style={styles.text}>{t('patientMonitoring.noHistory')}</Text>}
           {(patient.history || []).map((reading,index) => <View style={styles.history} key={reading.id || index}><Text style={styles.text}>{readingTime(reading.timestamp, lang, t)}</Text><Text style={styles.text}>{t('patientMonitoring.pulse')}: {readingValue(reading.heart_rate,t('patientMonitoring.pulseUnit'),t)} · {t('patientMonitoring.oxygen')}: {readingValue(reading.spo2,'%',t)}</Text></View>)}
         </>}
       </View>)}
     </ScrollView>
   </View>;
 }
+function MonitoringPager({ meta, onChange, disabled, t, label }) {
+  if (!meta || meta.total_pages <= 1) return null;
+  return <View style={styles.pager} accessibilityLabel={label}>
+    <TouchableOpacity accessibilityRole="button" accessibilityLabel={`${label}: ${t('patientMonitoring.previous')}`} disabled={disabled || meta.page <= 1} style={[styles.pageButton, (disabled || meta.page <= 1) && styles.disabled]} onPress={() => onChange(meta.page - 1)}><Text style={styles.buttonText}>{t('patientMonitoring.previous')}</Text></TouchableOpacity>
+    <Text style={styles.text}>{t('patientMonitoring.page', { page: meta.page, pages: meta.total_pages, total: meta.total })}</Text>
+    <TouchableOpacity accessibilityRole="button" accessibilityLabel={`${label}: ${t('patientMonitoring.next')}`} disabled={disabled || meta.page >= meta.total_pages} style={[styles.pageButton, (disabled || meta.page >= meta.total_pages) && styles.disabled]} onPress={() => onChange(meta.page + 1)}><Text style={styles.buttonText}>{t('patientMonitoring.next')}</Text></TouchableOpacity>
+  </View>;
+}
 const styles = StyleSheet.create({
+  pager:{flexDirection:'row',flexWrap:'wrap',gap:8,alignItems:'center',justifyContent:'space-between',marginVertical:12},
+  pageButton:{backgroundColor:'#6953a5',minHeight:44,padding:12,borderRadius:10,justifyContent:'center'},
+  search:{borderWidth:1,borderColor:'#d7c9eb',backgroundColor:'#fff',borderRadius:12,padding:14,color:'#493765',marginVertical:12},
   container:{flex:1,backgroundColor:'#f3f1fa'},
   header:{paddingBottom:24,paddingHorizontal:18,borderBottomLeftRadius:28,borderBottomRightRadius:28},
   headerRow:{flexDirection:'row',alignItems:'center',gap:10},

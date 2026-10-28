@@ -5,7 +5,7 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const load = source => import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
 const dictionaries = Promise.all(['es', 'en'].map(lang => load(fs.readFileSync(path.join(root,'src/i18n',`${lang}.js`),'utf8'))));
-const helpers = load(fs.readFileSync(path.join(root,'src/services/monitoringService.js'),'utf8').replace("import api from './api';", 'const api = {};'));
+const helpers = load(fs.readFileSync(path.join(root,'src/services/monitoringService.js'),'utf8').replace("import api from './api';", 'const api = {};').replace("import { clearMonitoringCache } from './monitoringCache';",'const clearMonitoringCache = () => {};'));
 function translate(dictionary) {
  return (key, params = {}) => {
   const value = key.split('.').reduce((data,k)=>data?.[k], dictionary);

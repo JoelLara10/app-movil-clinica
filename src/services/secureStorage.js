@@ -1,3 +1,4 @@
+import { clearMonitoringCache } from './monitoringCache';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
@@ -65,6 +66,7 @@ export async function setStoredUser(user) {
 }
 
 export async function clearStoredSession() {
+  clearMonitoringCache();
   await removeToken();
   if (Platform.OS === 'web') {
     webStorage()?.removeItem(USER_KEY);
