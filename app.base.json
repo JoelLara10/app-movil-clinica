@@ -1,12 +1,14 @@
 {
   "expo": {
-    "name": "INEO Hospital",
+    "name": "OftalCore",
     "slug": "ineo-hospital",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ineo.hospital",
@@ -40,7 +42,14 @@
           "backgroundColor": "#667eea"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "monitoring",
+          "color": "#764ba2"
+        }
+      ]
     ]
   }
 }

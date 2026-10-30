@@ -21,6 +21,9 @@ const api = axios.create({
 api.interceptors.request.use(
   async (config) => {
     const token = await getToken();
+    if (config.pushSessionToken && token !== config.pushSessionToken) {
+      throw Object.assign(new Error('session_changed'), { code: 'ERR_SESSION_CHANGED' });
+    }
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

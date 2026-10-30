@@ -1,4 +1,4 @@
-# Ambientes de INEO Mobile
+# Ambientes de OftalCore Mobile
 
 ## Flujo de ramas
 

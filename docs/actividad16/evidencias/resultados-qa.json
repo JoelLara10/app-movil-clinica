@@ -1,0 +1,85 @@
+{
+  "fecha": "2026-10-28T16:24:40.147707-06:00",
+  "entorno": "QA remoto real",
+  "api": "https://ineo-pbl-entrega.onrender.com/api/v1",
+  "cuenta": "Cuenta de prueba autorizada",
+  "tokens_omitidos": true,
+  "pruebas": [
+    {
+      "prueba": "Recurso protegido sin sesión",
+      "metodo": "GET",
+      "ruta": "/auth/me",
+      "esperado": 401,
+      "obtenido": 401,
+      "resultado": "Aprobada",
+      "segundos": 6.886,
+      "mensaje": "Token no proporcionado"
+    },
+    {
+      "prueba": "Token inválido rechazado",
+      "metodo": "GET",
+      "ruta": "/auth/me",
+      "esperado": 401,
+      "obtenido": 401,
+      "resultado": "Aprobada",
+      "segundos": 3.504,
+      "mensaje": "Token inválido o expirado"
+    },
+    {
+      "prueba": "Credenciales incorrectas rechazadas",
+      "metodo": "POST",
+      "ruta": "/auth/login",
+      "esperado": 401,
+      "obtenido": 401,
+      "resultado": "Aprobada",
+      "segundos": 3.375,
+      "mensaje": "Credenciales inválidas"
+    },
+    {
+      "prueba": "Credenciales válidas aceptadas",
+      "metodo": "POST",
+      "ruta": "/auth/login",
+      "esperado": 200,
+      "obtenido": 200,
+      "resultado": "Aprobada",
+      "segundos": 2.899
+    },
+    {
+      "prueba": "Identidad confirmada remotamente",
+      "metodo": "GET",
+      "ruta": "/auth/me",
+      "esperado": 200,
+      "obtenido": 200,
+      "resultado": "Aprobada",
+      "segundos": 2.415
+    },
+    {
+      "prueba": "Recurso autorizado disponible",
+      "metodo": "GET",
+      "ruta": "/catalog/services",
+      "esperado": 200,
+      "obtenido": 200,
+      "resultado": "Aprobada",
+      "segundos": 0.723
+    },
+    {
+      "prueba": "Cierre remoto de sesión",
+      "metodo": "POST",
+      "ruta": "/auth/logout",
+      "esperado": 200,
+      "obtenido": 200,
+      "resultado": "Aprobada",
+      "segundos": 0.81
+    },
+    {
+      "prueba": "Token revocado rechazado",
+      "metodo": "GET",
+      "ruta": "/auth/me",
+      "esperado": 401,
+      "obtenido": 401,
+      "resultado": "Aprobada",
+      "segundos": 0.614,
+      "mensaje": "Token inválido o expirado"
+    }
+  ]
+}

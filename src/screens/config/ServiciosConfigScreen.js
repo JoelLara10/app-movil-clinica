@@ -1,9 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import ConfigHeader from './ConfigHeader';
 import { configStyles as styles } from './ConfigStyles';
 import configurationService from '../../services/configurationService';
 import CacheService from '../../services/cacheService';
+import { validateService, safeServiceError } from '../../utils/serviceValidation';
 import { useLanguage } from '../../context/LanguageContext';
 
 const CACHE_KEY = 'config_servicios';
@@ -28,6 +29,8 @@ export default function ServiciosConfigScreen({ navigation }) {
   const [editId, setEditId] = useState(null);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const saveLock = useRef(false);
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState('');
   const [page, setPage] = useState(1);
@@ -51,21 +54,23 @@ export default function ServiciosConfigScreen({ navigation }) {
 
   const load = useCallback(async (forceRefresh = false) => {
     setLoading(true);
+    setMessage('');
     try {
       if (!forceRefresh) {
         const cached = await CacheService.get(CACHE_KEY);
         if (cached) { setItems(cached); setLoading(false); return; }
       }
       const data = await configurationService.services.list();
-      const list = Array.isArray(data) ? data : [];
+      if (!Array.isArray(data)) throw new Error('Invalid service list');
+      const list = data;
       await CacheService.set(CACHE_KEY, list, CACHE_TTL);
       setItems(list);
     } catch (error) {
       const cached = await CacheService.get(CACHE_KEY);
       if (cached) { setItems(cached); setMessage(t('config.noConnection')); }
-      else setMessage(error.response?.data?.error || t('config.serviceLoadError'));
+      else setMessage(safeServiceError(error, t('config.serviceLoadError')));
     } finally { setLoading(false); }
-  }, []);
+  }, [t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -86,22 +91,28 @@ export default function ServiciosConfigScreen({ navigation }) {
   const reset = () => { setForm(emptyForm); setEditId(null); };
 
   const save = async () => {
-    if (!form.serv_cve.trim() || !form.serv_desc.trim() || form.serv_costo === '')
-      return Alert.alert(t('config.serviceMissingData'), t('config.serviceMissingDataMsg'));
+    if (saveLock.current) return;
+    const validation = validateService(form);
+    if (!validation.ok) { setMessage(validation.error); return; }
+    saveLock.current = true;
+    setSaving(true);
+    setMessage('');
     try {
-      const payload = { ...form, serv_cve: form.serv_cve.trim().toUpperCase(), serv_desc: form.serv_desc.trim() };
+      const payload = validation.data;
       if (editId === null) await configurationService.services.create(payload);
       else await configurationService.services.update(editId, payload);
-      setMessage(editId === null ? t('config.serviceSaved') : t('config.serviceUpdated'));
+      const success = editId === null ? t('config.serviceSaved') : t('config.serviceUpdated');
       reset(); await load(true);
-    } catch (error) { setMessage(error.response?.data?.error || t('config.serviceSaveError')); }
+      setMessage((current) => current ? `${success} ${current}` : success);
+    } catch (error) { setMessage(safeServiceError(error, t('config.serviceSaveError'))); }
+    finally { saveLock.current = false; setSaving(false); }
   };
 
   const remove = (item) => Alert.alert(t('config.serviceDeleteTitle'), `${t('config.serviceDeleteMsg')} ${item.serv_cve}?`, [
     { text: t('config.cancel'), style: 'cancel' },
     { text: t('config.delete'), style: 'destructive', onPress: async () => {
       try { await configurationService.services.remove(item.id_serv); setMessage(t('config.serviceDeleted')); await load(true); }
-      catch (error) { setMessage(error.response?.data?.error || t('config.serviceDeleteError')); }
+      catch (error) { setMessage(safeServiceError(error, t('config.serviceDeleteError'))); }
     }},
   ]);
 
@@ -116,6 +127,8 @@ export default function ServiciosConfigScreen({ navigation }) {
               <Text style={styles.label}>{label}</Text>
               <TextInput
                 style={styles.input}
+                accessibilityLabel={label}
+                editable={!saving}
                 value={String(form[key] ?? '')}
                 placeholder={placeholder}
                 keyboardType={key === 'serv_costo' || key === 'iva' ? 'decimal-pad' : 'default'}
@@ -144,11 +157,12 @@ export default function ServiciosConfigScreen({ navigation }) {
           </View>
           <View style={styles.actionBar}>
             <TouchableOpacity style={styles.secondaryButton} onPress={reset}><Text style={styles.secondaryText}>{t('config.cancel')}</Text></TouchableOpacity>
-            <TouchableOpacity style={styles.primaryButton} onPress={save}><Text style={styles.primaryText}>{editId === null ? t('config.save') : t('config.update')}</Text></TouchableOpacity>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel={saving ? 'Guardando servicio' : t('config.save')} disabled={saving} style={[styles.primaryButton, saving && { opacity: 0.6 }]} onPress={save}><Text style={styles.primaryText}>{saving ? 'Guardando...' : editId === null ? t('config.save') : t('config.update')}</Text></TouchableOpacity>
           </View>
         </View>
 
-        {!!message && <View style={styles.messageBox}><Text style={styles.messageText}>{message}</Text></View>}
+        {(loading || saving) && <ActivityIndicator accessibilityLabel={saving ? 'Guardando servicio' : 'Cargando servicios'} size="large" color="#667eea" />}
+        {!!message && <View accessibilityLiveRegion="polite" style={styles.messageBox}><Text style={styles.messageText}>{message}</Text></View>}
 
         <TextInput style={styles.searchInput} value={search} onChangeText={(v) => { setSearch(v); setPage(1); }} placeholder={t('config.serviceSearchPlaceholder')} />
         <Text style={styles.sectionTitle}>{t('config.servicesRegistered')} ({visible.length})</Text>

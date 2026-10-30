@@ -1,4 +1,82 @@
 const en = {
+  patientMonitoring: {
+    "previous": "Previous",
+    "next": "Next",
+    "page": "Page {{page}} of {{pages}} · {{total}} records",
+    "patientsPages": "Patient pages",
+    "search": "Search by name or record",
+    "refreshing": "Refreshing in the background…",
+    "cached": "Showing saved data from this session. It may be out of date.",
+    "updated": "Last refresh: {{time}}",
+    "pushEnable": "Enable notifications",
+    "pushDisable": "Disable notifications",
+    "pushEnabled": "Notifications enabled on this device.",
+    "pushDisabled": "Notifications disabled.",
+    "pushDenied": "Notification permission denied. You can enable it in your phone settings.",
+    "pushUnavailable": "Notifications require an APK configured with Firebase.",
+    "pushError": "Could not enable notifications. Please try again.",
+    "pushInfo": "Receive a notice about new alerts even when the app is closed.",
+
+  "title": "Patient monitoring",
+  "subtitle": "ESP32 readings and pending alerts · updates every 10 seconds",
+  "listSubtitle": "Readings and alert monitoring",
+  "patientSubtitle": "Patient readings and follow-up",
+  "description": "ESP32 readings and alerts. Updated every 10 seconds while this screen is open.",
+  "refresh": "Refresh",
+  "allPatients": "All patients",
+  "backPatients": "Back to patients",
+  "backHome": "Back to home",
+  "loading": "Loading monitoring…",
+  "empty": "No patients available for monitoring.",
+  "loadError": "Could not refresh monitoring. Displayed readings may be out of date.",
+  "provisionError": "Could not assign the device. Check its ID and that it is not assigned to another patient.",
+  "ackError": "Could not acknowledge the alert. Please try again.",
+  "device": "Device",
+  "unassigned": "Unassigned",
+  "lastReading": "Last reading",
+  "pulse": "Heart rate",
+  "pulseUnit": "bpm",
+  "oxygen": "SpO₂",
+  "movement": "Movement",
+  "detected": "Detected",
+  "resting": "At rest",
+  "sensorTemperature": "Sensor temperature",
+  "noReading": "No reading",
+  "noDate": "No date",
+  "sensorNote": "This is the sensor temperature, not body temperature.",
+  "pendingCount": "Pending alerts: {{count}}",
+  "viewDetails": "View readings and alerts",
+  "assignDevice": "Assign ESP32",
+  "assignHelp": "The ID must match the firmware. If already assigned to this patient, the credential is renewed and must be updated on the ESP32.",
+  "deviceId": "Device ID",
+  "generateCredential": "Assign and generate credential",
+  "credentialHelp": "Save this credential to configure the ESP32. It is only displayed after generation.",
+  "hideCredential": "Hide credential",
+  "alerts": "Alerts",
+  "noAlerts": "No alerts recorded.",
+  "acknowledged": "Acknowledged",
+  "pendingReview": "Pending review",
+  "saving": "Saving…",
+  "acknowledge": "Acknowledge alert",
+  "history": "Recent history",
+  "noHistory": "No measurements recorded.",
+  "date": "Date",
+  "states": {
+    "unassigned": "No device assigned",
+    "noReadings": "No readings",
+    "offline": "Device disconnected",
+    "stale": "Outdated reading",
+    "noContact": "No sensor contact",
+    "recent": "Recent reading"
+  },
+  "alertTypes": {
+    "fall": "Possible fall detected",
+    "low_heart_rate": "Heart rate below the configured range",
+    "high_heart_rate": "Heart rate above the configured range",
+    "low_spo2": "SpO₂ below the configured range",
+    "generic": "Monitoring alert"
+  }
+},
   // Login
   login: {
     title: 'Hospital Management System',
@@ -10,11 +88,13 @@ const en = {
     errorAuth: 'Authentication error',
     errorInvalid: 'Invalid credentials',
     errorConnection: 'Connection error',
-    footer: 'INEO v2.0 - Hospital Management System',
+    footer: 'OftalCore v2.0 - Hospital Management System',
   },
 
   // Dashboard
   dashboard: {
+    monitoring: 'Patient monitoring',
+    monitoringDesc: 'ESP32 readings and possible fall alerts',
     greeting: 'Hello',
     activePatients: 'Active Patients',
     occupiedBeds: 'Occupied Beds',
@@ -222,7 +302,7 @@ const en = {
   config: {
     // ConfigScreen
     systemConfig: 'System Settings',
-    systemConfigDesc: 'Manage modules, catalogs, users, backups and INEO system parameters.',
+    systemConfigDesc: 'Manage modules, catalogs, users, backups and OftalCore system parameters.',
     bedsManagement: 'Bed Management',
     bedsManagementDesc: 'Manage hospital bed availability and assignment',
     staffManagement: 'Staff Management',
@@ -505,7 +585,7 @@ const en = {
     allRequestsCompleted: 'All studies are completed',
     noResultsUploaded: 'No results have been uploaded yet',
     helloDoctor: 'Hello, Dr. {{user}}!', total: 'Total', loadingStudies: 'Loading studies...',
-    hospitalFooter: 'INEO v2.0 - Hospital Management System',
+    hospitalFooter: 'OftalCore v2.0 - Hospital Management System',
     couldNotLoadInfo: 'Could not load information.',
     notice: 'Notice', error: 'Error', success: 'Success',
     noFileObtained: 'No file obtained. Please try again.',
@@ -897,3 +977,4 @@ const en = {
 };
 
 export default en;
+

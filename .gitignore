@@ -49,3 +49,8 @@ __pycache__/
 
 # AI tooling / Local configs
 .claude/
+
+# Private service-account credentials (google-services.json is public app config)
+*-firebase-adminsdk-*.json
+*service-account*.json
+credentials.json

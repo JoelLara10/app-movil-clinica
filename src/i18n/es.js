@@ -1,4 +1,82 @@
 const es = {
+  patientMonitoring: {
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "page": "Página {{page}} de {{pages}} · {{total}} registros",
+    "patientsPages": "Páginas de pacientes",
+    "search": "Buscar por nombre o expediente",
+    "refreshing": "Actualizando en segundo plano…",
+    "cached": "Mostrando datos guardados de esta sesión. Pueden estar desactualizados.",
+    "updated": "Consulta actualizada: {{time}}",
+    "pushEnable": "Activar notificaciones",
+    "pushDisable": "Desactivar notificaciones",
+    "pushEnabled": "Notificaciones activadas en este dispositivo.",
+    "pushDisabled": "Notificaciones desactivadas.",
+    "pushDenied": "Permiso de notificaciones denegado. Puedes habilitarlo en Ajustes del teléfono.",
+    "pushUnavailable": "Las notificaciones requieren un APK configurado con Firebase.",
+    "pushError": "No se pudieron activar las notificaciones. Intenta de nuevo.",
+    "pushInfo": "Recibe un aviso de nuevas alertas aunque la app esté cerrada.",
+
+  "title": "Monitoreo de pacientes",
+  "subtitle": "Lecturas del ESP32 y alertas pendientes · actualización cada 10 segundos",
+  "listSubtitle": "Seguimiento de lecturas y alertas",
+  "patientSubtitle": "Lecturas y seguimiento del paciente",
+  "description": "Lecturas del ESP32 y alertas. Se actualizan cada 10 segundos mientras esta pantalla está abierta.",
+  "refresh": "Actualizar",
+  "allPatients": "Todos los pacientes",
+  "backPatients": "Volver a pacientes",
+  "backHome": "Volver al inicio",
+  "loading": "Cargando monitoreo…",
+  "empty": "No hay pacientes disponibles para monitoreo.",
+  "loadError": "No se pudo actualizar el monitoreo. Las lecturas mostradas pueden estar desactualizadas.",
+  "provisionError": "No se pudo asociar el dispositivo. Revisa el identificador y que no esté asignado a otro paciente.",
+  "ackError": "No se pudo reconocer la alerta. Intenta nuevamente.",
+  "device": "Dispositivo",
+  "unassigned": "Sin asignar",
+  "lastReading": "Última lectura",
+  "pulse": "Pulso",
+  "pulseUnit": "lpm",
+  "oxygen": "SpO₂",
+  "movement": "Movimiento",
+  "detected": "Detectado",
+  "resting": "En reposo",
+  "sensorTemperature": "Temperatura del sensor",
+  "noReading": "Sin lectura",
+  "noDate": "Sin fecha",
+  "sensorNote": "La temperatura corresponde al sensor, no a la temperatura corporal.",
+  "pendingCount": "Alertas pendientes: {{count}}",
+  "viewDetails": "Ver lecturas y alertas",
+  "assignDevice": "Asociar ESP32",
+  "assignHelp": "El identificador debe coincidir con el firmware. Si ya está asociado a este paciente, se renueva la credencial y debes actualizarla en el ESP32.",
+  "deviceId": "Identificador del dispositivo",
+  "generateCredential": "Asociar y generar credencial",
+  "credentialHelp": "Guarda esta credencial para configurar el ESP32. Solo se muestra tras generarla.",
+  "hideCredential": "Ocultar credencial",
+  "alerts": "Alertas",
+  "noAlerts": "Sin alertas registradas.",
+  "acknowledged": "Reconocida",
+  "pendingReview": "Pendiente de revisión",
+  "saving": "Guardando…",
+  "acknowledge": "Reconocer alerta",
+  "history": "Historial reciente",
+  "noHistory": "Sin mediciones registradas.",
+  "date": "Fecha",
+  "states": {
+    "unassigned": "Sin dispositivo asignado",
+    "noReadings": "Sin lecturas",
+    "offline": "Dispositivo desconectado",
+    "stale": "Lectura desactualizada",
+    "noContact": "Sin contacto con el sensor",
+    "recent": "Lectura reciente"
+  },
+  "alertTypes": {
+    "fall": "Posible caída detectada",
+    "low_heart_rate": "Pulso por debajo del rango configurado",
+    "high_heart_rate": "Pulso por encima del rango configurado",
+    "low_spo2": "SpO₂ por debajo del rango configurado",
+    "generic": "Alerta de monitoreo"
+  }
+},
   // Login
   login: {
     title: 'Sistema de Gestion Hospitalaria',
@@ -10,11 +88,13 @@ const es = {
     errorAuth: 'Error de autenticacion',
     errorInvalid: 'Credenciales incorrectas',
     errorConnection: 'Error de conexion',
-    footer: 'INEO v2.0 - Sistema de Gestion Hospitalaria',
+    footer: 'OftalCore v2.0 - Sistema de Gestion Hospitalaria',
   },
 
   // Dashboard
   dashboard: {
+    monitoring: 'Monitoreo de pacientes',
+    monitoringDesc: 'Lecturas del ESP32 y alertas de posibles caídas',
     greeting: 'Hola',
     activePatients: 'Pacientes Activos',
     occupiedBeds: 'Camas Ocupadas',
@@ -222,7 +302,7 @@ const es = {
   config: {
     // ConfigScreen
     systemConfig: 'Configuración del Sistema',
-    systemConfigDesc: 'Administra módulos, catálogos, usuarios, respaldos y parámetros del sistema INEO.',
+    systemConfigDesc: 'Administra módulos, catálogos, usuarios, respaldos y parámetros del sistema OftalCore.',
     bedsManagement: 'Gestión de Camas',
     bedsManagementDesc: 'Administra la disponibilidad y asignación de camas hospitalarias',
     staffManagement: 'Gestión de Personal',
@@ -505,7 +585,7 @@ const es = {
     allRequestsCompleted: 'Todos los estudios han sido completados',
     noResultsUploaded: 'Aún no se han subido resultados',
     helloDoctor: '¡Hola, Dr. {{user}}!', total: 'Total', loadingStudies: 'Cargando estudios...',
-    hospitalFooter: 'INEO v2.0 - Sistema de Gestión Hospitalaria',
+    hospitalFooter: 'OftalCore v2.0 - Sistema de Gestión Hospitalaria',
     couldNotLoadInfo: 'No se pudo cargar la información.',
     notice: 'Aviso', error: 'Error', success: 'Éxito',
     noFileObtained: 'No se obtuvo ningún archivo. Inténtalo nuevamente.',
@@ -897,3 +977,4 @@ const es = {
 };
 
 export default es;
+

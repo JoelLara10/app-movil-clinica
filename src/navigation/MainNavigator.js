@@ -16,6 +16,7 @@ import { useAuth } from "../context/AuthContext";
 import { usePatient } from "../context/PatientContext";
 import { useLanguage } from "../context/LanguageContext";
 
+import MonitoringScreen from '../screens/monitoring/MonitoringScreen';
 import DashboardScreen from "../screens/dashboard/DashboardScreen";
 
 // Importar screens
@@ -198,6 +199,8 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
       requiresPatient: false,
     });
   }
+
+  if (isAdminRole || isMedicoRole || isEnfermeriaRole) principalItems.push({ name: t('patientMonitoring.title'), icon: 'pulse-outline', screen: 'Monitoreo', params: {}, requiresPatient: false });
 
   if (principalItems.length) {
     menuSections.push({ title: t("sidebar.principal"), items: principalItems });
@@ -512,7 +515,7 @@ const CustomSidebar = ({ navigation, navigation: drawerNavigation }) => {
         style={styles.sidebarHeader}
       >
         <View style={styles.brandContainer}>
-          <Text style={styles.brandTitle}>INEO</Text>
+          <Text style={styles.brandTitle}>OftalCore</Text>
           <View style={styles.brandRight}>
             <TouchableOpacity
               style={styles.langToggle}
@@ -690,6 +693,7 @@ function MainStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Dashboard" component={DashboardScreen} />
+      {["admin", "medico", "enfermero", "enfermeria"].includes(role) && <><Stack.Screen name="Monitoreo" component={MonitoringScreen} /><Stack.Screen name="MonitoreoDetalle" component={MonitoringScreen} /></>}
 
       {(role === "admin" || role === "administrativo") && (
         <Stack.Screen name="Admin" component={AdminScreen} />

@@ -1,4 +1,5 @@
 const baseConfig = require('./app.base.json');
+const fs = require('node:fs');
 
 const ENVIRONMENTS = new Set(['development', 'qa', 'production']);
 const DEFAULT_PRODUCTION_API = 'https://api-clinica-jx4m.onrender.com/api/v1';
@@ -47,9 +48,11 @@ module.exports = () => {
         backgroundColor: '#02194D',
       }
     : baseAdaptiveIcon;
+  const googleServicesFile = process.env.GOOGLE_SERVICES_JSON || (fs.existsSync('./google-services.json') ? './google-services.json' : undefined);
   const android = {
     ...baseConfig.expo.android,
     adaptiveIcon,
+    ...(googleServicesFile ? { googleServicesFile } : {}),
   };
 
   return {
@@ -63,6 +66,7 @@ module.exports = () => {
     extra: {
       ...baseConfig.expo.extra,
       APP_ENV: environment,
+      pushConfigured: !!googleServicesFile,
       API_URL: apiUrl,
     },
   };
