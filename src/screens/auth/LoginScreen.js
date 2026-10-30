@@ -27,11 +27,13 @@ const LoginScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [feedback, setFeedback] = useState(null);
   const { login } = useAuth();
   const { lang, setLanguage, t } = useLanguage();
   const { width: screenWidth } = useWindowDimensions();
 
   const handleLogin = async () => {
+    setFeedback(null);
     const normalizedUsername = username.trim();
 
     if (
@@ -40,6 +42,7 @@ const LoginScreen = ({ navigation }) => {
       || normalizedUsername.length > MAX_USERNAME_LENGTH
       || password.length > MAX_PASSWORD_LENGTH
     ) {
+      setFeedback('errorCredentials');
       Alert.alert(t('login.error'), t('login.errorCredentials'));
       return;
     }
@@ -49,6 +52,7 @@ const LoginScreen = ({ navigation }) => {
     setLoading(false);
 
     if (!result.success) {
+      setFeedback(result.reason === 'connection' ? 'errorConnection' : 'errorInvalid');
       const message = result.reason === 'connection'
         ? t('login.errorConnection')
         : t('login.errorInvalid');
@@ -133,6 +137,8 @@ const LoginScreen = ({ navigation }) => {
                 />
               </TouchableOpacity>
             </View>
+
+            {feedback && <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={styles.feedback}>{t(`login.${feedback}`)}</Text>}
 
             <TouchableOpacity
               style={[styles.loginButton, loading && styles.loginButtonDisabled]}
@@ -267,6 +273,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
+  },
+  feedback: {
+    color: '#a32235',
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 8,
   },
   loginButtonDisabled: {
     opacity: 0.75,
