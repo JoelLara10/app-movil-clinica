@@ -219,7 +219,7 @@ const PatientDetailScreen = ({ navigation, route }) => {
             </Text>
             {medicosData.map((med, idx) => (
               <Text key={idx} style={styles.medicosText}>
-                • {med.doctor || med.doctor}
+                • {med.doctor}
               </Text>
             ))}
           </View>

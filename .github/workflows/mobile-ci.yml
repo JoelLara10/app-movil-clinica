@@ -5,6 +5,7 @@ on:
     branches: [main, qa, develop]
   push:
     branches: [main, qa, develop]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -17,10 +18,12 @@ jobs:
       # Preserve the existing React Navigation architecture on Expo SDK 57.
       EXPO_ROUTER_DISABLE_RN_NAVIGATION_CHECK: '1'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@v7
         with:
-          node-version: 20.19.4
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
           cache: npm
       - run: npm ci
       - run: npm test
@@ -35,6 +38,9 @@ jobs:
           APP_ENV: qa
           EXPO_PUBLIC_API_URL: https://ineo-pbl-entrega.onrender.com/api/v1
         run: npx expo export --platform web --output-dir dist-qa
-      - name: Audit runtime dependencies
-        run: npm audit --omit=dev --audit-level=critical
+      - name: Export native Android QA bundle
+        env:
+          APP_ENV: qa
+          EXPO_PUBLIC_API_URL: https://ineo-pbl-entrega.onrender.com/api/v1
+        run: npx expo export --platform android --output-dir dist-android-qa
 

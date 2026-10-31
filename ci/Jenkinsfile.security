@@ -1,0 +1,29 @@
+pipeline {
+  agent any
+  options {
+    timestamps()
+    timeout(time: 20, unit: 'MINUTES')
+    disableConcurrentBuilds()
+  }
+  stages {
+    stage('Dependencies') {
+      steps {
+        sh 'node --version && python3 --version'
+        sh 'npm ci'
+        sh 'python3 -m venv .venv-security'
+        sh '.venv-security/bin/python -m pip install -r ci/requirements-security.txt'
+      }
+    }
+    stage('Code and security gates') {
+      steps {
+        sh '.venv-security/bin/python ci/security_review.py --out reports/security/jenkins'
+      }
+    }
+  }
+  post {
+    always {
+      junit allowEmptyResults: false, testResults: 'reports/security/jenkins/security-gates.xml'
+      archiveArtifacts allowEmptyArchive: false, artifacts: 'reports/security/jenkins/**'
+    }
+  }
+}

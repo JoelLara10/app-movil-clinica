@@ -101,9 +101,9 @@ const DiagnosisScreen = ({ navigation, route }) => {
   };
 
   const loadDiagnosisHistory = async (forceRefresh = false) => {
+    const cacheKey = `${CACHE_KEY_HISTORY}${id_atencion}`;
     try {
       setLoadingHistory(true);
-      const cacheKey = `${CACHE_KEY_HISTORY}${id_atencion}`;
 
       if (!forceRefresh) {
         const cachedData = await CacheService.get(cacheKey);
