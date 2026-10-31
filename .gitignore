@@ -6,6 +6,9 @@ node_modules/
 # Expo
 .expo/
 dist/
+dist-*/
+reports/security/
+.venv-security/
 web-build/
 expo-env.d.ts
 
