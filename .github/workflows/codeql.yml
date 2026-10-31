@@ -28,6 +28,9 @@ jobs:
         with:
           ref: ${{ matrix.ref || github.ref }}
           persist-credentials: false
+      - name: Identify analyzed revision
+        id: revision
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - uses: github/codeql-action/init@v4
         with:
           languages: javascript-typescript
@@ -36,3 +39,5 @@ jobs:
       - uses: github/codeql-action/analyze@v4
         with:
           category: /language:javascript-typescript
+          ref: ${{ matrix.ref && format('refs/heads/{0}', matrix.ref) || github.ref }}
+          sha: ${{ steps.revision.outputs.sha }}
