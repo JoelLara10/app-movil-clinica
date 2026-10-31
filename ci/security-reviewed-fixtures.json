@@ -1,0 +1,62 @@
+[
+  {
+    "file": "google-services.json",
+    "type": "Base64 High Entropy String",
+    "hashed_secret": "e4e1e91257b827d0e921f3160bdb95e7b2a1cbd4",
+    "reason": "Identificador publico o checksum; no es credencial"
+  },
+  {
+    "file": "src/i18n/en.js",
+    "type": "Secret Keyword",
+    "hashed_secret": "8be3c943b1609fffbfc51aad666d0a04adf83c9d",
+    "reason": "Texto de interfaz o nombre de clave; no es credencial"
+  },
+  {
+    "file": "src/i18n/en.js",
+    "type": "Secret Keyword",
+    "hashed_secret": "91dd0c8e9cd139b14c4e5296dde44e45ccc063e6",
+    "reason": "Texto de interfaz o nombre de clave; no es credencial"
+  },
+  {
+    "file": "src/i18n/en.js",
+    "type": "Secret Keyword",
+    "hashed_secret": "c67dd20ee842986086a0a915ddc2a279490130ed",
+    "reason": "Texto de interfaz o nombre de clave; no es credencial"
+  },
+  {
+    "file": "src/i18n/en.js",
+    "type": "Secret Keyword",
+    "hashed_secret": "094ecdffd3ffe06b062db82065c15c999e7cceef",
+    "reason": "Texto de interfaz o nombre de clave; no es credencial"
+  },
+  {
+    "file": "src/i18n/es.js",
+    "type": "Secret Keyword",
+    "hashed_secret": "086d7bbe39747b7ec91251cc2435838e2b039785",
+    "reason": "Texto de interfaz o nombre de clave; no es credencial"
+  },
+  {
+    "file": "src/i18n/es.js",
+    "type": "Secret Keyword",
+    "hashed_secret": "5a6d1c612954979ea99ee33dbb2d231b00f6ac0a",
+    "reason": "Texto de interfaz o nombre de clave; no es credencial"
+  },
+  {
+    "file": "src/i18n/es.js",
+    "type": "Secret Keyword",
+    "hashed_secret": "c731fa11b41f647aa40d50f8cfcd6da6d7e88e91",
+    "reason": "Texto de interfaz o nombre de clave; no es credencial"
+  },
+  {
+    "file": "src/i18n/es.js",
+    "type": "Secret Keyword",
+    "hashed_secret": "b95d03a2faceaf98932af3c912c19df68bdb2084",
+    "reason": "Texto de interfaz o nombre de clave; no es credencial"
+  },
+  {
+    "file": "src/i18n/es.js",
+    "type": "Secret Keyword",
+    "hashed_secret": "094ecdffd3ffe06b062db82065c15c999e7cceef",
+    "reason": "Texto de interfaz o nombre de clave; no es credencial"
+  }
+]

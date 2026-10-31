@@ -227,7 +227,7 @@ const PatientDetailScreen = ({ navigation, route }) => {
               <Ionicons name="medkit-outline" size={14} color="#667eea" /> {t('common.treatingDoctors')}:
             </Text>
             {medicosData.map((med, idx) => (
-              <Text key={idx} style={styles.medicosText}>• {med.doctor || med.doctor}</Text>
+              <Text key={idx} style={styles.medicosText}>• {med.doctor}</Text>
             ))}
           </View>
         )}

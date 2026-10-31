@@ -10,7 +10,10 @@
     "test": "node --experimental-vm-modules --test tests/*.test.cjs",
     "check": "npm test && npx expo-doctor && npx expo export --platform web",
     "start:qa": "node scripts/expo-qa.cjs start",
-    "export:qa": "node scripts/expo-qa.cjs export --platform web --output-dir dist-qa"
+    "export:qa": "node scripts/expo-qa.cjs export --platform web --output-dir dist-qa",
+    "lint": "oxlint --deny no-dupe-keys --deny no-undef --deny no-unreachable --deny no-unsafe-finally --deny const-comparisons App.js src scripts tests",
+    "security:review": "python ci/security_review.py --out reports/security/local",
+    "security:policy": "python -m unittest discover -s ci -p test_security_gate.py"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -47,6 +50,14 @@
     "react-native-worklets": "0.10.1"
   },
   "devDependencies": {
-    "babel-plugin-transform-remove-console": "^6.9.4"
+    "babel-plugin-transform-remove-console": "^6.9.4",
+    "oxlint": "1.90.0"
+  },
+  "overrides": {
+    "follow-redirects": "1.16.2",
+    "node-forge": "1.4.2",
+    "@expo/cli": {
+      "zod": "4.6.7"
+    }
   }
 }
