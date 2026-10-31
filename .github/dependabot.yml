@@ -1,0 +1,30 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+      time: '09:00'
+      timezone: America/Mexico_City
+    open-pull-requests-limit: 5
+    groups:
+      compatible-updates:
+        update-types: [patch, minor]
+    ignore:
+      # SDK/React/React Native upgrades must be coordinated with Expo.
+      - dependency-name: '*'
+        update-types: [version-update:semver-major]
+  - package-ecosystem: pip
+    directory: /ci
+    target-branch: develop
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3

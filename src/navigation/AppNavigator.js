@@ -1,4 +1,5 @@
 import MedicoDrawer from './MedicoDrawer';
+import AuthNavigator from './AuthNavigator';
 import AdminDrawer from './AdminDrawer';
 import EstudiosDrawer from './EstudiosDrawer';
 import { useAuth } from '../context/AuthContext';

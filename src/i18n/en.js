@@ -775,7 +775,6 @@ const en = {
     secondaryDiagnoses: 'Secondary diagnoses',
     secondaryPlaceholder: 'One per line or separated by commas',
     observations: 'Observations',
-    observationsPlaceholder: 'Additional notes...',
     saveDiagnosis: 'Save Diagnosis',
     updateDiagnosis: 'Update Diagnosis',
     diagnosisHistory: 'Diagnosis History',

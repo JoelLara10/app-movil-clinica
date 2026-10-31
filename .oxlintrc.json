@@ -1,0 +1,4 @@
+{
+  "env": { "browser": true, "node": true, "es2022": true },
+  "globals": { "__DEV__": "readonly" }
+}

@@ -775,7 +775,6 @@ const es = {
     secondaryDiagnoses: 'Diagnosticos secundarios',
     secondaryPlaceholder: 'Uno por linea o separados por comas',
     observations: 'Observaciones',
-    observationsPlaceholder: 'Notas adicionales...',
     saveDiagnosis: 'Guardar Diagnostico',
     updateDiagnosis: 'Actualizar Diagnostico',
     diagnosisHistory: 'Historial de Diagnosticos',
