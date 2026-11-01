@@ -1,5 +1,5 @@
 // src/screens/enfermeria/EnfermeriaNoteScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   FlatList,
 } from 'react-native';
@@ -15,12 +14,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../../context/LanguageContext';
 import api from '../../services/api';
-import CacheService from '../../services/cacheService';
+import { validateNursingNote, nursingSyncError } from '../../utils/nursingNoteSync';
 import Pagination from '../../components/Pagination';
 import moment from 'moment';
 
-const CACHE_KEY_PREFIX = 'enfermeria_notes_';
-const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
 const HISTORY_ITEMS_PER_PAGE = 5;
 
 const EnfermeriaNoteScreen = ({ navigation, route }) => {
@@ -28,78 +25,78 @@ const EnfermeriaNoteScreen = ({ navigation, route }) => {
   const { t, lang } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
-  const [showHistory, setShowHistory] = useState(false);
+  const [showHistory, setShowHistory] = useState(true);
+  const [syncMessage, setSyncMessage] = useState(null);
+  const [historyError, setHistoryError] = useState(null);
+  const [lastSync, setLastSync] = useState(null);
+  const sending = useRef(false);
+  const generation = useRef(0);
   const [history, setHistory] = useState([]);
   const [currentHistoryPage, setCurrentHistoryPage] = useState(1);
   const [formData, setFormData] = useState({
     nota_enfermeria: '',
   });
 
-  // Cargar historial de notas
   useEffect(() => {
+    generation.current += 1;
+    setHistory([]);
+    setLastSync(null);
+    setHistoryError(null);
+    setSyncMessage(null);
+    setFormData({ nota_enfermeria: '' });
     loadNursingNotesHistory();
-  }, []);
+    return () => { generation.current += 1; };
+  }, [id_atencion]);
 
-  const loadNursingNotesHistory = async (forceRefresh = false) => {
+  const loadNursingNotesHistory = async () => {
+    const requestGeneration = generation.current;
+    setLoadingHistory(true);
+    setHistoryError(null);
     try {
-      setLoadingHistory(true);
-      const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}`;
-
-      // Intentar obtener de caché primero (si no es forceRefresh)
-      if (!forceRefresh) {
-        const cachedData = await CacheService.get(cacheKey);
-        if (cachedData) {
-          console.log('📦 Notas de enfermería cargadas desde caché');
-          setHistory(cachedData);
-          setLoadingHistory(false);
-          return;
-        }
-      }
-
-      // Si no hay caché o es forceRefresh, cargar desde API
-      console.log('🌐 Cargando notas de enfermería desde API...');
       const response = await api.get(`/appointments/${id_atencion}/nursing-notes`);
-      
-      // Guardar en caché
-      await CacheService.set(cacheKey, response.data, CACHE_TTL);
-      
-      setHistory(response.data || []);
-      if (forceRefresh) setCurrentHistoryPage(1);
+      if (!Array.isArray(response.data)) throw new Error('invalid_response');
+      if (requestGeneration !== generation.current) return null;
+      setHistory(response.data);
+      setCurrentHistoryPage(1);
+      setLastSync(new Date());
+      return response.data;
     } catch (error) {
-      console.error('Error loading nursing notes history:', error);
-      
-      // Si falla la API, intentar cargar desde caché
-      const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}`;
-      const cachedData = await CacheService.get(cacheKey);
-      if (cachedData) {
-        console.log('📦 Notas de enfermería cargadas desde caché (fallback)');
-        setHistory(cachedData);
+      if (requestGeneration === generation.current) {
+        if ([401, 403].includes(error.response?.status)) setHistory([]);
+        setHistoryError(t(`noteSync.${nursingSyncError(error)}`));
       }
+      return null;
     } finally {
-      setLoadingHistory(false);
+      if (requestGeneration === generation.current) setLoadingHistory(false);
     }
   };
 
   const handleSubmit = async () => {
-    if (!formData.nota_enfermeria.trim()) {
-      Alert.alert(t('common.warning'), t('enfermeria.loadingNote'));
+    if (sending.current) return;
+    const validation = validateNursingNote(formData.nota_enfermeria);
+    if (!validation.ok) {
+      setSyncMessage(t(`noteSync.${validation.key}`));
       return;
     }
-
+    const requestGeneration = generation.current;
+    sending.current = true;
     setLoading(true);
+    setSyncMessage(null);
     try {
-      const response = await api.post(`/appointments/${id_atencion}/nursing-notes`, formData);
-      if (response.data) {
-        Alert.alert(t('common.success'), t('enfermeria.saveNote'));
-        // Limpiar formulario
-        setFormData({ nota_enfermeria: '' });
-        // Recargar historial con forceRefresh
-        await loadNursingNotesHistory(true);
-      }
+      const response = await api.post(`/appointments/${id_atencion}/nursing-notes`, validation.data);
+      if (requestGeneration !== generation.current) return;
+      if (response.status !== 201 || !response.data?.id_nota) throw new Error('invalid_response');
+      setFormData({ nota_enfermeria: '' });
+      setSyncMessage(t('noteSync.savedPending'));
+      const records = await loadNursingNotesHistory();
+      if (requestGeneration !== generation.current) return;
+      setSyncMessage(t(records?.some(item => item.id_nota === response.data.id_nota)
+        ? 'noteSync.confirmed' : 'noteSync.savedPending'));
+      setShowHistory(true);
     } catch (error) {
-      console.error('Error saving nursing note:', error);
-      Alert.alert(t('common.error'), error.response?.data?.error || t('common.couldNotSaveData'));
+      if (requestGeneration === generation.current) setSyncMessage(t(`noteSync.${nursingSyncError(error)}`));
     } finally {
+      sending.current = false;
       setLoading(false);
     }
   };
@@ -155,6 +152,7 @@ const EnfermeriaNoteScreen = ({ navigation, route }) => {
         <TouchableOpacity
           onPress={() => loadNursingNotesHistory(true)}
           style={styles.backButton}
+          accessibilityLabel={t('noteSync.refresh')}
           disabled={loading || loadingHistory}
         >
           <Ionicons name="refresh-outline" size={22} color="#fff" />
@@ -183,6 +181,12 @@ const EnfermeriaNoteScreen = ({ navigation, route }) => {
         </View>
       </View>
 
+      <View style={{ paddingHorizontal: 20, paddingVertical: 10 }}>
+        <Text>{lastSync ? `${t('noteSync.lastSync')} ${lastSync.toLocaleTimeString()}` : t('noteSync.notSynced')}</Text>
+        {loadingHistory && <Text accessibilityLiveRegion="polite">{t('noteSync.loading')}</Text>}
+        {historyError && <Text accessibilityRole="alert" style={{ color: '#9b2c2c' }}>{historyError} {t('noteSync.stale')}</Text>}
+        {syncMessage && <Text accessibilityRole="alert" style={{ marginTop: 8 }}>{syncMessage}</Text>}
+      </View>
       {/* Tarjeta principal - Nueva nota */}
       <View style={styles.mainCard}>
         <LinearGradient 
@@ -209,6 +213,8 @@ const EnfermeriaNoteScreen = ({ navigation, route }) => {
               style={styles.textArea}
               placeholder={t('enfermeria.subjectivePlaceholder')}
               placeholderTextColor="#a0aec0"
+              accessibilityLabel={t('enfermeria.nursingNote')}
+              editable={!loading}
               multiline
               numberOfLines={6}
               textAlignVertical="top"
@@ -266,6 +272,8 @@ const EnfermeriaNoteScreen = ({ navigation, route }) => {
           <View style={styles.historyBody}>
             {loadingHistory ? (
               <ActivityIndicator style={styles.historyLoader} size="large" color="#4299e1" />
+            ) : historyError && history.length === 0 ? (
+              <Text>{t('noteSync.retry')}</Text>
             ) : history.length === 0 ? (
               <View style={styles.emptyHistory}>
                 <Ionicons name="document-text-outline" size={48} color="#cbd5e0" />

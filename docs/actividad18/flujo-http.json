@@ -1,0 +1,43 @@
+[
+  {
+    "prueba": "Consulta independiente tras creación desde móvil",
+    "status": 200,
+    "respuesta": [
+      {
+        "enfermero_nombre": "Usuario sintético enfermeria",
+        "fecha_registro": "2026-11-01T20:33:19.945000+00:00",
+        "id": "6ae7a20f743f771136303a53",
+        "id_nota": 101,
+        "nota": "A18 prueba de sincronización desde la pantalla móvil. Registro sintético sin datos clínicos reales."
+      },
+      {
+        "enfermero_nombre": "Usuario sintético enfermeria",
+        "fecha_registro": "2026-11-01T20:30:12.778000+00:00",
+        "id": "6ae7a154743f771136303a52",
+        "id_nota": 100,
+        "nota": "Registro inicial sintético para consulta de sincronización"
+      }
+    ]
+  },
+  {
+    "prueba": "Nota incompleta rechazada por servidor",
+    "status": 400,
+    "respuesta": {
+      "error": "La nota es obligatoria y admite hasta 5000 caracteres"
+    }
+  },
+  {
+    "prueba": "Consulta sin sesión",
+    "status": 401,
+    "respuesta": {
+      "error": "Token no proporcionado"
+    }
+  },
+  {
+    "prueba": "Rol no autorizado",
+    "status": 403,
+    "respuesta": {
+      "error": "Permisos insuficientes"
+    }
+  }
+]
