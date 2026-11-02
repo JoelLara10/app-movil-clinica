@@ -1,0 +1,73 @@
+
+> app-movil-clinica@1.0.0 test
+> node --experimental-vm-modules --test tests/*.test.cjs
+
+✔ Joel HC-01: rechaza atención o expediente manipulados (19.2787ms)
+✔ Joel HC-02: limita y normaliza la historia clínica (1.5769ms)
+✔ Joel HC-03: oculta errores internos del servidor (3.5254ms)
+✔ Zahid RX-01: rechaza una receta sin contexto clínico válido (0.9737ms)
+✔ Zahid RX-02: rechaza recetas incompletas o con más de 10 medicamentos (1.329ms)
+✔ Zahid RX-03: devuelve mensajes seguros para falta de autorización (0.6521ms)
+✔ Jaime MED-01: rechaza administración ligada a expediente inválido (0.8276ms)
+✔ Jaime MED-02: exige datos completos y una fecha clínica válida (4.4274ms)
+✔ Jaime MED-03: oculta el detalle técnico ante demasiados intentos (0.8511ms)
+✔ Jesús BAL-01: rechaza balance asociado a una atención manipulada (1.3521ms)
+✔ Jesús BAL-02: rechaza volúmenes negativos, no numéricos o extremos (0.8183ms)
+✔ Jesús BAL-03: un error 500 nunca revela detalles de base de datos (0.6075ms)
+✔ Jesús BAL-04: interpreta los campos planos devueltos por la API móvil (3.6962ms)
+✔ Jesús BAL-05: mantiene compatibilidad con balances anidados y calcula totales faltantes (0.5631ms)
+✔ A12-01 normaliza un registro remoto válido (7.8131ms)
+✔ A12-02 rechaza campos obligatorios vacíos (1.392ms)
+✔ A12-03 rechaza contexto manipulado y estados no autorizados (0.6232ms)
+✔ A12-04 limita textos clínicos a 1000 caracteres (0.8327ms)
+✔ A12-05 no expone mensajes internos de la API (1.2022ms)
+✔ A15 formulario válido normaliza el JSON y admite costo cero (4.6387ms)
+✔ A15 formulario incompleto no produce datos para POST (0.6882ms)
+✔ A15 rechaza números negativos, infinitos y tipo inválido (0.7188ms)
+✔ A15 errores de conexión, autorización y servidor son seguros (1.1429ms)
+✔ A15 conexión rechazada produce un mensaje seguro con Axios real (1497.417ms)
+✔ A15 una respuesta HTTP 500 real no revela detalles internos (102.5676ms)
+✔ A18 rechaza campos vacíos, tipos inválidos y notas excesivas (9.3538ms)
+✔ A18 errores de red y HTTP no revelan respuestas sensibles (0.9402ms)
+(node:13216) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ ADM-01: mantiene los datos administrativos solo en memoria (78.3952ms)
+✔ ADM-01: elimina cache legado y conserva la sesion y otros datos (31.8131ms)
+✔ ADM-02: rechaza URL externas y rutas alteradas antes de descargar (99.2347ms)
+✔ ADM-03: rechaza traversal y nombres invalidos antes de descargar (83.2976ms)
+✔ Regresion: conserva los cinco documentos validos en web y movil (50.9792ms)
+✔ patients: beds view loads all free and occupied beds, not only admission options (17.3851ms)
+✔ patient identity: incomplete records never receive demo identities or invented IDs (54.1496ms)
+✔ production defaults to the main API (4.3254ms)
+✔ qa uses the QA API endpoint (0.9743ms)
+✔ production requires HTTPS (2.0192ms)
+✔ qa requires an explicit API URL (0.9433ms)
+✔ development accepts an emulator HTTP endpoint (1.5892ms)
+✔ Expo CLI validates plugin metadata and rejects malformed output with the patched dependency (33.8249ms)
+✔ monitoring cache deduplicates concurrent loads and separates patient/user/page keys (64.2481ms)
+✔ logout invalidates old in-flight responses before they can cache clinical data (37.3797ms)
+✔ monitoring uses complete ES/EN dictionaries including all screen labels (84.0119ms)
+✔ sensor states and known API alerts follow the selected language (149.4136ms)
+(node:10228) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ push is never registered without Firebase config, platform support or explicit opt-in (151.9646ms)
+✔ push denied permission sends no registration; accepted permission uses current session and locale (165.7237ms)
+✔ account changes while requesting a push token cannot register to the new account (75.5216ms)
+✔ Cuidados de Enfermería contiene todas las traducciones en es (9.1499ms)
+✔ Cuidados de Enfermería contiene todas las traducciones en en (47.524ms)
+✔ la vista traduce los estados y no muestra sus códigos internos (1.1146ms)
+(node:9792) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ native SecureStore usa una clave válida para guardar, leer y borrar el token (32.984ms)
+✔ web conserva su clave existente en localStorage (26.5781ms)
+✔ JWT is never placed in a URL query string (488.7929ms)
+✔ JWT is only accessed through secureStorage (366.4293ms)
+✔ SecureStore usa una clave nativa válida (1.7961ms)
+ℹ tests 55
+ℹ suites 0
+ℹ pass 55
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3709.8744

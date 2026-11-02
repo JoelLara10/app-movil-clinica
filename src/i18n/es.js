@@ -1,4 +1,5 @@
 const es = {
+  noteSync: {"required": "Escriba una nota antes de enviarla.", "tooLong": "La nota admite como máximo 5000 caracteres.", "unauthorized": "La sesión venció. Inicie sesión nuevamente.", "forbidden": "No tiene permiso para esta operación.", "invalid": "Revise los datos de la nota.", "notFound": "La atención no existe.", "serverError": "El servicio no pudo completar la operación.", "connectionError": "No se pudo confirmar el envío o la consulta. Revise su conexión. Antes de reenviar, actualice el historial para evitar duplicados.", "savedPending": "Nota guardada en el servidor. Falta confirmar su aparición en el historial; actualice sin reenviar.", "confirmed": "Sincronización confirmada. La nota aparece en el servicio remoto.", "refresh": "Actualizar desde el servicio remoto", "lastSync": "Última consulta remota correcta", "notSynced": "Sin consulta remota confirmada", "loading": "Consultando el servicio remoto…", "stale": "Los registros visibles pueden estar desactualizados.", "retry": "Use el botón Actualizar para volver a consultar."},
   patientMonitoring: {
     "previous": "Anterior",
     "next": "Siguiente",

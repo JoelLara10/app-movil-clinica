@@ -1,0 +1,16 @@
+
+> ineo-web@0.0.0 test
+> vitest run --maxWorkers=2 --testTimeout=20000
+
+
+ RUN  v5.0.5 C:/Users/marce/Documents/Codex/2026-11-01/vamos/work/ineo-pbl-entrega/frontend/clinica-web-react
+
+
+ Test Files  34 passed (34)
+      Tests  187 passed (187)
+   Start at  14:29:44
+   Duration  79.85s (environment 48%, tests 29%, import 21%, transform 1%)
+
+    Isolate  34 workers spawned · ~2.54s startup each (spawn + environment, per file)
+             at least ~40.68s faster with isolate: false — reuses workers across files instead of one per file
+

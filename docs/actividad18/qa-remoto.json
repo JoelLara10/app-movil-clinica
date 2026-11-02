@@ -1,0 +1,20 @@
+[
+  {
+    "prueba": "Disponibilidad",
+    "url": "https://ineo-pbl-entrega.onrender.com/health",
+    "status": 200,
+    "respuesta": {
+      "status": "ok",
+      "timestamp": "2026-11-01T20:32:32.453508",
+      "version": "v1"
+    }
+  },
+  {
+    "prueba": "Consulta protegida",
+    "url": "https://ineo-pbl-entrega.onrender.com/api/v1/appointments/1/nursing-notes",
+    "status": 401,
+    "respuesta": {
+      "error": "Token no proporcionado"
+    }
+  }
+]
