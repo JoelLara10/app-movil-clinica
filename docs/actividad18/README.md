@@ -32,4 +32,7 @@ La nube QA respondió 200 en /health y 401 en la consulta sin token. El flujo au
 
 La API incluye --activity18 en ci/demo_api.py para preparar datos desechables. El arnés preview-app.js permite montar la pantalla real con la atención sintética 1 y login real, sin depender de agregaciones del listado que MongoMock no soporta. No se usa en la entrada normal de producción.
 
-Los cambios se entregan en feature/actividad18-sincronizacion para revisión hacia qa. No se ha fusionado ni desplegado automáticamente.
+La sincronización se integró en develop mediante el PR 49 y en QA mediante el
+PR 51. El registro de la segunda entrega documenta la versión instalable y sus
+comprobaciones posteriores. El alcance de las evidencias locales descrito arriba
+se conserva y no se interpreta como una escritura clínica acreditada en producción.

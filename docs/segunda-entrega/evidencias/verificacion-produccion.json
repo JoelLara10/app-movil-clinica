@@ -1,0 +1,52 @@
+[
+  {
+    "case": "Recurso sin JWT",
+    "method": "GET",
+    "path": "/auth/me",
+    "status": 401,
+    "seconds": 4.39
+  },
+  {
+    "case": "Acceso autorizado con cuenta de prueba",
+    "method": "POST",
+    "path": "/auth/login",
+    "status": 200,
+    "seconds": 4.98
+  },
+  {
+    "case": "Sesion valida",
+    "method": "GET",
+    "path": "/auth/me",
+    "status": 200,
+    "seconds": 0.78
+  },
+  {
+    "case": "Catalogo de servicios",
+    "method": "GET",
+    "path": "/catalog/services",
+    "status": 200,
+    "seconds": 0.48
+  },
+  {
+    "case": "Busqueda de expediente sintetico",
+    "method": "GET",
+    "path": "/monitoring/patients?page=1&page_size=10&q=QA-MON-20261021-aa4c91",
+    "status": 200,
+    "seconds": 1.0,
+    "result_count": 0
+  },
+  {
+    "case": "Cierre de sesion",
+    "method": "POST",
+    "path": "/auth/logout",
+    "status": 200,
+    "seconds": 0.67
+  },
+  {
+    "case": "JWT revocado",
+    "method": "GET",
+    "path": "/auth/me",
+    "status": 401,
+    "seconds": 0.31
+  }
+]

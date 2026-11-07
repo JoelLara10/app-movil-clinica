@@ -1,0 +1,15 @@
+{
+  "prepared_on": "2026-11-07",
+  "due_date": "2026-11-28",
+  "app_version": "1.0.0",
+  "android_version_code": 7,
+  "code_commit": "d3295dfd0314255e0967fac36035012498f1d477",
+  "production_build_id": "541abb20-ce01-4823-9418-672a6d05cd11",
+  "production_build_profile": "production-apk",
+  "production_api": "https://api-clinica-jx4m.onrender.com/api/v1",
+  "qa_build_id": "c0623630-4ca4-44b1-8d89-d57ec7c1d2b0",
+  "mobile_tests_passed": 55,
+  "production_auth_smoke": "passed",
+  "interface_evidence": "Expo web export connected to production API",
+  "native_build_7_acceptance": "pending device execution"
+}
