@@ -1,0 +1,66 @@
+
+> app-movil-clinica@1.0.0 lint
+> oxlint --deny no-dupe-keys --deny no-undef --deny no-unreachable --deny no-unsafe-finally --deny const-comparisons App.js src scripts tests
+
+src/screens/enfermeria/EnfermeriaCareScreen.js:33:14: warning eslint(no-unused-vars): Variable 'lang' is declared but never used. Unused variables should start with a '_'. help: Consider removing this declaration.
+src/screens/enfermeria/EnfermeriaCareScreen.js:76:14: warning eslint(no-unused-vars): Catch parameter 'error' is caught but never used. help: Consider handling this error.
+src/context/LanguageContext.js:34:16: warning eslint(no-unused-vars): Catch parameter '_' is caught but never used. help: Consider handling this error.
+src/context/LanguageContext.js:44:14: warning eslint(no-unused-vars): Catch parameter '_' is caught but never used. help: Consider handling this error.
+src/context/AuthContext.js:74:14: warning eslint(no-unused-vars): Catch parameter '_error' is caught but never used. help: Consider handling this error.
+src/context/AuthContext.js:125:14: warning eslint(no-unused-vars): Catch parameter '_error' is caught but never used. help: Consider handling this error.
+src/styles/theme.js:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+src/styles/globalStyles.js:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+src/styles/colors.js:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+src/components/cards/PatientCard.js:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+src/screens/enfermeria/EnfermeriaMedicationsScreen.js:31:14: warning eslint(no-unused-vars): Variable 'lang' is declared but never used. Unused variables should start with a '_'. help: Consider removing this declaration.
+src/components/cards/MenuCard.js:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+src/components/cards/AppointmentCard.js:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+src/services/authService.js:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+src/components/ViewResultForm.js:19:9: warning eslint(no-unused-vars): Variable 'width' is declared but never used. Unused variables should start with a '_'. help: Consider removing this declaration.
+src/components/ViewResultForm.js:19:16: warning eslint(no-unused-vars): Variable 'height' is declared but never used. Unused variables should start with a '_'. help: Consider removing this declaration.
+src/components/ViewResultForm.js:68:14: warning eslint(no-unused-vars): Catch parameter '_err' is caught but never used. help: Consider handling this error.
+src/screens/enfermeria/VitalSignsListScreen2.js:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+src/screens/enfermeria/EnfermeriaFluidBalanceScreen.js:32:14: warning eslint(no-unused-vars): Variable 'lang' is declared but never used. Unused variables should start with a '_'. help: Consider removing this declaration.
+src/components/common/LoadingSpinner.js:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+src/components/common/Header.js:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+src/components/common/CustomInput.js:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+src/screens/medico/PrintDocsScreen.js:25:14: warning eslint(no-unused-vars): Variable 'lang' is declared but never used. Unused variables should start with a '_'. help: Consider removing this declaration.
+src/screens/medico/PrintDocsScreen.js:158:14: warning eslint(no-unused-vars): Catch parameter '_error' is caught but never used. help: Consider handling this error.
+src/components/common/CustomButton.js:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+src/screens/administrativo/NuevoPacienteScreen.js:111:16: warning eslint(no-unused-vars): Catch parameter 'error' is caught but never used. help: Consider handling this error.
+src/screens/config/configCache.js:74:12: warning eslint(no-unused-vars): Catch parameter 'error' is caught but never used. help: Consider handling this error.
+src/services/adminCache.js:14:12: warning eslint(no-unused-vars): Catch parameter '_error' is caught but never used. help: Consider handling this error.
+src/screens/administrativo/CorteCajaScreen.js:194:14: warning eslint(no-unused-vars): Catch parameter 'error' is caught but never used. help: Consider handling this error.
+src/screens/enfermeria/EnfermeriaVitalSignsScreen.js:28:14: warning eslint(no-unused-vars): Variable 'lang' is declared but never used. Unused variables should start with a '_'. help: Consider removing this declaration.
+src/screens/medico/PatientDetailScreen.js:28:31: warning eslint(no-unused-vars): Variable 'selectPatient' is declared but never used. Unused variables should start with a '_'. help: Consider removing this declaration.
+src/screens/administrativo/CensoScreen.js:238:14: warning eslint(no-unused-vars): Catch parameter 'error' is caught but never used. help: Consider handling this error.
+src/screens/enfermeria/EnfermeriaScreen.js:146:9: warning eslint(no-unused-vars): Variable 'getAreaColor' is declared but never used. Unused variables should start with a '_'. help: Consider removing this declaration.
+src/screens/config/UsuariosConfigScreen.js:6:8: warning eslint(no-unused-vars): Identifier 'CacheService' is imported but never used. help: Consider removing this import.
+src/screens/config/UsuariosConfigScreen.js:119:27: warning unicorn(no-useless-fallback-in-spread): Empty fallbacks in spreads are unnecessary help: Spreading falsy values in object literals won't add any unexpected properties, so it's unnecessary to add an empty object as fallback.
+tests/admin-security.test.cjs:62:27: warning eslint(no-unused-vars): Parameter 'platform' is declared but never used. Unused parameters should start with a '_'. help: Consider removing this parameter.
+src/screens/dashboard/DashboardScreen.js:26:9: warning eslint(no-unused-vars): Variable 'insets' is declared but never used. Unused variables should start with a '_'. help: Consider removing this declaration.
+src/services/studyService.js:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+src/services/patientService.js:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+src/services/medicalService.js:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+src/utils/storage.js:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+src/utils/formatters.js:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+src/screens/medico/VitalSignsScreen.js:28:14: warning eslint(no-unused-vars): Variable 'lang' is declared but never used. Unused variables should start with a '_'. help: Consider removing this declaration.
+src/screens/admin/BackupScreen.js:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+src/screens/medico/HistoriaClinicaScreen.js:28:14: warning eslint(no-unused-vars): Variable 'lang' is declared but never used. Unused variables should start with a '_'. help: Consider removing this declaration.
+src/utils/validators.js:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+src/screens/admin/UsuariosScreen.js:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+src/screens/admin/ServiciosScreen.js:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+src/screens/admin/ReportesScreen.js:1:1: warning unicorn(no-empty-file): Empty files are not allowed. help: Delete this file or add some code to it.
+src/screens/medico/VitalSignsListScreen.js:69:14: warning eslint(no-unused-vars): Catch parameter '_error' is caught but never used. help: Consider handling this error.
+src/screens/medico/DiagnosisScreen.js:190:38: warning eslint(no-unused-vars): Parameter 'index' is declared but never used. Unused parameters should start with a '_'. help: Consider removing this parameter.
+src/screens/enfermeria/EnfermeriaAssessmentScreen.js:27:14: warning eslint(no-unused-vars): Variable 'lang' is declared but never used. Unused variables should start with a '_'. help: Consider removing this declaration.
+src/screens/auth/LoginScreen.js:21:9: warning eslint(no-unused-vars): Variable 'width' is declared but never used. Unused variables should start with a '_'. help: Consider removing this declaration.
+src/screens/auth/LoginScreen.js:25:24: warning eslint(no-unused-vars): Parameter 'navigation' is declared but never used. Unused parameters should start with a '_'. help: Consider removing this parameter.
+src/screens/admin/CamasScreen.js:70:14: warning eslint(no-unused-vars): Catch parameter 'error' is caught but never used. help: Consider handling this error.
+src/screens/admin/CamasScreen.js:148:16: warning eslint(no-unused-vars): Catch parameter 'error' is caught but never used. help: Consider handling this error.
+src/screens/admin/CamasScreen.js:173:16: warning eslint(no-unused-vars): Catch parameter 'error' is caught but never used. help: Consider handling this error.
+src/screens/admin/CamasScreen.js:209:22: warning eslint(no-unused-vars): Catch parameter 'error' is caught but never used. help: Consider handling this error.
+tests/nursing-care-i18n.test.cjs:34:41: warning eslint(no-useless-escape): Unnecessary escape character '"' help: Replace `\"` with `"`.
+src/screens/administrativo/PacienteDetailScreen.js:196:14: warning eslint(no-unused-vars): Catch parameter 'error' is caught but never used. help: Consider handling this error.
+src/screens/administrativo/PacienteDetailScreen.js:262:14: warning eslint(no-unused-vars): Catch parameter 'error' is caught but never used. help: Consider handling this error.
+src/screens/estudios/EstudiosScreen.js:240:22: warning eslint(no-unused-vars): Catch parameter 'error' is caught but never used. help: Consider handling this error.

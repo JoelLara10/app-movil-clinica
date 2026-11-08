@@ -13,7 +13,17 @@ updates:
       compatible-updates:
         update-types: [patch, minor]
     ignore:
-      # SDK/React/React Native upgrades must be coordinated with Expo.
+      # Expo's native matrix is coordinated with the SDK, even for minor releases.
+      # Keep security updates visible; these rules exclude version updates only.
+      - dependency-name: 'react'
+        update-types: [version-update:semver-major, version-update:semver-minor]
+      - dependency-name: 'react-dom'
+        update-types: [version-update:semver-major, version-update:semver-minor]
+      - dependency-name: 'react-native'
+        update-types: [version-update:semver-major, version-update:semver-minor]
+      - dependency-name: 'react-native-*'
+        update-types: [version-update:semver-major, version-update:semver-minor]
+      # SDK upgrades require a separate coordinated migration.
       - dependency-name: '*'
         update-types: [version-update:semver-major]
   - package-ecosystem: pip

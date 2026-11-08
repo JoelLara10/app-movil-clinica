@@ -1,4 +1,5 @@
 const en = {
+  noteSync: {"required": "Enter a note before sending.", "tooLong": "Notes support up to 5000 characters.", "unauthorized": "Your session expired. Sign in again.", "forbidden": "You do not have permission for this operation.", "invalid": "Check the note data.", "notFound": "The appointment does not exist.", "serverError": "The service could not complete the operation.", "connectionError": "The request could not be confirmed. Check your connection and refresh history before resending to avoid duplicates.", "savedPending": "Saved on the server. Refresh history to confirm without resending.", "confirmed": "Synchronization confirmed. The note appears in the remote service.", "refresh": "Refresh from remote service", "lastSync": "Last successful remote query", "notSynced": "No confirmed remote query", "loading": "Querying remote service…", "stale": "Visible records may be outdated.", "retry": "Use Refresh to try again."},
   patientMonitoring: {
     "previous": "Previous",
     "next": "Next",

@@ -14,11 +14,12 @@
 
 ## Riesgos externos pendientes
 
-`npm audit` todavía reporta vulnerabilidades altas/moderadas en herramientas
-internas de Expo/Metro. Se instaló la versión compatible más reciente de Expo
-SDK 57 y `expo-doctor` pasa 21/21 verificaciones. NPM propone bajar a Expo 44,
-lo cual rompería la compatibilidad actual y no debe aplicarse. Deben corregirse
-cuando Expo publique dependencias actualizadas.
+La auditoría final de esta entrega presenta 0 vulnerabilidades reportadas en
+los niveles bajo, moderado, alto y crítico. Se actualizaron los parches
+compatibles de Expo SDK 57 y se aprobaron las 55 pruebas del cliente y CI.
+El registro actual se conserva en
+`docs/segunda-entrega/evidencias/auditoria-npm.json`. La revisión anterior
+se conserva como antecedente en `docs/security/dependabot-20261102.md`.
 
 SecureStore protege el token nativo. En web, el token continúa en
 almacenamiento web por la arquitectura actual; para producción web se recomienda
