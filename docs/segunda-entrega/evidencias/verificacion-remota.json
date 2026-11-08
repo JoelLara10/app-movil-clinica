@@ -1,0 +1,65 @@
+[
+  {
+    "case": "QA health",
+    "method": "GET",
+    "url": "https://ineo-pbl-entrega.onrender.com/health",
+    "status": 200,
+    "seconds": 41.25
+  },
+  {
+    "case": "QA protected without token",
+    "method": "GET",
+    "url": "https://ineo-pbl-entrega.onrender.com/api/v1/auth/me",
+    "status": 401,
+    "seconds": 0.25
+  },
+  {
+    "case": "QA synthetic login",
+    "method": "POST",
+    "url": "https://ineo-pbl-entrega.onrender.com/api/v1/auth/login",
+    "status": 200,
+    "seconds": 3.05
+  },
+  {
+    "case": "QA current session",
+    "method": "GET",
+    "url": "https://ineo-pbl-entrega.onrender.com/api/v1/auth/me",
+    "status": 200,
+    "seconds": 0.41
+  },
+  {
+    "case": "QA synthetic patient 205",
+    "method": "GET",
+    "url": "https://ineo-pbl-entrega.onrender.com/api/v1/monitoring/patients/205?history_page=1&alerts_page=1&page_size=10",
+    "status": 200,
+    "seconds": 1.08
+  },
+  {
+    "case": "QA logout",
+    "method": "POST",
+    "url": "https://ineo-pbl-entrega.onrender.com/api/v1/auth/logout",
+    "status": 200,
+    "seconds": 0.48
+  },
+  {
+    "case": "QA revoked session",
+    "method": "GET",
+    "url": "https://ineo-pbl-entrega.onrender.com/api/v1/auth/me",
+    "status": 401,
+    "seconds": 0.41
+  },
+  {
+    "case": "Production health",
+    "method": "GET",
+    "url": "https://api-clinica-jx4m.onrender.com/health",
+    "status": 200,
+    "seconds": 12.05
+  },
+  {
+    "case": "Production protected without token",
+    "method": "GET",
+    "url": "https://api-clinica-jx4m.onrender.com/api/v1/auth/me",
+    "status": 401,
+    "seconds": 0.3
+  }
+]

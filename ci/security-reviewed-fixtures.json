@@ -58,5 +58,11 @@
     "type": "Secret Keyword",
     "hashed_secret": "094ecdffd3ffe06b062db82065c15c999e7cceef",
     "reason": "Texto de interfaz o nombre de clave; no es credencial"
+  },
+  {
+    "file": "docs/segunda-entrega/version-entrega.json",
+    "type": "Hex High Entropy String",
+    "hashed_secret": "eebfedabb4451765d28be1306330fce290634036",
+    "reason": "Identificador publico o checksum; no es credencial"
   }
 ]
