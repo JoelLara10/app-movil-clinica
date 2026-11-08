@@ -1,7 +1,7 @@
 # Manual de usuario de OftalCore móvil
 
 OftalCore móvil · Segunda entrega · 28 de noviembre de 2026
-Preparado y verificado el 7 de noviembre de 2026.
+Preparado el 7 de noviembre y actualizado el 8 de noviembre de 2026.
 
 Lara Rodriguez Joel Alejandro  ·  IDGS 101  ·  Décimo cuatrimestre
 Desarrollo móvil integral  ·  ITIC Roberto Vinicio Camacho Mendoza
@@ -9,7 +9,7 @@ Entrega del 28 de noviembre de 2026  ·  Corte de evidencia del 7 de noviembre d
 
 ## 1 Propósito instalación y acceso
 
-Este manual está dirigido al personal autorizado de administración, enfermería, medicina y estudios. Describe el uso de la aplicación Android y las funciones disponibles según la cuenta. La versión técnica de referencia es 1.0.0 compilación 7 para producción. El APK de QA se utiliza para las demostraciones del prototipo ya asociado.
+Este manual está dirigido al personal autorizado de administración, enfermería, medicina y estudios. Describe el uso de la aplicación Android y las funciones disponibles según la cuenta. La versión técnica de referencia es 1.0.0 compilación 8 para producción. El APK de QA se utiliza para las demostraciones del prototipo ya asociado.
 
 1. Descargar el APK desde el enlace EAS o el paquete entregado por el responsable del proyecto. Verificar su ambiente y procedencia.
 
@@ -160,6 +160,6 @@ Pulsar Cerrar sesión en el menú o el control disponible y confirmar en Android
 
 ### Registro de aceptación en teléfono
 
-Registrar fecha, modelo, Android, ambiente, versión y responsable. Ejecutar instalación, login válido e inválido, navegación, consulta autorizada, guardado sintético permitido, idioma, notificación del ambiente y cierre de sesión. Para cada caso anotar resultado y evidencia. La compilación 7 necesita este registro específico antes de declarar completada su aceptación nativa.
+Registrar fecha, modelo, Android, ambiente, versión y responsable. Ejecutar instalación, login válido e inválido, navegación, consulta autorizada, guardado sintético permitido, idioma, notificación del ambiente y cierre de sesión. Para cada caso anotar resultado y evidencia. La compilación 8 necesita este registro específico antes de declarar completada su aceptación nativa.
 
 Para solicitar soporte compartir versión, ambiente, pasos y mensaje visible. Retirar datos de pacientes y credenciales de capturas o archivos. El repositorio y el registro EAS que acompañan la entrega permiten al equipo localizar la versión afectada.

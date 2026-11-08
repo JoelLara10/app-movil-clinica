@@ -62,7 +62,7 @@
   {
     "file": "docs/segunda-entrega/version-entrega.json",
     "type": "Hex High Entropy String",
-    "hashed_secret": "a341c377bd1226a7c6d30157680eddf38e6b82fa",
+    "hashed_secret": "eebfedabb4451765d28be1306330fce290634036",
     "reason": "Identificador publico o checksum; no es credencial"
   }
 ]

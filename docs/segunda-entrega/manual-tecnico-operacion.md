@@ -1,7 +1,7 @@
 # Manual técnico y de operación de OftalCore móvil
 
 OftalCore móvil · Segunda entrega · 28 de noviembre de 2026
-Preparado y verificado el 7 de noviembre de 2026.
+Preparado el 7 de noviembre y actualizado el 8 de noviembre de 2026.
 
 Lara Rodriguez Joel Alejandro  ·  IDGS 101  ·  Décimo cuatrimestre
 Desarrollo móvil integral  ·  ITIC Roberto Vinicio Camacho Mendoza
@@ -9,7 +9,7 @@ Entrega del 28 de noviembre de 2026  ·  Corte de evidencia del 7 de noviembre d
 
 ## 1 Arquitectura y responsabilidades de operación
 
-El cliente está implementado en JavaScript con React Native 0.86.3, React 19.2.3 y Expo SDK 57.0.31. Se conecta a una API Flask con MongoDB. La entrada App.js compone proveedores de sesión, paciente e idioma y selecciona la navegación según la autenticación. El backend valida reglas y permisos independientemente de la interfaz.
+El cliente está implementado en JavaScript con React Native 0.86.3, React 19.2.3 y Expo SDK 57.0.32. Se conecta a una API Flask con MongoDB. La entrada App.js compone proveedores de sesión, paciente e idioma y selecciona la navegación según la autenticación. El backend valida reglas y permisos independientemente de la interfaz.
 
 | Ruta o archivo | Responsabilidad |
 | --- | --- |
@@ -86,7 +86,7 @@ La caché mantiene un máximo de 40 entradas durante 120 segundos. Las claves in
 npx eas-cli login
 npx eas-cli build --platform android --profile preview
 npx eas-cli build --platform android --profile production-apk
-npx eas-cli build:view 541abb20-ce01-4823-9418-672a6d05cd11
+npx eas-cli build:view 8fdabf17-684a-4b27-a3e9-ad0fdd9aa227
 Get-FileHash .\OftalCore-produccion.apk -Algorithm SHA256
 ```
 
@@ -96,7 +96,7 @@ Get-FileHash .\OftalCore-produccion.apk -Algorithm SHA256
 | production-apk | Hereda production y genera APK para distribución interna. Usa APP_ENV=production y la URL de producción. |
 | production | Perfil de publicación con incremento remoto de versionCode. La publicación en tienda requiere su procedimiento adicional. |
 
-La compilación de esta entrega usa versión 1.0.0 y versionCode 7 administrado por EAS. La firma remota reutiliza las credenciales del proyecto. Un cambio de URL o módulos nativos exige construir e instalar un nuevo APK. Los cambios de documentación no alteran el comportamiento del binario ya generado.
+La compilación de esta entrega usa versión 1.0.0 y versionCode 8 administrado por EAS. La firma remota reutiliza las credenciales del proyecto. Un cambio de URL o módulos nativos exige construir e instalar un nuevo APK. Los cambios de documentación no alteran el comportamiento del binario ya generado.
 
 ## 5 Nube notificaciones y observabilidad
 
@@ -122,7 +122,7 @@ El arranque frío observado de QA demoró aproximadamente 41 segundos. Diferenci
 
 ### Actualizaciones y dependencias
 
-Crear una rama desde develop, describir el cambio y abrir un PR. Mantener el lockfile y revisar actualizaciones coordinadas con Expo. El bot propone cambios que deben pasar CI antes de integrarse. La auditoría del 7 de noviembre mantiene únicamente siete resultados bajos derivados de deepmerge, con la migración del SDK como trabajo pendiente.
+Crear una rama desde develop, describir el cambio y abrir un PR. Mantener el lockfile y revisar actualizaciones coordinadas con Expo. El bot propone cambios que deben pasar CI antes de integrarse. La auditoría final no reporta vulnerabilidades tras actualizar los parches compatibles de Expo SDK 57. Las 55 pruebas y los controles de CI están aprobados.
 
 ### Respaldo de información y código
 
@@ -169,7 +169,7 @@ security:review requiere instalar previamente el escáner de secretos indicado e
 | Capturas de GitHub | Estructura del repositorio, CI aprobado, promoción y actualización de documentación. |
 | Capturas de interfaz | Cliente exportado a web conectado a producción. Identificadas como modalidad web. |
 
-La documentación se preparó el 7 de noviembre para la entrega del 28. Antes del cierre final deben añadirse los resultados de UAT en el APK 7 instalado. El registro debe incluir dispositivo, Android, fecha, responsable y resultado por caso, con distinción entre alerta simulada y caída física del MPU.
+La documentación se preparó el 7 de noviembre para la entrega del 28. Antes del cierre final deben añadirse los resultados de UAT en el APK 8 instalado. El registro debe incluir dispositivo, Android, fecha, responsable y resultado por caso, con distinción entre alerta simulada y caída física del MPU.
 
 Repositorio  https://github.com/JoelLara10/app-movil-clinica
-Compilación de producción  https://expo.dev/accounts/joeeel10/projects/ineo-hospital/builds/541abb20-ce01-4823-9418-672a6d05cd11
+Compilación de producción  https://expo.dev/accounts/joeeel10/projects/ineo-hospital/builds/8fdabf17-684a-4b27-a3e9-ad0fdd9aa227

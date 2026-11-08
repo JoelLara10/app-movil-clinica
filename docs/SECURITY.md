@@ -14,13 +14,12 @@
 
 ## Riesgos externos pendientes
 
-La auditoría registrada el 7 de noviembre de 2026 presenta 0 resultados
-moderados, altos o críticos. Conserva 7 resultados bajos derivados de un único
-aviso de `deepmerge` en herramientas de configuración de Expo. La corrección
-propuesta por npm requiere migrar el SDK, por lo que debe probarse de forma
-coordinada con la matriz nativa y un APK nuevo. Los registros se conservan en
-`docs/segunda-entrega/evidencias/auditoria-npm.json` y la explicación de la
-remediación previa en `docs/security/dependabot-20261102.md`.
+La auditoría final de esta entrega presenta 0 vulnerabilidades reportadas en
+los niveles bajo, moderado, alto y crítico. Se actualizaron los parches
+compatibles de Expo SDK 57 y se aprobaron las 55 pruebas del cliente y CI.
+El registro actual se conserva en
+`docs/segunda-entrega/evidencias/auditoria-npm.json`. La revisión anterior
+se conserva como antecedente en `docs/security/dependabot-20261102.md`.
 
 SecureStore protege el token nativo. En web, el token continúa en
 almacenamiento web por la arquitectura actual; para producción web se recomienda

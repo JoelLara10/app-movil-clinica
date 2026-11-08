@@ -1,7 +1,7 @@
 # Segunda entrega de OftalCore móvil
 
 OftalCore móvil · Segunda entrega · 28 de noviembre de 2026
-Preparado y verificado el 7 de noviembre de 2026.
+Preparado el 7 de noviembre y actualizado el 8 de noviembre de 2026.
 
 Lara Rodriguez Joel Alejandro  ·  IDGS 101  ·  Décimo cuatrimestre
 Desarrollo móvil integral  ·  ITIC Roberto Vinicio Camacho Mendoza
@@ -42,7 +42,7 @@ El estudiante responsable de la integración documental es Joel Alejandro Lara R
 | Meta de la entrega | Medida y estado al corte |
 | --- | --- |
 | Pruebas del cliente | 55 casos móviles aprobados en la ejecución del 7 de noviembre. |
-| Seguridad de dependencias | Auditoría con 0 avisos moderados, altos y críticos. Se conservan 7 resultados bajos derivados de deepmerge. |
+| Seguridad de dependencias | Auditoría actual con 0 vulnerabilidades reportadas en todos los niveles tras actualizar los parches compatibles de Expo SDK 57. |
 | Autenticación remota | Producción respondió 200 al acceso y 401 sin JWT o después de revocarlo. |
 | Trazabilidad | Conservar identificador EAS, commit, ambiente, documentación y checksum del APK. |
 | Cierre funcional | Repetir en Android instalado los recorridos críticos y registrar modelo, versión y responsable antes de la aceptación final. |
@@ -86,7 +86,7 @@ Estos requisitos describen las capacidades del código. La matriz de verificaci�
 | RNF08 Trazabilidad | Relacionar la versión instalable con commit, perfil, build y documentación. | Inventario de versión y hash SHA256 del archivo. |
 | RNF09 Disponibilidad | Detectar indisponibilidad y conservar la última consulta identificada cuando corresponda. | /health, logs y mensajes de red. No se garantiza un SLA del prototipo. |
 
-Se utilizará una meta de respuesta de hasta tres segundos para consultas habituales con el servicio activo y red estable. Es un objetivo de aceptación por medir, no un resultado general de carga. La revisión remota mostró respuestas activas inferiores a cinco segundos en los casos registrados y un arranque frío de QA cercano a 41 segundos.
+Se utilizará una meta de respuesta de hasta tres segundos para consultas habituales con el servicio activo y red estable. Es un objetivo de aceptación por medir, no un resultado general de carga. Los registros conservan los tiempos de cada solicitud y documentan un arranque inicial de QA cercano a 41 segundos.
 
 ## 5 Metodología y organización del trabajo
 
@@ -114,11 +114,11 @@ Cada tarea registra requisito, responsable, rama, resultado esperado y evidencia
 | Proceso | Herramienta y justificación | Uso en la entrega |
 | --- | --- | --- |
 | Comunicación técnica | Conversaciones de pull requests en GitHub conservan contexto, decisiones y archivos del cambio. | PR de dependencias 52 y promoción 53. Se propone Issues para registrar defectos con responsables. |
-| Desarrollo | JavaScript, React Native 0.86.3, React 19.2.3 y Expo 57.0.31 reutilizan componentes y módulos nativos. | Pantallas, contextos y servicios del cliente. |
+| Desarrollo | JavaScript, React Native 0.86.3, React 19.2.3 y Expo 57.0.32 reutilizan componentes y módulos nativos. | Pantallas, contextos y servicios del cliente. |
 | Control de versiones | Git y GitHub permiten revisar diferencias y relacionar cambios con la documentación. | Ramas de trabajo, develop, qa y main. |
-| Integración continua | GitHub Actions ejecuta instalación reproducible, pruebas, Expo Doctor y exportaciones. | CI de QA aprobado sobre d3295df. Evidencia E02. |
+| Integración continua | GitHub Actions ejecuta instalación reproducible, pruebas, Expo Doctor y exportaciones. | CI de QA aprobado sobre d3295df (E02); actualización de esta entrega aprobada en PR 54. |
 | Revisión de seguridad | npm audit, oxlint, detector de secretos y CodeQL separan los controles y conservan informes. | 55 pruebas actuales y auditoría del 7 de noviembre. |
-| Compilación | Expo EAS conserva firma, perfil, logs y artefacto por build. | APK QA y compilación production-apk 7. |
+| Compilación | Expo EAS conserva firma, perfil, logs y artefacto por build. | APK QA y compilación production-apk 8. |
 | Monitoreo técnico | Render y /health permiten revisar disponibilidad y errores de API. EAS y Actions muestran fallos de build o CI. | Comprobaciones HTTP y enlaces de operación. No se declara configurado un APM adicional. |
 
 ### Administración eficiente de recursos
@@ -141,7 +141,7 @@ Los proveedores de contexto comparten sesión, paciente e idioma. Los servicios 
 
 La sesión se obtiene mediante la API propia y se revalida con /auth/me. El token nativo se guarda en SecureStore. El cierre solicita revocación y limpieza local. Las descargas envían autenticación en cabeceras y los endpoints aplican permisos. Los mensajes de error omiten detalles internos. La caché clínica se mantiene en memoria y las notificaciones evitan información clínica en la pantalla bloqueada.
 
-En la exportación web el almacenamiento de sesión sigue la implementación web del proyecto. La protección nativa de SecureStore se verifica mediante código y pruebas específicas, no mediante capturas del navegador. Se conserva el aviso bajo de deepmerge en herramientas de Expo y se requiere probar una migración de SDK para retirarlo.
+En la exportación web el almacenamiento de sesión sigue la implementación web del proyecto. La protección nativa de SecureStore se verifica mediante código y pruebas específicas, no mediante capturas del navegador. Los parches compatibles de Expo SDK 57 retiraron los avisos previos de dependencias. La auditoría actual no reporta vulnerabilidades; se mantiene su revisión continua.
 
 | Integración | Responsabilidad | Intercambio y protección |
 | --- | --- | --- |
@@ -183,11 +183,11 @@ Si el responsable fuera una institución pública, se debe revisar el régimen d
 | Nivel | Resultado acreditado al 7 de noviembre |
 | --- | --- |
 | Pruebas móviles | 55 aprobadas. Archivo evidencias/pruebas-movil.txt. |
-| Dependencias | 0 moderadas, altas o críticas. 7 resultados bajos derivados del aviso de deepmerge. |
+| Dependencias | 0 vulnerabilidades reportadas en todos los niveles; 55 pruebas del cliente aprobadas. |
 | API QA | Disponibilidad, login, /auth/me, detalle del paciente sintético y revocación verificados. El arranque frío queda registrado. |
 | API producción | Login, sesión, catálogo y consulta filtrada respondieron 200. Sin JWT y tras logout respondieron 401. |
 | Interfaz contra producción | La exportación web del cliente abrió login, dashboard y monitoreo filtrado. Las capturas identifican esa modalidad. |
-| Android | Build firmado y pruebas previas de QA se conservan. La instalación y UAT de la compilación 7 deben registrar resultado en el teléfono del equipo. |
+| Android | Build firmado y pruebas previas de QA se conservan. La instalación y UAT de la compilación 8 deben registrar resultado en el teléfono del equipo. |
 
 Los registros HTTP conservan estado, ruta y tiempo sin contraseñas, JWT ni nombres de pacientes. La evidencia de 403 en roles procede de pruebas aisladas del proyecto y se diferencia de las consultas remotas realizadas en esta entrega.
 
@@ -197,13 +197,13 @@ El flujo de entrega es rama de trabajo, develop, qa y main. La integración cont
 
 | Identificador | Versión y procedencia |
 | --- | --- |
-| Base de código móvil | d3295dfd0314255e0967fac36035012498f1d477 |
+| Base de código móvil | d118eed6370a33b28726a07b225e9d3aceba8749 |
 | Versión de aplicación | 1.0.0. El texto v2.0 visible en el pie del login es una etiqueta de interfaz heredada y no el número de versión del paquete. |
-| Compilación de producción | Android versionCode 7. Perfil production-apk. Estado EAS IN_PROGRESS. |
-| Build EAS | 541abb20-ce01-4823-9418-672a6d05cd11 |
+| Compilación de producción | Android versionCode 8. Perfil production-apk. Estado EAS FINISHED. |
+| Build EAS | 8fdabf17-684a-4b27-a3e9-ad0fdd9aa227 |
 | API de producción | https://api-clinica-jx4m.onrender.com/api/v1 |
 | API y APK QA | QA usa su API y la compilación c0623630-4ca4-44b1-8d89-d57ec7c1d2b0. |
-| Documentación | docs/segunda-entrega y manuales Markdown. Registro de actualización disponible en la rama documental de la entrega. |
+| Documentación | docs/segunda-entrega y manuales Markdown. Commit 08232a6 y PR 54 documentan la incorporación y actualización de los manuales en GitHub. |
 
 El instalador de producción se entrega con su checksum y un manifiesto. La compilación se generó desde la base QA identificada. Los cambios documentales posteriores conservan el código de la aplicación. El enlace EAS permite comprobar firma, perfil y artefacto sin confundirlo con un despliegue de la API.
 
@@ -230,7 +230,9 @@ E03. PR 53 fusionado de develop hacia QA, con las correcciones de dependencias y
 
 ![E03. PR 53 fusionado de develop hacia QA, con las correcciones de dependencias y seguridad.](evidencias/03-promocion-qa.png)
 
-Los manuales se incluyen como Word editable y fuentes Markdown. El commit y el PR documental se incorporan al registro de entrega junto con la evidencia de GitHub.
+E07. Manuales y actualización documental almacenados en GitHub. La captura corresponde a la rama y commit que se identifican en el registro de entrega.
+
+![E07. Manuales y actualización documental almacenados en GitHub. La captura corresponde a la rama y commit que se identifican en el registro de entrega.](evidencias/07-documentacion-versionada.png)
 
 Enlace a documentación  https://github.com/JoelLara10/app-movil-clinica/tree/docs/segunda-entrega-movil-20261128/docs/segunda-entrega
 
@@ -253,7 +255,7 @@ El registro verificacion-produccion.json conserva las siete comprobaciones HTTP.
 | Informe de segunda entrega | Objetivos, requisitos, metodología, herramientas, marco normativo, integración y evidencias A y B. |
 | Manual de usuario | Instalación, acceso, módulos, monitoreo, notificaciones, idioma y resolución de problemas. |
 | Manual técnico y de operación | Estructura, entorno, contratos, compilación, despliegue controlado, monitoreo, mantenimiento y recuperación. |
-| APK de producción | Instalador firmado de Android versión 1.0.0 compilación 7 y enlace de respaldo a EAS. |
+| APK de producción | Instalador firmado de Android versión 1.0.0 compilación 8 y enlace de respaldo a EAS. |
 | Código fuente | Repositorio en funcionamiento y copia ZIP del commit de entrega, con manifiesto de procedencia. |
 | Registros y documentación | Fuentes Markdown, capturas, resultados de pruebas, auditoría y comprobaciones remotas sin credenciales. |
 
@@ -269,7 +271,7 @@ El registro verificacion-produccion.json conserva las siete comprobaciones HTTP.
 
 5. Cerrar sesión y comprobar el rechazo de un recurso protegido. Relacionar el resultado con el registro HTTP.
 
-La aceptación nativa de la compilación 7 debe añadirse después de la ejecución en el dispositivo. La documentación ya incluye los procedimientos para registrarla. Los resultados técnicos existentes y las pruebas por realizar se mantienen identificados para que el evaluador pueda comprobar su alcance.
+La aceptación nativa de la compilación 8 debe añadirse después de la ejecución en el dispositivo. La documentación ya incluye los procedimientos para registrarla. Los resultados técnicos existentes y las pruebas por realizar se mantienen identificados para que el evaluador pueda comprobar su alcance.
 
 ## 16 Fuentes consultadas y conclusión
 
