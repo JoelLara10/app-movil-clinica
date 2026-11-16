@@ -1,0 +1,189 @@
+{
+  "completed_on": "2026-11-16",
+  "environment": "qa",
+  "platform": "Expo web export, mobile viewport 430x860",
+  "client_reference": "837c86b",
+  "synthetic_patient": 207,
+  "synthetic_appointment": 926,
+  "synthetic_request": 5237,
+  "capture_sessions": [
+    "2026-11-12",
+    "2026-11-16"
+  ],
+  "capture_method": "Formularios originales autenticados contra QA. Controles auxiliares locales para abrir menú y rutas documentales; barra recortada mediante API de captura, sin cambiar el contenido de los formularios.",
+  "native_acceptance": "No acreditada por estas capturas web.",
+  "clinical_writes": "Se prepararon expediente/atencion y solicitud/archivo sinteticos para documentacion; no tratamientos reales.",
+  "notes": [
+    "El resultado de demostracion se preparo por API, no por el selector nativo.",
+    "La consulta de censo mostro un error el 12 de noviembre.",
+    "Estudios fallo durante una consulta anterior y cargo la lista el 16 de noviembre; se captura la cabecera sin pacientes reales.",
+    "Monitoreo muestra dispositivo desconectado y lectura historica.",
+    "No se generaron credenciales nuevas ni se ejecutaron restauraciones."
+  ],
+  "images": [
+    {
+      "file": "01-acceso.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "03-inicio.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "04-administracion.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "05-nuevo-paciente.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "06-busqueda-pacientes.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "07-editar-paciente.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "08-cuenta.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "09-censo.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "10-corte-caja.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "11-camas.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "12-panel-medico.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "13-historia.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "14-signos-medico.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "15-nota-medica.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "16-diagnostico.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "17-receta.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "18-laboratorio.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "19-gabinete.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "20-documentos.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "21-resultados.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "22-panel-enfermeria.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "23-nota-enfermeria.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "24-medicamentos.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "25-valoracion.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "26-balance.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "27-cuidados.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "28-estudios.png",
+      "capture_date": "2026-11-16"
+    },
+    {
+      "file": "29-subir-resultado.png",
+      "capture_date": "2026-11-16"
+    },
+    {
+      "file": "30-editar-resultado.png",
+      "capture_date": "2026-11-16"
+    },
+    {
+      "file": "31-configuracion.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "32-usuarios.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "33-servicios.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "34-catalogo-diagnosticos.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "35-camas-config.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "36-respaldos.png",
+      "capture_date": "2026-11-16"
+    },
+    {
+      "file": "37-automatizacion.png",
+      "capture_date": "2026-11-16"
+    },
+    {
+      "file": "38-perfil.png",
+      "capture_date": "2026-11-16"
+    },
+    {
+      "file": "39-monitoreo.png",
+      "capture_date": "2026-11-16"
+    },
+    {
+      "file": "40-detalle-monitoreo.png",
+      "capture_date": "2026-11-16"
+    },
+    {
+      "file": "41-menu-lateral.png",
+      "capture_date": "2026-11-12"
+    },
+    {
+      "file": "42-ver-resultado.png",
+      "capture_date": "2026-11-16"
+    }
+  ]
+}
