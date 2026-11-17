@@ -21,8 +21,8 @@
     "@react-navigation/drawer": "^7.14.4",
     "@react-navigation/native": "^7.3.3",
     "@react-navigation/stack": "^7.12.1",
-    "axios": "^1.21.0",
-    "expo": "~57.0.32",
+    "axios": "^1.21.1",
+    "expo": "~57.0.33",
     "expo-device": "~57.0.2",
     "expo-document-picker": "~57.0.3",
     "expo-file-system": "~57.0.7",
@@ -31,14 +31,14 @@
     "expo-notifications": "~57.0.25",
     "expo-screen-capture": "~57.0.4",
     "expo-secure-store": "~57.0.4",
-    "expo-sharing": "~57.0.25",
+    "expo-sharing": "~57.0.26",
     "expo-splash-screen": "~57.0.11",
     "moment": "^2.30.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
     "react-native-gesture-handler": "~2.32.0",
-    "react-native-paper": "^5.15.3",
+    "react-native-paper": "^5.15.4",
     "react-native-pdf": "^7.0.4",
     "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
@@ -51,11 +51,11 @@
   },
   "devDependencies": {
     "babel-plugin-transform-remove-console": "^6.9.4",
-    "oxlint": "1.90.0"
+    "oxlint": "1.93.0"
   },
   "overrides": {
     "follow-redirects": "1.16.2",
-    "node-forge": "1.4.2",
+    "node-forge": "1.4.3",
     "@expo/cli": {
       "zod": "4.6.7"
     },

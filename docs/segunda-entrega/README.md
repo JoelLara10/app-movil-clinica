@@ -2,6 +2,10 @@
 
 Fecha de entrega académica 28 de noviembre de 2026. Corte de evidencia 7 de noviembre de 2026.
 
+Ampliación de manuales del 16 de noviembre de 2026: manual de usuario de 45 páginas y manual técnico y de operación de 27 páginas. Cubren los módulos activos de administración, médico, enfermería, estudios, configuración y monitoreo. Incluyen procedimientos, solución de problemas y 41 capturas originales del cliente Expo web conectado a QA, tomadas el 12 y 16 de noviembre con datos sintéticos.
+
+`capturas-manuales/manifiesto-capturas.json` identifica la procedencia y las limitaciones de las imágenes. Las capturas de formularios no acreditan todos los guardados ni sustituyen pruebas nativas. La consulta de censo mostró un error que se conserva y explica; el monitoreo muestra lecturas históricas y el dispositivo desconectado en la sesión documental. No se cambió el código del cliente ni se generó un APK por esta ampliación.
+
 ## Documentos
 
 | Documento | Contenido |
