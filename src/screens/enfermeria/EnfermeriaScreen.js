@@ -9,6 +9,7 @@ import {
   RefreshControl,
   Alert,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,6 +35,7 @@ const EnfermeriaScreen = ({ navigation }) => {
   const [urgencias, setUrgencias] = useState([]);
   const [hospitalizados, setHospitalizados] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [pageConsulta, setPageConsulta] = useState(1);
   const [pageUrgencias, setPageUrgencias] = useState(1);
@@ -60,7 +62,6 @@ const EnfermeriaScreen = ({ navigation }) => {
         ]);
 
         if (cachedConsulta && cachedUrgencias && cachedHospitalizados) {
-          console.log('📦 Datos cargados desde caché');
           setConsulta(cachedConsulta);
           setUrgencias(cachedUrgencias);
           setHospitalizados(cachedHospitalizados);
@@ -70,7 +71,6 @@ const EnfermeriaScreen = ({ navigation }) => {
       }
 
       // Cargar desde API
-      console.log('🌐 Cargando desde API...');
       const response = await api.get('/medico');
       
       const consultaData = response.data.beds_consulta || [];
@@ -91,10 +91,7 @@ const EnfermeriaScreen = ({ navigation }) => {
       setPageUrgencias((page) => Math.min(page, Math.max(1, Math.ceil(urgenciasData.length / ITEMS_PER_PAGE))));
       setPageHospitalizados((page) => Math.min(page, Math.max(1, Math.ceil(hospitalizadosData.length / ITEMS_PER_PAGE))));
 
-      console.log(`✅ Cargados: Consulta ${consultaData.length}, Urgencias ${urgenciasData.length}, Hospitalizados ${hospitalizadosData.length}`);
-
     } catch (error) {
-      console.error('Error loading patients:', error);
 
       // Intentar cargar desde caché aunque esté expirada
       const [cachedConsulta, cachedUrgencias, cachedHospitalizados] = await Promise.all([
@@ -185,6 +182,7 @@ const EnfermeriaScreen = ({ navigation }) => {
   };
 
   const renderSection = (title, data, page, setPage, icon, color, emptyEmoji) => {
+    data = data.filter(item => [item.nom_pac, item.papell, item.sapell, item.Id_exp, item.num_cama].join(' ').toLowerCase().includes(search.trim().toLowerCase()));
     const pagedData = getPagedData(data, page);
     const totalPages = getTotalPages(data);
     const total = data.length;
@@ -277,10 +275,12 @@ const EnfermeriaScreen = ({ navigation }) => {
         </View>
         <View style={styles.statsPill}>
           <Text style={styles.statsPillText}>
-            Total: {consulta.length + urgencias.length + hospitalizados.length}
+            Total: {[...consulta, ...urgencias, ...hospitalizados].filter(item => item.estatus === 'OCUPADA' && item.tiene_atencion).length}
           </Text>
         </View>
       </View>
+
+      <TextInput accessibilityLabel={t('common.search')} placeholder={t('common.search')} value={search} onChangeText={value => { setSearch(value); setPageConsulta(1); setPageUrgencias(1); setPageHospitalizados(1); }} style={{ margin: 16, padding: 12, borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 12 }} />
 
       {/* CONSULTA EXTERNA */}
       {renderSection(

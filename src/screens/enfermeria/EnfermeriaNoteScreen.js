@@ -1,3 +1,4 @@
+import { nursingContextError } from '../../utils/nursingValidation';
 // src/screens/enfermeria/EnfermeriaNoteScreen.js
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -21,7 +22,7 @@ import moment from 'moment';
 const HISTORY_ITEMS_PER_PAGE = 5;
 
 const EnfermeriaNoteScreen = ({ navigation, route }) => {
-  const { id_atencion, Id_exp } = route.params;
+  const { id_atencion, Id_exp } = route?.params || {};
   const { t, lang } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
@@ -50,6 +51,8 @@ const EnfermeriaNoteScreen = ({ navigation, route }) => {
 
   const loadNursingNotesHistory = async () => {
     const requestGeneration = generation.current;
+    const contextError = nursingContextError(id_atencion, Id_exp);
+    if (contextError) { setHistoryError(contextError); setLoadingHistory(false); return null; }
     setLoadingHistory(true);
     setHistoryError(null);
     try {
@@ -73,6 +76,8 @@ const EnfermeriaNoteScreen = ({ navigation, route }) => {
 
   const handleSubmit = async () => {
     if (sending.current) return;
+    const contextError = nursingContextError(id_atencion, Id_exp);
+    if (contextError) { setSyncMessage(contextError); return; }
     const validation = validateNursingNote(formData.nota_enfermeria);
     if (!validation.ok) {
       setSyncMessage(t(`noteSync.${validation.key}`));

@@ -1,5 +1,7 @@
+import { adminErrorMessage } from '../../services/adminFeedback';
+import { nursingContextError, validateNursingInput } from '../../utils/nursingValidation';
 // src/screens/enfermeria/EnfermeriaVitalSignsScreen.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -24,20 +26,14 @@ const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
 const HISTORY_ITEMS_PER_PAGE = 5;
 
 const EnfermeriaVitalSignsScreen = ({ navigation, route }) => {
-  const { id_atencion, Id_exp } = route.params || {};
+  const { id_atencion, Id_exp } = route?.params || {};
   const { t, lang } = useLanguage();
 
-  // ==================== DEBUG ====================
-  useEffect(() => {
-    console.log("🔍 EnfermeriaVitalSignsScreen - Params recibidos:", {
-      id_atencion,
-      Id_exp,
-      fullParams: route.params,
-    });
-  }, [id_atencion, Id_exp]);
-  // ===============================================
-
   const [loading, setLoading] = useState(false);
+  const sending = useRef(false);
+  const currentAttention = useRef(id_atencion);
+  currentAttention.current = id_atencion;
+  const [historyError, setHistoryError] = useState('');
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [history, setHistory] = useState([]);
   const [currentHistoryPage, setCurrentHistoryPage] = useState(1);
@@ -53,35 +49,40 @@ const EnfermeriaVitalSignsScreen = ({ navigation, route }) => {
 
   // Cargar historial
   useEffect(() => {
-    loadVitalSignsHistory();
-  }, []);
+    setHistory([]);
+    setFormData({ ta: '', fc: '', fr: '', temp: '', spo2: '', peso: '', talla: '' });
+    loadVitalSignsHistory(true);
+  }, [id_atencion, Id_exp]);
 
   const loadVitalSignsHistory = async (forceRefresh = false) => {
+    const contextError = nursingContextError(id_atencion, Id_exp);
+    if (contextError) { setHistoryError(contextError); setLoadingHistory(false); return; }
     try {
       setLoadingHistory(true);
+      setHistoryError('');
       const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}`;
 
       if (!forceRefresh) {
         const cachedData = await CacheService.get(cacheKey);
         if (cachedData) {
-          console.log('📦 Signos vitales (enfermería) cargados desde caché');
           setHistory(cachedData);
           if (forceRefresh) setCurrentHistoryPage(1);
           setLoadingHistory(false);
           return;
         }
       }
-
-      console.log('🌐 Cargando signos vitales (enfermería) desde API...');
       const response = await api.get(`/appointments/${id_atencion}/vital-signs`);
+      if (currentAttention.current !== id_atencion) return;
+      if (!Array.isArray(response.data)) throw new Error('invalid_response');
       await CacheService.set(cacheKey, response.data, CACHE_TTL);
       setHistory(response.data || []);
       if (forceRefresh) setCurrentHistoryPage(1);
     } catch (error) {
-      console.error("Error loading vital signs history:", error);
+      if (currentAttention.current !== id_atencion) return;
+      setHistoryError(adminErrorMessage(error));
+      if ([401, 403].includes(error?.response?.status)) setHistory([]);
       const cachedData = await CacheService.get(`${CACHE_KEY_PREFIX}${id_atencion}`);
-      if (cachedData) {
-        console.log('📦 Signos vitales (enfermería) cargados desde caché (fallback)');
+      if (cachedData && ![401, 403].includes(error?.response?.status)) {
         setHistory(cachedData);
       }
     } finally {
@@ -93,46 +94,29 @@ const EnfermeriaVitalSignsScreen = ({ navigation, route }) => {
     setFormData({ ...formData, [field]: value });
   };
 
-  const parseNumericValue = (value) => {
-    if (!value || value === "") return null;
-    const parsed = parseFloat(value);
-    return isNaN(parsed) ? null : parsed;
-  };
-
   const handleSubmit = async () => {
-    const hasData = Object.values(formData).some((value) => value !== "");
-    if (!hasData) {
-      Alert.alert(t('common.warning'), t('common.enterAtLeastOneVital'));
-      return;
-    }
+    if (sending.current) return;
+    const contextError = nursingContextError(id_atencion, Id_exp);
+    const checked = validateNursingInput('vitals', formData);
+    if (contextError || checked.error) { Alert.alert(t('common.warning'), contextError || checked.error); return; }
 
-    const dataToSend = {
-      ta: formData.ta || "",
-      fc: parseNumericValue(formData.fc),
-      fr: parseNumericValue(formData.fr),
-      temp: parseNumericValue(formData.temp),
-      spo2: parseNumericValue(formData.spo2),
-      peso: parseNumericValue(formData.peso),
-      talla: parseNumericValue(formData.talla),
-    };
+    const dataToSend = checked.data;
 
-    Object.keys(dataToSend).forEach((key) => {
-      if (dataToSend[key] === null) delete dataToSend[key];
-    });
-
-
+    sending.current = true;
     setLoading(true);
     try {
       const response = await api.post(`/appointments/${id_atencion}/vital-signs`, dataToSend);
+      if (currentAttention.current !== id_atencion) return;
       if (response.data) {
         Alert.alert(t('common.success'), t('enfermeria.saveVitals'));
         setFormData({ ta: "", fc: "", fr: "", temp: "", spo2: "", peso: "", talla: "" });
         await loadVitalSignsHistory(true);
       }
     } catch (error) {
-      console.error("Error saving vital signs:", error);
-      Alert.alert(t('common.error'), error.response?.data?.error || t('common.couldNotSaveData'));
+      if (currentAttention.current !== id_atencion) return;
+      Alert.alert(t('common.error'), adminErrorMessage(error));
     } finally {
+      sending.current = false;
       setLoading(false);
     }
   };
@@ -216,6 +200,7 @@ const EnfermeriaVitalSignsScreen = ({ navigation, route }) => {
 
   return (
     <ScrollView style={styles.container}>
+      {historyError ? <Text accessibilityRole="alert" style={{ margin: 16, color: '#9b1c1c' }}>{historyError}</Text> : null}
       {/* Header */}
       <LinearGradient colors={["#667eea", "#764ba2"]} style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>

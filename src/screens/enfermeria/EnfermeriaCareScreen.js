@@ -1,5 +1,7 @@
+import { adminErrorMessage } from '../../services/adminFeedback';
+import { nursingContextError, validateNursingInput } from '../../utils/nursingValidation';
 // src/screens/enfermeria/EnfermeriaCareScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -31,8 +33,12 @@ const HISTORY_ITEMS_PER_PAGE = 5;
 
 const EnfermeriaCareScreen = ({ navigation, route }) => {
   const { t, lang } = useLanguage();
-  const { id_atencion, Id_exp } = route.params;
+  const { id_atencion, Id_exp } = route?.params || {};
   const [loading, setLoading] = useState(false);
+  const sending = useRef(false);
+  const currentAttention = useRef(id_atencion);
+  currentAttention.current = id_atencion;
+  const [historyError, setHistoryError] = useState('');
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState([]);
@@ -49,10 +55,14 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
 
   // Cargar historial de cuidados
   useEffect(() => {
-    loadCareHistory();
-  }, []);
+    setHistory([]);
+    setFormData({ diagnostico_enfermeria: '', objetivos: '', intervenciones: '', evaluacion: '', estado: 'EN_PROCESO', observaciones: '' });
+    loadCareHistory(true);
+  }, [id_atencion, Id_exp]);
 
   const loadCareHistory = async (forceRefresh = false) => {
+    const contextError = nursingContextError(id_atencion, Id_exp);
+    if (contextError) { setHistoryError(contextError); setLoadingHistory(false); return; }
     const context = validateClinicalContext(id_atencion, Id_exp);
     if (!context.ok) {
       setHistoryStatus('error');
@@ -63,10 +73,13 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
     const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}`;
     try {
       setLoadingHistory(true);
+      setHistoryError('');
       setHistoryStatus('loading');
 
       // Consulta remota real: GET protegido por el interceptor JWT de api.js.
       const response = await api.get(`/appointments/${id_atencion}/nursing-care`);
+      if (currentAttention.current !== id_atencion) return;
+      if (!Array.isArray(response.data)) throw new Error('invalid_response');
       const remoteHistory = Array.isArray(response.data) ? response.data : [];
 
       await CacheService.set(cacheKey, remoteHistory, CACHE_TTL);
@@ -74,9 +87,12 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
       setHistoryStatus('remote');
       if (forceRefresh) setCurrentHistoryPage(1);
     } catch (error) {
+      if (currentAttention.current !== id_atencion) return;
+      setHistoryError(adminErrorMessage(error));
+      if ([401, 403].includes(error?.response?.status)) setHistory([]);
       // Si falla la red se usa únicamente una copia temporal, nunca como fuente principal.
       const cachedData = await CacheService.get(cacheKey);
-      if (Array.isArray(cachedData)) {
+      if (Array.isArray(cachedData) && ![401, 403].includes(error?.response?.status)) {
         setHistory(cachedData);
         setHistoryStatus('cache');
       } else {
@@ -109,6 +125,11 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
   }[estado] || t('common.notSpecified'));
 
   const handleSubmit = async () => {
+    if (sending.current) return;
+    const contextError = nursingContextError(id_atencion, Id_exp);
+    const checked = validateNursingInput('care', formData);
+    if (contextError || checked.error) { Alert.alert(t('common.warning'), contextError || checked.error); return; }
+
     // Seguridad: valida contexto, obligatorios, longitudes y estado antes del POST.
     const validation = validateNursingCare({ id_atencion, Id_exp, formData });
     if (!validation.ok) {
@@ -116,12 +137,14 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
       return;
     }
 
+    sending.current = true;
     setLoading(true);
     try {
       const response = await api.post(
         `/appointments/${id_atencion}/nursing-care`,
         validation.data,
       );
+      if (currentAttention.current !== id_atencion) return;
       if (response.data) {
         Alert.alert(t('common.success'), t('enfermeria.careSaved'));
         setFormData({
@@ -135,12 +158,14 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
         await loadCareHistory(true);
       }
     } catch (error) {
+      if (currentAttention.current !== id_atencion) return;
       // Nunca se muestra al usuario el mensaje técnico devuelto por el servidor.
       Alert.alert(
         t('common.error'),
         getSafeClinicalError(error, t('enfermeria.couldNotSaveCare')),
       );
     } finally {
+      sending.current = false;
       setLoading(false);
     }
   };
@@ -210,6 +235,7 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
 
   return (
     <ScrollView style={styles.container}>
+      {historyError ? <Text accessibilityRole="alert" style={{ margin: 16, color: '#9b1c1c' }}>{historyError}</Text> : null}
       {/* Header */}
       <LinearGradient colors={['#48bb78', '#38a169']} style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
