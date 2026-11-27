@@ -102,3 +102,45 @@ test('validación estricta de signos y contexto; nunca trunca texto ni acepta in
   assert.ok(validation.nursingContextError(undefined, 1));
   assert.equal(validation.nursingContextError('1', 1), '');
 });
+
+test('detalle móvil descarta una respuesta pendiente del paciente anterior', async () => {
+  const states = [], refs = [], effects = [];
+  let stateCursor = 0, refCursor = 0;
+  const hooks = {
+    useState(initial) {
+      const index = stateCursor++;
+      if (states.length <= index) states[index] = initial;
+      return [states[index], next => { states[index] = next; }];
+    },
+    useRef(initial) { const index = refCursor++; return refs[index] ||= { current: initial }; },
+    useEffect(fn) { effects.push(fn); },
+  };
+  const resolvers = {};
+  const element = (type, props) => ({ type, props });
+  const native = Object.fromEntries(['View', 'Text', 'ScrollView', 'TouchableOpacity', 'ActivityIndicator'].map(x => [x, x]));
+  native.StyleSheet = { create: x => x };
+  const moment = Object.assign(() => ({ format: () => 'date' }), { locale() {} });
+  const Detail = evaluate('screens/enfermeria/PatientDetailScreen.js', {
+    react: { __esModule: true, default: hooks, ...hooks }, 'react/jsx-runtime': { jsx: element, jsxs: element },
+    'react-native': native, 'expo-linear-gradient': { LinearGradient: 'Gradient' }, '@expo/vector-icons': { Ionicons: 'Icon' },
+    '../../context/LanguageContext': { useLanguage: () => ({ lang: 'es', t: key => key }) },
+    '../../context/PatientContext': { usePatient: () => ({ setSelectedPatient() {} }) },
+    '../../services/api': { __esModule: true, default: { get: route => new Promise(resolve => { resolvers[route] = resolve; }) } },
+    '../../services/cacheService': { __esModule: true, default: { get: async () => null, set: async () => {} } },
+    '../../services/adminFeedback': feedback, '../../utils/nursingValidation': validation,
+    moment: { __esModule: true, default: moment }, 'moment/locale/es': {},
+  }).default;
+  async function show(id) {
+    stateCursor = 0; refCursor = 0; effects.length = 0;
+    Detail({ navigation: { goBack() {} }, route: { params: { id_atencion: id, Id_exp: id } } });
+    effects.forEach(fn => fn());
+    await new Promise(resolve => setImmediate(resolve));
+  }
+  await show(1); await show(3);
+  resolvers['/paciente/1/1']({ data: { paciente: { Id_exp: 1 } } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(states[1], null);
+  resolvers['/paciente/3/3']({ data: { paciente: { Id_exp: 3 } } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(states[1].paciente.Id_exp, 3);
+});

@@ -1,7 +1,7 @@
 import { adminErrorMessage } from '../../services/adminFeedback';
 import { nursingContextError } from '../../utils/nursingValidation';
 // src/screens/enfermeria/PatientDetailScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,8 @@ const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
 
 const PatientDetailScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route?.params || {};
+  const currentPatient = useRef(`${id_atencion}:${Id_exp}`);
+  currentPatient.current = `${id_atencion}:${Id_exp}`;
   const { setSelectedPatient } = usePatient();
   const { t, lang } = useLanguage();
   const [errorMessage, setErrorMessage] = useState('');
@@ -42,6 +44,7 @@ const PatientDetailScreen = ({ navigation, route }) => {
   }, [id_atencion, Id_exp]);
 
   const loadPatientData = async (forceRefresh = false) => {
+    const requestedPatient = `${id_atencion}:${Id_exp}`;
     const contextError = nursingContextError(id_atencion, Id_exp);
     if (contextError) { setErrorMessage(contextError); setLoading(false); return; }
     setErrorMessage('');
@@ -49,20 +52,23 @@ const PatientDetailScreen = ({ navigation, route }) => {
       const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}_${Id_exp}`;
       
       const cachedData = await CacheService.get(cacheKey);
+      if (currentPatient.current !== requestedPatient) return;
       if (cachedData && !forceRefresh) {
         setPatient(cachedData);
         setLoading(false);
         return;
       }
       const response = await api.get(`/paciente/${id_atencion}/${Id_exp}`);
+      if (currentPatient.current !== requestedPatient) return;
       
       await CacheService.set(cacheKey, response.data, CACHE_TTL);
       
       setPatient(response.data);
     } catch (error) {
+      if (currentPatient.current !== requestedPatient) return;
       setErrorMessage(adminErrorMessage(error));
     } finally {
-      setLoading(false);
+      if (currentPatient.current === requestedPatient) setLoading(false);
     }
   };
 
