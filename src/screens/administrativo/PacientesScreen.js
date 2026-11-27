@@ -559,9 +559,9 @@ const PacientesScreen = ({ navigation }) => {
       </View>
 
       <View style={styles.summaryStrip}>
-        <Summary label={t('administrative.activePatients')} value={String(summary.activos || 0)} color="#667eea" />
-        <Summary label={t('administrative.recentRecords')} value={String(summary.expedientes || 0)} color="#ed8936" />
-        <Summary label={t('administrative.recentDischarges')} value={String(summary.altas || 0)} color="#48bb78" />
+        <Summary label={t('administrative.activePatients')} value={lastUpdated ? String(summary.activos || 0) : '—'} color="#667eea" />
+        <Summary label={t('administrative.recentRecords')} value={lastUpdated ? String(summary.expedientes || 0) : '—'} color="#ed8936" />
+        <Summary label={t('administrative.recentDischarges')} value={lastUpdated ? String(summary.altas || 0) : '—'} color="#48bb78" />
       </View>
 
       <View style={styles.refreshRow}>

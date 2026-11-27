@@ -182,6 +182,7 @@ const es = {
   },
 
   administrative: {
+    patientManagementDesc: 'Registro, expedientes y cuentas',
     title: 'Administrativo',
     modules: 'Modulos Administrativos',
     openModule: 'Abrir modulo',

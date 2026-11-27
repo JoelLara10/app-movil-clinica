@@ -417,9 +417,9 @@ const CensoScreen = ({ navigation }) => {
       </LinearGradient>
 
       <View style={styles.summaryRow}>
-        <SummaryCard icon="people-outline" label={t('administrative.activePatients')} value={String(summary.activos || 0)} color="#667eea" />
-        <SummaryCard icon="business-outline" label={t('administrative.areas')} value={String(summary.areas || 0)} color="#48bb78" />
-        <SummaryCard icon="alert-circle-outline" label={t('administrative.notices')} value={String(summary.avisos || 0)} color="#ed8936" />
+        <SummaryCard icon="people-outline" label={t('administrative.activePatients')} value={lastUpdated ? String(summary.activos || 0) : '—'} color="#667eea" />
+        <SummaryCard icon="business-outline" label={t('administrative.areas')} value={lastUpdated ? String(summary.areas || 0) : '—'} color="#48bb78" />
+        <SummaryCard icon="alert-circle-outline" label={t('administrative.notices')} value={lastUpdated ? String(summary.avisos || 0) : '—'} color="#ed8936" />
       </View>
 
       <View style={styles.refreshRow}>
