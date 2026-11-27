@@ -1,5 +1,7 @@
+import { adminErrorMessage } from '../../services/adminFeedback';
+import { nursingContextError, validateNursingInput } from '../../utils/nursingValidation';
 // src/screens/enfermeria/EnfermeriaAssessmentScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -25,8 +27,12 @@ const HISTORY_ITEMS_PER_PAGE = 5;
 
 const EnfermeriaAssessmentScreen = ({ navigation, route }) => {
   const { t, lang } = useLanguage();
-  const { id_atencion, Id_exp } = route.params;
+  const { id_atencion, Id_exp } = route?.params || {};
   const [loading, setLoading] = useState(false);
+  const sending = useRef(false);
+  const currentAttention = useRef(id_atencion);
+  currentAttention.current = id_atencion;
+  const [historyError, setHistoryError] = useState('');
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState([]);
@@ -42,37 +48,42 @@ const EnfermeriaAssessmentScreen = ({ navigation, route }) => {
 
   // Cargar historial de valoraciones
   useEffect(() => {
-    loadAssessmentHistory();
-  }, []);
+    setHistory([]);
+    setFormData({ estado_general: '', dolor: '', movilidad: '', riesgo_caidas: '', riesgo_upp: '', observaciones: '' });
+    loadAssessmentHistory(true);
+  }, [id_atencion, Id_exp]);
 
   const loadAssessmentHistory = async (forceRefresh = false) => {
+    const contextError = nursingContextError(id_atencion, Id_exp);
+    if (contextError) { setHistoryError(contextError); setLoadingHistory(false); return; }
     try {
       setLoadingHistory(true);
+      setHistoryError('');
       const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}`;
 
       if (!forceRefresh) {
         const cachedData = await CacheService.get(cacheKey);
         if (cachedData) {
-          console.log('📦 Historial de valoraciones cargado desde caché');
           setHistory(cachedData);
           setLoadingHistory(false);
           return;
         }
       }
-
-      console.log('🌐 Cargando historial de valoraciones desde API...');
       const response = await api.get(`/appointments/${id_atencion}/nursing-assessment`);
+      if (currentAttention.current !== id_atencion) return;
+      if (!Array.isArray(response.data)) throw new Error('invalid_response');
       
       await CacheService.set(cacheKey, response.data, CACHE_TTL);
       setHistory(response.data || []);
       if (forceRefresh) setCurrentHistoryPage(1);
     } catch (error) {
-      console.error('Error loading assessment history:', error);
+      if (currentAttention.current !== id_atencion) return;
+      setHistoryError(adminErrorMessage(error));
+      if ([401, 403].includes(error?.response?.status)) setHistory([]);
       
       const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}`;
       const cachedData = await CacheService.get(cacheKey);
-      if (cachedData) {
-        console.log('📦 Historial de valoraciones cargado desde caché (fallback)');
+      if (cachedData && ![401, 403].includes(error?.response?.status)) {
         setHistory(cachedData);
       }
     } finally {
@@ -81,15 +92,22 @@ const EnfermeriaAssessmentScreen = ({ navigation, route }) => {
   };
 
   const handleSubmit = async () => {
+    if (sending.current) return;
+    const contextError = nursingContextError(id_atencion, Id_exp);
+    const checked = validateNursingInput('assessment', formData);
+    if (contextError || checked.error) { Alert.alert(t('common.warning'), contextError || checked.error); return; }
+
     const hasData = Object.values(formData).some(value => value.trim() !== '');
     if (!hasData) {
       Alert.alert(t('common.warning'), t('enfermeria.newAssessment'));
       return;
     }
 
+    sending.current = true;
     setLoading(true);
     try {
-      const response = await api.post(`/appointments/${id_atencion}/nursing-assessment`, formData);
+      const response = await api.post(`/appointments/${id_atencion}/nursing-assessment`, checked.data);
+      if (currentAttention.current !== id_atencion) return;
       if (response.data) {
         Alert.alert(t('common.success'), t('enfermeria.assessmentTitle'));
         setFormData({
@@ -103,9 +121,10 @@ const EnfermeriaAssessmentScreen = ({ navigation, route }) => {
         await loadAssessmentHistory(true);
       }
     } catch (error) {
-      console.error('Error saving assessment:', error);
-      Alert.alert(t('common.error'), error.response?.data?.error || t('enfermeria.couldNotLoad'));
+      if (currentAttention.current !== id_atencion) return;
+      Alert.alert(t('common.error'), adminErrorMessage(error));
     } finally {
+      sending.current = false;
       setLoading(false);
     }
   };
@@ -193,6 +212,7 @@ const EnfermeriaAssessmentScreen = ({ navigation, route }) => {
 
   return (
     <ScrollView style={styles.container}>
+      {historyError ? <Text accessibilityRole="alert" style={{ margin: 16, color: '#9b1c1c' }}>{historyError}</Text> : null}
       {/* Header */}
       <LinearGradient colors={['#667eea', '#764ba2']} style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>

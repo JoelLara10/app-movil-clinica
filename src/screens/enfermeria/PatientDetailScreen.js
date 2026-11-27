@@ -1,3 +1,5 @@
+import { adminErrorMessage } from '../../services/adminFeedback';
+import { nursingContextError } from '../../utils/nursingValidation';
 // src/screens/enfermeria/PatientDetailScreen.js
 import React, { useState, useEffect } from 'react';
 import {
@@ -7,7 +9,6 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,9 +23,10 @@ const CACHE_KEY_PREFIX = 'enfermeria_patient_detail_';
 const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
 
 const PatientDetailScreen = ({ navigation, route }) => {
-  const { id_atencion, Id_exp } = route.params;
+  const { id_atencion, Id_exp } = route?.params || {};
   const { setSelectedPatient } = usePatient();
   const { t, lang } = useLanguage();
+  const [errorMessage, setErrorMessage] = useState('');
   const [patient, setPatient] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -33,31 +35,32 @@ const PatientDetailScreen = ({ navigation, route }) => {
   }, [lang]);
 
   useEffect(() => {
+    setPatient(null);
+    setLoading(true);
     loadPatientData();
     setSelectedPatient({ id_atencion, Id_exp });
-  }, []);
+  }, [id_atencion, Id_exp]);
 
-  const loadPatientData = async () => {
+  const loadPatientData = async (forceRefresh = false) => {
+    const contextError = nursingContextError(id_atencion, Id_exp);
+    if (contextError) { setErrorMessage(contextError); setLoading(false); return; }
+    setErrorMessage('');
     try {
       const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}_${Id_exp}`;
       
       const cachedData = await CacheService.get(cacheKey);
-      if (cachedData) {
-        console.log('📦 Datos del paciente (enfermería) desde caché');
+      if (cachedData && !forceRefresh) {
         setPatient(cachedData);
         setLoading(false);
         return;
       }
-
-      console.log('🌐 Cargando paciente (enfermería) desde API...');
       const response = await api.get(`/paciente/${id_atencion}/${Id_exp}`);
       
       await CacheService.set(cacheKey, response.data, CACHE_TTL);
       
       setPatient(response.data);
     } catch (error) {
-      console.error('Error loading patient:', error);
-      Alert.alert(t('common.error'), t('common.couldNotLoad'));
+      setErrorMessage(adminErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -166,6 +169,7 @@ const PatientDetailScreen = ({ navigation, route }) => {
 
   return (
     <ScrollView style={styles.container}>
+      {errorMessage ? <Text accessibilityRole="alert" style={{ margin: 16, color: '#9b1c1c' }}>{errorMessage}</Text> : null}
       <LinearGradient colors={['#667eea', '#764ba2']} style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
@@ -173,7 +177,7 @@ const PatientDetailScreen = ({ navigation, route }) => {
         <Text style={styles.headerTitle}>
           <Ionicons name="person-outline" size={20} color="#fff" /> {t('enfermeria.patientDetail')}
         </Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity onPress={() => loadPatientData(true)} style={styles.backButton}><Ionicons name="refresh-outline" size={24} color="#fff" /></TouchableOpacity>
       </LinearGradient>
 
       <View style={styles.mainCard}>
@@ -254,6 +258,7 @@ const PatientDetailScreen = ({ navigation, route }) => {
               key={index}
               style={[styles.moduleCard, { backgroundColor: mod.bgColor }]}
               onPress={mod.onPress}
+              disabled={!patient}
             >
               <View style={[styles.moduleIcon, { backgroundColor: mod.color + '20' }]}>
                 <Ionicons name={mod.icon} size={24} color={mod.color} />

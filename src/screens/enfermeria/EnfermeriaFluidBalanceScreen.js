@@ -1,5 +1,7 @@
+import { adminErrorMessage } from '../../services/adminFeedback';
+import { nursingContextError, validateNursingInput } from '../../utils/nursingValidation';
 // src/screens/enfermeria/EnfermeriaFluidBalanceScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -30,8 +32,12 @@ const HISTORY_ITEMS_PER_PAGE = 5;
 
 const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
   const { t, lang } = useLanguage();
-  const { id_atencion, Id_exp } = route.params;
+  const { id_atencion, Id_exp } = route?.params || {};
   const [loading, setLoading] = useState(false);
+  const sending = useRef(false);
+  const currentAttention = useRef(id_atencion);
+  currentAttention.current = id_atencion;
+  const [historyError, setHistoryError] = useState('');
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState([]);
@@ -46,37 +52,42 @@ const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
 
   // Cargar historial de balances hídricos
   useEffect(() => {
-    loadFluidBalanceHistory();
-  }, []);
+    setHistory([]);
+    setFormData({ ingresos_orales: '', ingresos_iv: '', egresos_orina: '', egresos_drenajes: '', observaciones: '' });
+    loadFluidBalanceHistory(true);
+  }, [id_atencion, Id_exp]);
 
   const loadFluidBalanceHistory = async (forceRefresh = false) => {
+    const contextError = nursingContextError(id_atencion, Id_exp);
+    if (contextError) { setHistoryError(contextError); setLoadingHistory(false); return; }
     try {
       setLoadingHistory(true);
+      setHistoryError('');
       const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}`;
 
       if (!forceRefresh) {
         const cachedData = await CacheService.get(cacheKey);
         if (cachedData) {
-          console.log('📦 Historial de balance hídrico cargado desde caché');
           setHistory(cachedData);
           setLoadingHistory(false);
           return;
         }
       }
-
-      console.log('🌐 Cargando historial de balance hídrico desde API...');
       const response = await api.get(`/appointments/${id_atencion}/fluid-balance`);
+      if (currentAttention.current !== id_atencion) return;
+      if (!Array.isArray(response.data)) throw new Error('invalid_response');
       
       await CacheService.set(cacheKey, response.data, CACHE_TTL);
       setHistory(response.data || []);
       if (forceRefresh) setCurrentHistoryPage(1);
     } catch (error) {
-      console.error('Error loading fluid balance history:', error);
+      if (currentAttention.current !== id_atencion) return;
+      setHistoryError(adminErrorMessage(error));
+      if ([401, 403].includes(error?.response?.status)) setHistory([]);
       
       const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}`;
       const cachedData = await CacheService.get(cacheKey);
-      if (cachedData) {
-        console.log('📦 Historial de balance hídrico cargado desde caché (fallback)');
+      if (cachedData && ![401, 403].includes(error?.response?.status)) {
         setHistory(cachedData);
       }
     } finally {
@@ -85,6 +96,11 @@ const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
   };
 
   const handleSubmit = async () => {
+    if (sending.current) return;
+    const contextError = nursingContextError(id_atencion, Id_exp);
+    const checked = validateNursingInput('balance', formData);
+    if (contextError || checked.error) { Alert.alert(t('common.warning'), contextError || checked.error); return; }
+
     // SEGURIDAD (Jesús): acepta únicamente volúmenes numéricos, no negativos
     // y clínicamente acotados antes de calcular o transmitir el balance.
     const validation = validateFluidBalance({ id_atencion, Id_exp, formData });
@@ -93,9 +109,11 @@ const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
       return;
     }
 
+    sending.current = true;
     setLoading(true);
     try {
       const response = await api.post(`/appointments/${id_atencion}/fluid-balance`, validation.data);
+      if (currentAttention.current !== id_atencion) return;
       if (response.data) {
         Alert.alert(t('common.success'), t('enfermeria.fluidBalance'));
         setFormData({
@@ -108,13 +126,14 @@ const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
         await loadFluidBalanceHistory(true);
       }
     } catch (error) {
+      if (currentAttention.current !== id_atencion) return;
       // SEGURIDAD (Jesús): evita que errores del servidor revelen datos técnicos.
-      console.error('Error saving fluid balance request');
       Alert.alert(
         t('common.error'),
         getSafeClinicalError(error, t('enfermeria.couldNotLoad')),
       );
     } finally {
+      sending.current = false;
       setLoading(false);
     }
   };
@@ -215,6 +234,7 @@ const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
 
   return (
     <ScrollView style={styles.container}>
+      {historyError ? <Text accessibilityRole="alert" style={{ margin: 16, color: '#9b1c1c' }}>{historyError}</Text> : null}
       {/* Header */}
       <LinearGradient colors={['#4299e1', '#3182ce']} style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>

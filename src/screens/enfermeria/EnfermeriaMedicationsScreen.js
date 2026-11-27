@@ -1,5 +1,7 @@
+import { adminErrorMessage } from '../../services/adminFeedback';
+import { nursingContextError, validateNursingInput } from '../../utils/nursingValidation';
 // src/screens/enfermeria/EnfermeriaMedicationsScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -29,8 +31,12 @@ const HISTORY_ITEMS_PER_PAGE = 5;
 
 const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
   const { t, lang } = useLanguage();
-  const { id_atencion, Id_exp } = route.params;
+  const { id_atencion, Id_exp } = route?.params || {};
   const [loading, setLoading] = useState(false);
+  const sending = useRef(false);
+  const currentAttention = useRef(id_atencion);
+  currentAttention.current = id_atencion;
+  const [historyError, setHistoryError] = useState('');
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState([]);
@@ -41,19 +47,23 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
 
   // Cargar historial de medicamentos
   useEffect(() => {
-    loadMedicationsHistory();
-  }, []);
+    setHistory([]);
+    setMedications([{ id: 0, nombre: '', dosis: '', frecuencia: '', via: '', fecha_aplicacion: '' }]);
+    loadMedicationsHistory(true);
+  }, [id_atencion, Id_exp]);
 
   const loadMedicationsHistory = async (forceRefresh = false) => {
+    const contextError = nursingContextError(id_atencion, Id_exp);
+    if (contextError) { setHistoryError(contextError); setLoadingHistory(false); return; }
     try {
       setLoadingHistory(true);
+      setHistoryError('');
       const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}`;
 
       // Intentar obtener de caché primero (si no es forceRefresh)
       if (!forceRefresh) {
         const cachedData = await CacheService.get(cacheKey);
         if (cachedData) {
-          console.log('📦 Historial de medicamentos cargado desde caché');
           setHistory(cachedData);
           setLoadingHistory(false);
           return;
@@ -61,8 +71,9 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
       }
 
       // Si no hay caché o es forceRefresh, cargar desde API
-      console.log('🌐 Cargando historial de medicamentos desde API...');
       const response = await api.get(`/appointments/${id_atencion}/medications`);
+      if (currentAttention.current !== id_atencion) return;
+      if (!Array.isArray(response.data)) throw new Error('invalid_response');
       
       // Guardar en caché
       await CacheService.set(cacheKey, response.data, CACHE_TTL);
@@ -70,13 +81,14 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
       setHistory(response.data || []);
       if (forceRefresh) setCurrentHistoryPage(1);
     } catch (error) {
-      console.error('Error loading medications history:', error);
+      if (currentAttention.current !== id_atencion) return;
+      setHistoryError(adminErrorMessage(error));
+      if ([401, 403].includes(error?.response?.status)) setHistory([]);
       
       // Si falla la API, intentar cargar desde caché
       const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}`;
       const cachedData = await CacheService.get(cacheKey);
-      if (cachedData) {
-        console.log('📦 Historial de medicamentos cargado desde caché (fallback)');
+      if (cachedData && ![401, 403].includes(error?.response?.status)) {
         setHistory(cachedData);
       }
     } finally {
@@ -85,7 +97,7 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
   };
 
   const addMedication = () => {
-    const newId = medications.length;
+    const newId = Math.max(...medications.map(med => med.id)) + 1;
     setMedications([
       ...medications,
       { id: newId, nombre: '', dosis: '', frecuencia: '', via: '', fecha_aplicacion: '' }
@@ -107,6 +119,11 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
   };
 
   const handleSubmit = async () => {
+    if (sending.current) return;
+    const contextError = nursingContextError(id_atencion, Id_exp);
+    const checked = validateNursingInput('medications', medications);
+    if (contextError || checked.error) { Alert.alert(t('common.warning'), contextError || checked.error); return; }
+
     // SEGURIDAD (Jaime): exige trazabilidad completa de cada administración
     // y bloquea fechas, límites o identificadores clínicos inválidos.
     const validation = validateMedicationAdministration({
@@ -119,11 +136,13 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
       return;
     }
 
+    sending.current = true;
     setLoading(true);
     try {
       const response = await api.post(`/appointments/${id_atencion}/medications`, {
         medicamentos: validation.data,
       });
+      if (currentAttention.current !== id_atencion) return;
       if (response.data) {
         Alert.alert(t('common.success'), t('enfermeria.administrationRecord'));
         // Limpiar formulario
@@ -134,13 +153,14 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
         await loadMedicationsHistory(true);
       }
     } catch (error) {
+      if (currentAttention.current !== id_atencion) return;
       // SEGURIDAD (Jaime): no expone trazas ni mensajes internos de la API.
-      console.error('Error saving medication administration request');
       Alert.alert(
         t('common.error'),
         getSafeClinicalError(error, t('enfermeria.couldNotLoad')),
       );
     } finally {
+      sending.current = false;
       setLoading(false);
     }
   };
@@ -217,6 +237,7 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
 
   return (
     <ScrollView style={styles.container}>
+      {historyError ? <Text accessibilityRole="alert" style={{ margin: 16, color: '#9b1c1c' }}>{historyError}</Text> : null}
       {/* Header */}
       <LinearGradient colors={['#48bb78', '#38a169']} style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
