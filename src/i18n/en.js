@@ -97,6 +97,7 @@ const en = {
     monitoring: 'Patient monitoring',
     monitoringDesc: 'ESP32 readings and possible fall alerts',
     greeting: 'Hello',
+    loadError: "Some indicators could not be refreshed. Check your connection and try again; available values come from the last successful request.",
     activePatients: 'Active Patients',
     occupiedBeds: 'Occupied Beds',
     pendingStudies: 'Pending Studies',
