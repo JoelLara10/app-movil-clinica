@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -25,32 +26,29 @@ const DashboardScreen = ({ navigation }) => {
   const { width: screenWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
-  const [stats, setStats] = useState({
-    active_patients: { total: 0 },
-    bed_occupancy: { occupied: 0 },
-  });
-  const [pendingStudies, setPendingStudies] = useState({ total: 0 });
+  const [stats, setStats] = useState(null);
+  const [pendingStudies, setPendingStudies] = useState(null);
+  const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     moment.locale(lang === 'es' ? 'es' : 'en-gb');
-    loadDashboardData();
   }, [lang]);
 
-  const loadDashboardData = async () => {
-    try {
-      const statsRes = await api
-        .get("/analytics/dashboard")
-        .catch(() => ({ data: {} }));
-      setStats(statsRes.data);
+  useFocusEffect(useCallback(() => { loadDashboardData(); }, []));
 
-      const studiesRes = await api
-        .get("/exams/counts")
-        .catch(() => ({ data: { total: 0 } }));
-      setPendingStudies(studiesRes.data);
-    } catch (error) {
-      console.error("Error loading dashboard:", error);
-    }
+  const loadDashboardData = async () => {
+    const [statsResult, studiesResult] = await Promise.allSettled([
+      api.get('/analytics/dashboard'), api.get('/exams/counts'),
+    ]);
+    const validStats = statsResult.status === 'fulfilled' &&
+      Number.isFinite(statsResult.value.data?.active_patients?.total) &&
+      Number.isFinite(statsResult.value.data?.bed_occupancy?.occupied);
+    const validStudies = studiesResult.status === 'fulfilled' &&
+      Number.isFinite(studiesResult.value.data?.total);
+    if (validStats) setStats(statsResult.value.data);
+    if (validStudies) setPendingStudies(studiesResult.value.data);
+    setLoadError(!validStats || !validStudies);
   };
 
   const onRefresh = async () => {
@@ -92,7 +90,7 @@ const DashboardScreen = ({ navigation }) => {
           screen: "Estudios",
           color: "#ed8936",
           description: t('dashboard.studiesDesc'),
-          badge: pendingStudies.total,
+          badge: pendingStudies?.total,
         },
         {
           name: t('dashboard.config'),
@@ -125,7 +123,7 @@ const DashboardScreen = ({ navigation }) => {
           screen: "Estudios",
           color: "#ed8936",
           description: t('dashboard.results'),
-          badge: pendingStudies.total,
+          badge: pendingStudies?.total,
         },
       );
     } else if (role === "estudios") {
@@ -135,7 +133,7 @@ const DashboardScreen = ({ navigation }) => {
         screen: "Estudios",
         color: "#ed8936",
         description: t('dashboard.studiesDesc'),
-        badge: pendingStudies.total,
+        badge: pendingStudies?.total,
       });
     }
 
@@ -189,6 +187,7 @@ const DashboardScreen = ({ navigation }) => {
         </View>
       </LinearGradient>
 
+      {loadError && <Text accessibilityRole="alert" style={{ margin: 16, color: '#9b1c1c' }}>{t('dashboard.loadError')}</Text>}
       {/* Stats Cards */}
       <View
         style={[
@@ -199,7 +198,7 @@ const DashboardScreen = ({ navigation }) => {
         <View style={styles.statCard}>
           <Ionicons name="people-outline" size={32} color="#667eea" />
           <Text style={styles.statNumber}>
-            {stats.active_patients?.total || 0}
+            {stats?.active_patients?.total ?? '—'}
           </Text>
           <Text style={styles.statLabel}>{t('dashboard.activePatients')}</Text>
         </View>
@@ -207,14 +206,14 @@ const DashboardScreen = ({ navigation }) => {
         <View style={styles.statCard}>
           <Ionicons name="bed-outline" size={32} color="#48bb78" />
           <Text style={styles.statNumber}>
-            {stats.bed_occupancy?.occupied || 0}
+            {stats?.bed_occupancy?.occupied ?? '—'}
           </Text>
           <Text style={styles.statLabel}>{t('dashboard.occupiedBeds')}</Text>
         </View>
 
         <View style={styles.statCard}>
           <Ionicons name="flask-outline" size={32} color="#ed8936" />
-          <Text style={styles.statNumber}>{pendingStudies.total || 0}</Text>
+          <Text style={styles.statNumber}>{pendingStudies?.total ?? '—'}</Text>
           <Text style={styles.statLabel}>{t('dashboard.pendingStudies')}</Text>
         </View>
       </View>

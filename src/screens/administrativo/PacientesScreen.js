@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -15,6 +14,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import Pagination from '../../components/Pagination';
 import adminService from '../../services/adminService';
+import { adminErrorMessage } from '../../services/adminFeedback';
 import { getAdminCache, setAdminCache } from '../../services/adminCache';
 import { useLanguage } from '../../context/LanguageContext';
 
@@ -229,23 +229,13 @@ const PacientesScreen = ({ navigation }) => {
         return;
       }
 
-      console.log('ERROR GESTIÓN PACIENTES:', {
-        message: error.message,
-        code: error.code,
-        baseURL: error.config?.baseURL,
-        url: error.config?.url,
-        status: error.response?.status,
-        data: error.response?.data,
-      });
-
       if (cachedData?.data) {
         applyPatientsResponse(cachedData.data, requestedPage);
         setLastUpdated(cachedData.timestamp);
-        setApiNotice('Mostrando información guardada en caché.');
+        setApiNotice(`${adminErrorMessage(error)} Mostrando la última consulta guardada en memoria.`);
       } else {
         setApiNotice(
-          error.response?.data?.error ||
-          `No se pudo conectar con la API: ${error.message}`
+          adminErrorMessage(error)
         );
       }
     } finally {
@@ -534,14 +524,14 @@ const PacientesScreen = ({ navigation }) => {
           icon="documents-outline"
           title={t('administrative.documents')}
           color="#e53e3e"
-          onPress={() => Alert.alert('Documentos', 'Estos PDFs se conectaran despues con la API.')}
+          onPress={() => navigation.navigate('PacienteDetail')}
         />
 
         <ActionCard
           icon="folder-open-outline"
           title={t('administrative.recentRecords')}
           color="#ed8936"
-          onPress={() => Alert.alert('Expedientes', 'La consulta de expedientes se conectara despues.')}
+          onPress={() => { setSearch(''); setPage(1); loadPatients({ forceRefresh: true }); }}
         />
 
         <ActionCard
@@ -568,9 +558,9 @@ const PacientesScreen = ({ navigation }) => {
       </View>
 
       <View style={styles.summaryStrip}>
-        <Summary label={t('administrative.activePatients')} value={String(summary.activos || 0)} color="#667eea" />
-        <Summary label={t('administrative.recentRecords')} value={String(summary.expedientes || 0)} color="#ed8936" />
-        <Summary label={t('administrative.recentDischarges')} value={String(summary.altas || 0)} color="#48bb78" />
+        <Summary label={t('administrative.activePatients')} value={lastUpdated ? String(summary.activos || 0) : '—'} color="#667eea" />
+        <Summary label={t('administrative.recentRecords')} value={lastUpdated ? String(summary.expedientes || 0) : '—'} color="#ed8936" />
+        <Summary label={t('administrative.recentDischarges')} value={lastUpdated ? String(summary.altas || 0) : '—'} color="#48bb78" />
       </View>
 
       <View style={styles.refreshRow}>

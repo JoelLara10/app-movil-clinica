@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   ActivityIndicator,
   RefreshControl,
   ScrollView,
@@ -14,8 +13,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Pagination from '../../components/Pagination';
 import adminService from '../../services/adminService';
+import { adminErrorMessage } from '../../services/adminFeedback';
 import { getAdminCache, setAdminCache } from '../../services/adminCache';
 import { useLanguage } from '../../context/LanguageContext';
+import DatePickerField from '../../components/DatePickerField';
 
 const movements = [];
 const activeAccounts = [];
@@ -30,6 +31,7 @@ const CACHE_TIME = 1000 * 60 * 5;
 const CorteCajaScreen = ({ navigation }) => {
   const { t } = useLanguage();
   const [search, setSearch] = useState('');
+  const [selectedDate, setSelectedDate] = useState('');
 
   const [cashCut, setCashCut] = useState({
     period: { label: '' },
@@ -65,7 +67,7 @@ const CorteCajaScreen = ({ navigation }) => {
   const requestIdRef = useRef(0);
 
   const getCacheKey = (value = '') =>
-    `cash-cut:${value.trim().toLowerCase() || 'all'}:complete`;
+    `cash-cut:${selectedDate || 'today'}:${value.trim().toLowerCase() || 'all'}:complete`;
 
   const normalizeCashCutResponse = (response) => ({
     period: response.period || { label: '' },
@@ -178,6 +180,7 @@ const CorteCajaScreen = ({ navigation }) => {
 
       const response = await adminService.getCashCut({
         search,
+        date: selectedDate,
       });
 
       if (currentRequestId !== requestIdRef.current) {
@@ -203,10 +206,10 @@ const CorteCajaScreen = ({ navigation }) => {
         });
 
         setLastUpdated(cachedData.timestamp);
-        setApiNotice('Mostrando información guardada en caché.');
+        setApiNotice(`${adminErrorMessage(error)} Mostrando la última consulta guardada en memoria.`);
       } else if (target === 'all') {
         setApiNotice(
-          'No se pudo consultar el corte. Actualiza para volver a intentar.'
+          adminErrorMessage(error)
         );
 
         setCashCut({
@@ -257,7 +260,7 @@ const CorteCajaScreen = ({ navigation }) => {
     }, delay);
 
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, selectedDate]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -387,15 +390,10 @@ const CorteCajaScreen = ({ navigation }) => {
 
         <TouchableOpacity
           style={styles.headerButton}
-          onPress={() =>
-            Alert.alert(
-              'Reporte pendiente',
-              'El reporte de caja se conectara despues con la API.'
-            )
-          }
+          onPress={reloadCashCut}
         >
           <Ionicons
-            name="print-outline"
+            name="refresh-outline"
             size={22}
             color="#fff"
           />
@@ -416,57 +414,39 @@ const CorteCajaScreen = ({ navigation }) => {
             </Text>
 
             <Text style={styles.dateValue}>
-              {cashCut.period?.label || 'Hoy'} - Turno matutino
+              {cashCut.period?.label || 'Hoy'}
             </Text>
           </View>
         </View>
 
-        <TouchableOpacity
-          style={styles.filterButton}
-          onPress={() =>
-            Alert.alert(
-              'Filtros',
-              'Aqui se seleccionara fecha y turno cuando este lista la API.'
-            )
-          }
-        >
-          <Ionicons
-            name="options-outline"
-            size={18}
-            color="#667eea"
-          />
-
-          <Text style={styles.filterText}>
-            {t('administrative.filters')}
-          </Text>
-        </TouchableOpacity>
+        <DatePickerField label={t('administrative.cutPeriod')} value={selectedDate} onChange={setSelectedDate} placeholder="Selecciona una fecha" />
       </View>
 
       <View style={styles.metricsGrid}>
         <MetricCard
           label={t('administrative.income')}
-          value={money(totals.income)}
+          value={lastUpdated ? money(totals.income) : '—'}
           color="#48bb78"
           icon="cash-outline"
         />
 
         <MetricCard
           label={t('administrative.pending')}
-          value={money(totals.pending)}
+          value={lastUpdated ? money(totals.pending) : '—'}
           color="#ed8936"
           icon="time-outline"
         />
 
         <MetricCard
           label={t('administrative.movements')}
-          value={String(totals.movements)}
+          value={lastUpdated ? String(totals.movements) : '—'}
           color="#4299e1"
           icon="swap-horizontal-outline"
         />
 
         <MetricCard
           label={t('administrative.accounts')}
-          value={String(totals.accounts)}
+          value={lastUpdated ? String(totals.accounts) : '—'}
           color="#9f7aea"
           icon="receipt-outline"
         />
@@ -534,19 +514,6 @@ const CorteCajaScreen = ({ navigation }) => {
             </Text>
           </View>
 
-          <TouchableOpacity
-            style={styles.outlineAction}
-            onPress={() =>
-              Alert.alert(
-                'Cierre pendiente',
-                'El cierre final se conectara con el endpoint de caja.'
-              )
-            }
-          >
-            <Text style={styles.outlineActionText}>
-              {t('administrative.close')}
-            </Text>
-          </TouchableOpacity>
         </View>
 
         {visibleMovementItems.map((movement, index) => (

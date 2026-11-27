@@ -13,11 +13,12 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import adminService from '../../services/adminService';
+import { adminErrorMessage } from '../../services/adminFeedback';
 
 const initialBeds = [];
 
 const areas = ['Hospitalizacion', 'Urgencias', 'Recuperacion', 'Consulta'];
-const statuses = ['LIBRE', 'OCUPADA', 'MANTENIMIENTO'];
+const statuses = ['LIBRE', 'OCUPADA'];
 
 const emptyForm = {
   number: '',
@@ -59,6 +60,8 @@ const CamasScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [apiNotice, setApiNotice] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   const loadBeds = async ({ silent = false } = {}) => {
     try {
@@ -66,9 +69,10 @@ const CamasScreen = ({ navigation }) => {
       const response = await adminService.getBeds();
       const source = Array.isArray(response) ? response : response.data || response.beds || response.camas || [];
       setBeds(source.map(normalizeBed));
+      setHasLoaded(true);
       setApiNotice('');
     } catch (error) {
-      setApiNotice('No se pudieron cargar las camas. Actualiza para volver a intentar.');
+      setApiNotice(adminErrorMessage(error));
       setBeds((current) => (current.length ? current : initialBeds));
     } finally {
       setLoading(false);
@@ -123,6 +127,7 @@ const CamasScreen = ({ navigation }) => {
   };
 
   const handleSave = async () => {
+    if (saving || loading) return;
     const trimmedNumber = form.number.trim();
     if (!trimmedNumber) {
       Alert.alert('Numero requerido', 'Ingresa el numero de cama o habitacion.');
@@ -139,14 +144,17 @@ const CamasScreen = ({ navigation }) => {
       estatus: form.status,
     };
 
+    setSaving(true);
+    setApiNotice('');
     if (editingId) {
       const currentBed = beds.find((bed) => bed.id === editingId);
       try {
-        if (currentBed?.id_cama) {
-          await adminService.updateBed(currentBed.id_cama, payload);
-        }
+        if (!currentBed?.id_cama) throw new Error('missing_bed_id');
+        await adminService.updateBed(currentBed.id_cama, payload);
       } catch (error) {
-        setApiNotice('No se pudo actualizar en API. Se aplico solo en la vista local.');
+        setApiNotice(adminErrorMessage(error));
+        setSaving(false);
+        return;
       }
       setBeds((current) => current.map((bed) => (
         bed.id === editingId
@@ -161,7 +169,7 @@ const CamasScreen = ({ navigation }) => {
           }
           : bed
       )));
-      Alert.alert('Cama actualizada', currentBed?.id_cama ? 'Cambio enviado a la API.' : 'Cambio aplicado en la vista local.');
+      Alert.alert('Cama actualizada', 'Cambio guardado en el servidor.');
     } else {
       try {
         const created = await adminService.createBed(payload);
@@ -169,33 +177,23 @@ const CamasScreen = ({ navigation }) => {
         setBeds((current) => [normalized, ...current]);
         Alert.alert('Cama registrada', 'Registro enviado a la API.');
         resetForm();
+        setSaving(false);
         return;
       } catch (error) {
-        setApiNotice('No se pudo registrar en API. Se agrego solo en la vista local.');
+        setApiNotice(adminErrorMessage(error));
+        setSaving(false);
+        return;
       }
-      setBeds((current) => [
-        {
-          id: String(Date.now()),
-          number: trimmedNumber,
-          area: form.area,
-          roomType: form.roomType || 'N/A',
-          floor: form.floor || 'N/A',
-          section: form.section || 'N/A',
-          status: form.status,
-          patient: '',
-        },
-        ...current,
-      ]);
-      Alert.alert('Cama registrada', 'Registro agregado solo en la vista local.');
     }
 
     resetForm();
+    setSaving(false);
   };
 
   const confirmDelete = (bed) => {
     Alert.alert(
       'Eliminar cama',
-      `La cama ${bed.number} se eliminara solo de esta vista local.`,
+      `La cama ${bed.number} se eliminará del servidor.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -203,11 +201,11 @@ const CamasScreen = ({ navigation }) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              if (bed.id_cama) {
-                await adminService.deleteBed(bed.id_cama);
-              }
+              if (!bed.id_cama) throw new Error('missing_bed_id');
+              await adminService.deleteBed(bed.id_cama);
             } catch (error) {
-              setApiNotice('No se pudo eliminar en API. Se elimino solo de la vista local.');
+              setApiNotice(adminErrorMessage(error));
+              return;
             }
             setBeds((current) => current.filter((item) => item.id !== bed.id));
           },
@@ -234,17 +232,17 @@ const CamasScreen = ({ navigation }) => {
         </View>
         <TouchableOpacity
           style={styles.headerButton}
-          onPress={() => Alert.alert('Sin API todavia', 'Estos cambios son solo visuales por ahora.')}
+          onPress={() => Alert.alert('Conexión remota', 'Los cambios se guardan en el servidor. Si falla la conexión, conserva tus datos y vuelve a intentar.')}
         >
           <Ionicons name="information-circle-outline" size={23} color="#fff" />
         </TouchableOpacity>
       </LinearGradient>
 
       <View style={styles.statsGrid}>
-        <StatCard label="Total" value={stats.total} color="#667eea" icon="bed-outline" />
-        <StatCard label="Libres" value={stats.free} color="#48bb78" icon="checkmark-circle-outline" />
-        <StatCard label="Ocupadas" value={stats.occupied} color="#e53e3e" icon="person-outline" />
-        <StatCard label="Mantto." value={stats.maintenance} color="#ed8936" icon="construct-outline" />
+        <StatCard label="Total" value={hasLoaded ? stats.total : '—'} color="#667eea" icon="bed-outline" />
+        <StatCard label="Libres" value={hasLoaded ? stats.free : '—'} color="#48bb78" icon="checkmark-circle-outline" />
+        <StatCard label="Ocupadas" value={hasLoaded ? stats.occupied : '—'} color="#e53e3e" icon="person-outline" />
+        <StatCard label="Mantto." value={hasLoaded ? stats.maintenance : '—'} color="#ed8936" icon="construct-outline" />
       </View>
 
       {apiNotice ? (

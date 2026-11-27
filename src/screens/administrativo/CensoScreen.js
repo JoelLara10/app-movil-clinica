@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   ActivityIndicator,
   RefreshControl,
   ScrollView,
@@ -14,6 +13,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Pagination from '../../components/Pagination';
 import adminService from '../../services/adminService';
+import { adminErrorMessage } from '../../services/adminFeedback';
+import { useFocusEffect } from '@react-navigation/native';
 import { getAdminCache, setAdminCache } from '../../services/adminCache';
 import { useLanguage } from '../../context/LanguageContext';
 
@@ -101,11 +102,6 @@ const CensoScreen = ({ navigation }) => {
 
   const requestIdRef = useRef(0);
 
-  const getGlobalSearch = () =>
-    Object.values(searches)
-      .join(' ')
-      .trim();
-
   const getCacheKey = (search = '') =>
     `census:${search.trim().toLowerCase() || 'all'}:complete`;
 
@@ -189,7 +185,7 @@ const CensoScreen = ({ navigation }) => {
     const currentRequestId = requestIdRef.current + 1;
     requestIdRef.current = currentRequestId;
 
-    const globalSearch = getGlobalSearch();
+    const globalSearch = '';
     const cacheKey = getCacheKey(globalSearch);
     const cachedData = await getAdminCache(cacheKey, CACHE_TIME);
 
@@ -247,12 +243,12 @@ const CensoScreen = ({ navigation }) => {
         });
 
         setLastUpdated(cachedData.timestamp);
-        setApiNotice('Mostrando información guardada en caché.');
+        setApiNotice(`${adminErrorMessage(error)} Mostrando la última consulta guardada en memoria.`);
       } else if (!sectionKey) {
-        setApiNotice('No se pudo consultar el censo. Actualiza para volver a intentar.');
+        setApiNotice(adminErrorMessage(error));
         setSections(censusSections);
       } else {
-        setApiNotice('No se pudo cambiar la página del censo.');
+        setApiNotice(adminErrorMessage(error));
       }
     } finally {
       if (currentRequestId === requestIdRef.current) {
@@ -262,24 +258,12 @@ const CensoScreen = ({ navigation }) => {
     }
   };
 
+  useFocusEffect(React.useCallback(() => {
+    loadCensus({ forceRefresh: true });
+  }, []));
+
   useEffect(() => {
-    const hasSearch = getGlobalSearch().length > 0;
-    const delay = hasSearch ? 350 : 0;
-
-    const timer = setTimeout(() => {
-      setPagesBySection({
-        consulta: 1,
-        preparacion: 1,
-        recuperacion: 1,
-      });
-
-      loadCensus({
-        silent: hasSearch,
-        page: 1,
-      });
-    }, delay);
-
-    return () => clearTimeout(timer);
+    setPagesBySection({ consulta: 1, preparacion: 1, recuperacion: 1 });
   }, [searches]);
 
   const onRefresh = () => {
@@ -345,20 +329,15 @@ const CensoScreen = ({ navigation }) => {
 
         <TouchableOpacity
           style={styles.smallAction}
-          onPress={() =>
-            Alert.alert(
-              'Vista pendiente',
-              'Aqui se conectara el alta del paciente.'
-            )
-          }
+          onPress={() => navigation.navigate('PacienteDetail', { patient })}
         >
           <Ionicons
-            name="checkmark-circle-outline"
+            name="receipt-outline"
             size={18}
             color="#48bb78"
           />
 
-          <Text style={styles.smallActionText}>{t('administrative.discharge')}</Text>
+          <Text style={styles.smallActionText}>{t('administrative.patientAccount')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -409,16 +388,16 @@ const CensoScreen = ({ navigation }) => {
 
         <TouchableOpacity
           style={styles.headerButton}
-          onPress={() => Alert.alert('Impresion pendiente', 'El PDF del censo se conectara cuando este lista la API.')}
+          onPress={reloadCensus}
         >
-          <Ionicons name="print-outline" size={22} color="#fff" />
+          <Ionicons name="refresh-outline" size={22} color="#fff" />
         </TouchableOpacity>
       </LinearGradient>
 
       <View style={styles.summaryRow}>
-        <SummaryCard icon="people-outline" label={t('administrative.activePatients')} value={String(summary.activos || 0)} color="#667eea" />
-        <SummaryCard icon="business-outline" label={t('administrative.areas')} value={String(summary.areas || 0)} color="#48bb78" />
-        <SummaryCard icon="alert-circle-outline" label={t('administrative.notices')} value={String(summary.avisos || 0)} color="#ed8936" />
+        <SummaryCard icon="people-outline" label={t('administrative.activePatients')} value={lastUpdated ? String(summary.activos || 0) : '—'} color="#667eea" />
+        <SummaryCard icon="business-outline" label={t('administrative.areas')} value={lastUpdated ? String(summary.areas || 0) : '—'} color="#48bb78" />
+        <SummaryCard icon="alert-circle-outline" label={t('administrative.notices')} value={lastUpdated ? String(summary.avisos || 0) : '—'} color="#ed8936" />
       </View>
 
       <View style={styles.refreshRow}>
@@ -486,7 +465,7 @@ const CensoScreen = ({ navigation }) => {
 
               <View style={[styles.countPill, { backgroundColor: section.accent }]}>
                 <Text style={styles.countText}>
-                  {sectionPagination.total || filtered.length}
+                  {query.trim() ? allFiltered.length : sectionPagination.total || allFiltered.length}
                 </Text>
               </View>
             </View>

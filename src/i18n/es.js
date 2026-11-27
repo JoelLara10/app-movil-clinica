@@ -97,6 +97,7 @@ const es = {
     monitoring: 'Monitoreo de pacientes',
     monitoringDesc: 'Lecturas del ESP32 y alertas de posibles caídas',
     greeting: 'Hola',
+    loadError: "No se pudieron actualizar todos los indicadores. Revisa tu conexión y vuelve a intentar; los valores disponibles corresponden a la última consulta correcta.",
     activePatients: 'Pacientes Activos',
     occupiedBeds: 'Camas Ocupadas',
     pendingStudies: 'Estudios Pendientes',
@@ -182,6 +183,7 @@ const es = {
   },
 
   administrative: {
+    patientManagementDesc: 'Registro, expedientes y cuentas',
     title: 'Administrativo',
     modules: 'Modulos Administrativos',
     openModule: 'Abrir modulo',
