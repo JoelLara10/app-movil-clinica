@@ -64,9 +64,9 @@ const adminService = {
 
   getPatient: (idExp) => api.get(`/gestion-pacientes/${idExp}`).then(unwrap),
 
-  createPatient: (payload) => api.post('/patients', payload).then(unwrap),
+  createPatient: (payload) => api.post('/gestion-pacientes', payload).then(unwrap),
 
-  updatePatient: (idExp, payload) => api.put(`/patients/${idExp}`, payload).then(unwrap),
+  updatePatient: (idExp, payload) => api.put(`/gestion-pacientes/${idExp}`, payload).then(unwrap),
 
   getDocumentsPatients: () => api.get('/documents/patients').then(unwrap),
 

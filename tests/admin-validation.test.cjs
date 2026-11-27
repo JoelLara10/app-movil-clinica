@@ -61,3 +61,42 @@ test('la edición consulta el detalle administrativo que incluye paciente, atenc
   assert.equal(await service.getPatient(208), expected);
   assert.deepEqual(calls, ['/gestion-pacientes/208']);
 });
+
+test('los cinco PDFs administrativos se descargan sin poner la sesión en la URL', async () => {
+  const calls = [];
+  const { downloadAuthenticatedFile } = await load('fileService.js', {
+    'react-native': { Platform: { OS: 'android' } },
+    'expo-file-system/legacy': {
+      cacheDirectory: 'file:///qa-cache/', EncodingType: { Base64: 'base64' },
+      deleteAsync: async () => {}, writeAsStringAsync: async () => {},
+    },
+    'expo-sharing': { isAvailableAsync: async () => true, shareAsync: async () => {} },
+    './secureStorage': { getToken: async () => 'synthetic-qa-session' },
+    './api': { default: { get: async (endpoint) => {
+      calls.push(endpoint); return { data: new Uint8Array([37, 80, 68, 70, 45]) };
+    } } },
+  });
+  for (const kind of ['initial-sheet', 'front-sheet', 'contract', 'consent', 'identification-sheet']) {
+    const endpoint = `/pdf/${kind}/208/927`;
+    await downloadAuthenticatedFile(endpoint, 'qa-document.pdf');
+    assert.equal(calls.at(-1), endpoint);
+    assert.ok(!calls.at(-1).includes('synthetic-qa-session'));
+    assert.ok(!calls.at(-1).includes('token='));
+  }
+});
+
+test('alta y edición usan el flujo administrativo que guarda atención y familiar, no solo el registro básico', async () => {
+  const calls = [];
+  const payload = { curp: 'QA-SINTETICO', area: 'Consulta', fam_nombre: 'FAMILIAR SINTETICO' };
+  const expected = { patient: { Id_exp: 208 }, id_atencion: 927 };
+  const { default: service } = await load('adminService.js', {
+    './api': { default: {
+      post: async (route, data) => { calls.push(['POST', route, data]); return { data: expected }; },
+      put: async (route, data) => { calls.push(['PUT', route, data]); return { data: expected }; },
+    } },
+    './fileService': { downloadAuthenticatedFile: async () => {} },
+  });
+  assert.equal(await service.createPatient(payload), expected);
+  assert.equal(await service.updatePatient(208, payload), expected);
+  assert.deepEqual(calls, [['POST', '/gestion-pacientes', payload], ['PUT', '/gestion-pacientes/208', payload]]);
+});

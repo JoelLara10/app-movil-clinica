@@ -1,0 +1,20 @@
+name: QA Android JavaScript repack
+
+# Manual only. Use a finished preview build with the same native fingerprint.
+# Native dependency/configuration changes require a normal preview build.
+on:
+  workflow_dispatch:
+    inputs:
+      build_id:
+        type: string
+        required: true
+
+jobs:
+  qa_repack:
+    type: repack
+    environment: preview
+    params:
+      build_id: ${{ inputs.build_id }}
+      profile: preview
+      js_bundle_only: true
+      message: QA administrative JavaScript validation
