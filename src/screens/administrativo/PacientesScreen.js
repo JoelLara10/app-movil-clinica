@@ -15,6 +15,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import Pagination from '../../components/Pagination';
 import adminService from '../../services/adminService';
+import { adminErrorMessage } from '../../services/adminFeedback';
 import { getAdminCache, setAdminCache } from '../../services/adminCache';
 import { useLanguage } from '../../context/LanguageContext';
 
@@ -229,23 +230,13 @@ const PacientesScreen = ({ navigation }) => {
         return;
       }
 
-      console.log('ERROR GESTIÓN PACIENTES:', {
-        message: error.message,
-        code: error.code,
-        baseURL: error.config?.baseURL,
-        url: error.config?.url,
-        status: error.response?.status,
-        data: error.response?.data,
-      });
-
       if (cachedData?.data) {
         applyPatientsResponse(cachedData.data, requestedPage);
         setLastUpdated(cachedData.timestamp);
-        setApiNotice('Mostrando información guardada en caché.');
+        setApiNotice(`${adminErrorMessage(error)} Mostrando la última consulta guardada en memoria.`);
       } else {
         setApiNotice(
-          error.response?.data?.error ||
-          `No se pudo conectar con la API: ${error.message}`
+          adminErrorMessage(error)
         );
       }
     } finally {

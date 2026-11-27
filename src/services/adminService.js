@@ -62,7 +62,7 @@ const adminService = {
     }).then(unwrap)
   ),
 
-  getPatient: (idExp) => api.get(`/patients/${idExp}`).then(unwrap),
+  getPatient: (idExp) => api.get(`/gestion-pacientes/${idExp}`).then(unwrap),
 
   createPatient: (payload) => api.post('/patients', payload).then(unwrap),
 

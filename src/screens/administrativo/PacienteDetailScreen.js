@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Pagination from '../../components/Pagination';
 import adminService from '../../services/adminService';
+import { adminErrorMessage, chargeQuantity } from '../../services/adminFeedback';
 import { normalizePatient } from '../../services/patientPresentation';
 import { useFocusEffect } from '@react-navigation/native';
 import { clearAdminCache, getAdminCache, setAdminCache } from '../../services/adminCache';
@@ -203,9 +204,9 @@ const PacienteDetailScreen = ({ navigation, route }) => {
       if (cachedData) {
         applyAccountsResponse(cachedData.data, requestedPage);
         setLastUpdated(cachedData.timestamp);
-        setApiNotice('Mostrando información guardada en caché.');
+        setApiNotice(`${adminErrorMessage(error)} Mostrando la última consulta guardada en memoria.`);
       } else {
-        setApiNotice('No se pudieron consultar las cuentas activas en la API.');
+        setApiNotice(adminErrorMessage(error));
       }
     } finally {
       if (currentRequestId === requestIdRef.current) {
@@ -273,9 +274,9 @@ const PacienteDetailScreen = ({ navigation, route }) => {
           setOptions(cachedOptions.data);
         }
 
-        setApiNotice('Mostrando información guardada en caché.');
+        setApiNotice(`${adminErrorMessage(error)} Mostrando la última consulta guardada en memoria.`);
       } else {
-        setApiNotice('No se pudo consultar la cuenta. Actualiza para volver a intentar.');
+        setApiNotice(adminErrorMessage(error));
       }
     } finally {
       setLoading(false);
@@ -359,7 +360,7 @@ const PacienteDetailScreen = ({ navigation, route }) => {
     } catch (error) {
       Alert.alert(
         'No se pudo abrir el documento',
-        error.response?.data?.error || error.message || 'Intenta nuevamente.'
+        adminErrorMessage(error)
       );
     } finally {
       setDownloadingDocument('');
@@ -371,6 +372,7 @@ const PacienteDetailScreen = ({ navigation, route }) => {
   };
 
   const addPending = async (type) => {
+    if (saving) return;
     if (!idAtencion) {
       Alert.alert('Sin cuenta', 'No hay id de atencion para agregar cargos.');
       return;
@@ -379,10 +381,15 @@ const PacienteDetailScreen = ({ navigation, route }) => {
     const isService = type === 'Servicio';
     const selectedId = isService ? serviceId : medicineId;
     const description = isService ? service : medicine;
-    const quantity = isService ? serviceQty : medicineQty;
+    const quantity = chargeQuantity(isService ? serviceQty : medicineQty);
 
-    if (!selectedId && !description.trim()) {
-      Alert.alert('Dato requerido', `Selecciona o escribe un ${type.toLowerCase()}.`);
+    if (quantity === null) {
+      Alert.alert('Cantidad inválida', 'Escribe una cantidad entera mayor que cero.');
+      return;
+    }
+
+    if (!selectedId) {
+      Alert.alert('Dato requerido', `Busca y selecciona un ${type.toLowerCase()} del catálogo.`);
       return;
     }
 
@@ -394,7 +401,7 @@ const PacienteDetailScreen = ({ navigation, route }) => {
         id_serv: isService ? selectedId : undefined,
         item_id: isService ? undefined : selectedId,
         descripcion: description,
-        cantidad: Number(quantity) || 1,
+        cantidad: quantity,
       });
 
       setAccount(response);
@@ -408,7 +415,7 @@ const PacienteDetailScreen = ({ navigation, route }) => {
       setMedicineQty('1');
       setMedicineId(null);
     } catch (error) {
-      Alert.alert('Error', error.response?.data?.error || 'No se pudo agregar el cargo.');
+      Alert.alert('Error', adminErrorMessage(error));
     } finally {
       setSaving(false);
     }
@@ -426,7 +433,7 @@ const PacienteDetailScreen = ({ navigation, route }) => {
       await adminService.removeCharge(idAtencion, chargeId);
       await loadAccountDetail({ silent: true, forceRefresh: true });
     } catch (error) {
-      Alert.alert('Error', error.response?.data?.error || 'No se pudo eliminar el cargo.');
+      Alert.alert('Error', adminErrorMessage(error));
     }
   };
 
@@ -449,7 +456,7 @@ const PacienteDetailScreen = ({ navigation, route }) => {
 
       Alert.alert('Cuenta cerrada', response.message || 'Cuenta cerrada exitosamente.');
     } catch (error) {
-      Alert.alert('Error', error.response?.data?.error || 'No se pudo cerrar la cuenta.');
+      Alert.alert('Error', adminErrorMessage(error));
     } finally {
       setSaving(false);
     }
@@ -682,9 +689,9 @@ const PacienteDetailScreen = ({ navigation, route }) => {
           placeholder={t('administrative.service')}
           value={service}
           qty={serviceQty}
-          onValueChange={setService}
+          onValueChange={(value) => { setService(value); setServiceId(null); }}
           onQtyChange={setServiceQty}
-          options={(options.servicios || []).slice(0, 5).map((item) => ({
+          options={(options.servicios || []).filter((item) => !service || item.serv_desc?.toLowerCase().includes(service.toLowerCase())).slice(0, 20).map((item) => ({
             id: item.id_serv,
             label: item.serv_desc,
           }))}
@@ -702,9 +709,9 @@ const PacienteDetailScreen = ({ navigation, route }) => {
           placeholder={t('administrative.medicine')}
           value={medicine}
           qty={medicineQty}
-          onValueChange={setMedicine}
+          onValueChange={(value) => { setMedicine(value); setMedicineId(null); }}
           onQtyChange={setMedicineQty}
-          options={(options.medicamentos || []).slice(0, 5).map((item) => ({
+          options={(options.medicamentos || []).filter((item) => !medicine || item.item_name?.toLowerCase().includes(medicine.toLowerCase())).slice(0, 20).map((item) => ({
             id: item.item_id,
             label: item.item_name,
           }))}

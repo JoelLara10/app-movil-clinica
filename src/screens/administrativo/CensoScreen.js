@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Pagination from '../../components/Pagination';
 import adminService from '../../services/adminService';
+import { adminErrorMessage } from '../../services/adminFeedback';
 import { getAdminCache, setAdminCache } from '../../services/adminCache';
 import { useLanguage } from '../../context/LanguageContext';
 
@@ -247,12 +248,12 @@ const CensoScreen = ({ navigation }) => {
         });
 
         setLastUpdated(cachedData.timestamp);
-        setApiNotice('Mostrando información guardada en caché.');
+        setApiNotice(`${adminErrorMessage(error)} Mostrando la última consulta guardada en memoria.`);
       } else if (!sectionKey) {
-        setApiNotice('No se pudo consultar el censo. Actualiza para volver a intentar.');
+        setApiNotice(adminErrorMessage(error));
         setSections(censusSections);
       } else {
-        setApiNotice('No se pudo cambiar la página del censo.');
+        setApiNotice(adminErrorMessage(error));
       }
     } finally {
       if (currentRequestId === requestIdRef.current) {
