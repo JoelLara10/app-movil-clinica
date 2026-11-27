@@ -475,9 +475,9 @@ const PacienteDetailScreen = ({ navigation, route }) => {
 
       <TouchableOpacity
         style={styles.headerButton}
-        onPress={() => Alert.alert('PDF pendiente', 'El PDF de cuenta se conectara con la API despues.')}
+        onPress={onRefresh}
       >
-        <Ionicons name="print-outline" size={22} color="#fff" />
+        <Ionicons name="refresh-outline" size={22} color="#fff" />
       </TouchableOpacity>
     </LinearGradient>
   );

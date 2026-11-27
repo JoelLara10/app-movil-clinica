@@ -100,7 +100,7 @@ export default function DatePickerField({ label, value, onChange, placeholder = 
       <Modal visible={visible} transparent animationType="fade" onRequestClose={() => setVisible(false)}>
         <Pressable style={styles.backdrop} onPress={() => setVisible(false)}>
           <Pressable style={styles.dialog} onPress={(event) => event.stopPropagation()}>
-            <Text style={styles.title}>Fecha de nacimiento</Text>
+            <Text style={styles.title}>{label || 'Selecciona una fecha'}</Text>
             {showYearPicker ? (
               <>
                 <View style={styles.monthBar}>

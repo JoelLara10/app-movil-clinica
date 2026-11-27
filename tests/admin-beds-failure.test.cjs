@@ -94,3 +94,37 @@ test('Camas: solo la creación confirmada por el servidor actualiza la lista y l
   assert.equal(screen.values[4].number, '');
   assert.match(screen.alerts[0][0], /registrada/);
 });
+
+test('Censo: tres filtros independientes no se concatenan en una búsqueda remota imposible', async () => {
+  const values = [];
+  const calls = [];
+  const hooks = {
+    useEffect: () => {}, useRef: value => ({ current: value }), useCallback: fn => fn,
+    useState: initial => {
+      const index = values.length;
+      values.push(index === 0 ? { consulta: 'QA SINTETICO', preparacion: 'QA SINTETICO', recuperacion: 'QA SINTETICO' } : initial);
+      return [values[index], next => { values[index] = typeof next === 'function' ? next(values[index]) : next; }];
+    },
+  };
+  const element = (type, props) => ({ type, props });
+  const native = Object.fromEntries(['ActivityIndicator', 'RefreshControl', 'ScrollView', 'Text', 'TextInput', 'TouchableOpacity', 'View'].map(name => [name, name]));
+  native.StyleSheet = { create: value => value };
+  const Screen = evaluate('screens/administrativo/CensoScreen.js', {
+    react: { __esModule: true, default: hooks, ...hooks },
+    'react/jsx-runtime': { jsx: element, jsxs: element },
+    'react-native': native,
+    'expo-linear-gradient': { LinearGradient: 'LinearGradient' },
+    '@expo/vector-icons': { Ionicons: 'Ionicons' },
+    '@react-navigation/native': { useFocusEffect: callback => callback() },
+    '../../components/Pagination': { __esModule: true, default: 'Pagination' },
+    '../../context/LanguageContext': { useLanguage: () => ({ t: key => key }) },
+    '../../services/adminCache': { getAdminCache: async () => null, setAdminCache: async () => ({ timestamp: 1 }) },
+    '../../services/adminService': { __esModule: true, default: { getCensus: async search => {
+      calls.push(search); return { sections: [], summary: { activos: 0, areas: 3, avisos: 0 } };
+    } } },
+    '../../services/adminFeedback': evaluate('services/adminFeedback.js'),
+  }).default;
+  Screen({ navigation: { goBack() {}, navigate() {} } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(calls, ['']);
+});

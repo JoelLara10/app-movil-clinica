@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -525,14 +524,14 @@ const PacientesScreen = ({ navigation }) => {
           icon="documents-outline"
           title={t('administrative.documents')}
           color="#e53e3e"
-          onPress={() => Alert.alert('Documentos', 'Estos PDFs se conectaran despues con la API.')}
+          onPress={() => navigation.navigate('PacienteDetail')}
         />
 
         <ActionCard
           icon="folder-open-outline"
           title={t('administrative.recentRecords')}
           color="#ed8936"
-          onPress={() => Alert.alert('Expedientes', 'La consulta de expedientes se conectara despues.')}
+          onPress={() => { setSearch(''); setPage(1); loadPatients({ forceRefresh: true }); }}
         />
 
         <ActionCard
