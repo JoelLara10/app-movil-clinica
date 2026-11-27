@@ -12,13 +12,13 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import adminService from '../../services/adminService';
+import { adminErrorMessage, patientValidationMessage } from '../../services/adminFeedback';
 import { useLanguage } from '../../context/LanguageContext';
 import DatePickerField from '../../components/DatePickerField';
 
 const areas = ['Consulta', 'Preparacion', 'Recuperacion'];
 const reasons = ['Consulta', 'Cirugia', 'Urgencia', 'Estudio'];
 const specialties = ['Oftalmologia', 'Retina', 'Cornea', 'Glaucoma'];
-const doctors = ['Dra. Sandoval', 'Dr. Ramos', 'Dra. Castillo', 'Dr. Herrera', 'Dra. Vega'];
 
 const buildInitialForm = (patient = {}) => ({
   curp: patient.curp || '',
@@ -27,8 +27,8 @@ const buildInitialForm = (patient = {}) => ({
   nom_pac: patient.nom_pac || patient.rawPatient?.nom_pac || patient.name?.split(' ').slice(2).join(' ') || patient.name || '',
   fecnac: patient.birthDate || '',
   tel: patient.phone || '',
-  area: patient.area || 'Consulta',
-  cama: patient.bed || patient.cama || '',
+  area: ({ Ambulatorio: 'Consulta', Urgencias: 'Preparacion', Hospitalizado: 'Recuperacion' })[patient.area] || patient.area || 'Consulta',
+  cama: String(patient.id_cama ?? patient.cama ?? ''),
   motivo: patient.reason || 'Consulta',
   especialidad: patient.specialty || 'Oftalmologia',
   alergias: patient.allergies || '',
@@ -40,7 +40,7 @@ const buildInitialForm = (patient = {}) => ({
 const NuevoPacienteScreen = ({ navigation, route }) => {
   const { t } = useLanguage();
   const mode = route?.params?.mode === 'edit' ? 'edit' : 'create';
-  const idExp = route?.params?.patient?.Id_exp;
+  const idExp = route?.params?.patient?.Id_exp || route?.params?.patient?.id_exp;
   const [form, setForm] = useState(buildInitialForm(route?.params?.patient));
   const [assignedDoctors, setAssignedDoctors] = useState([]);
   const [options, setOptions] = useState({
@@ -48,10 +48,11 @@ const NuevoPacienteScreen = ({ navigation, route }) => {
     motivos: reasons,
     especialidades: specialties,
     camas: [],
-    medicos: doctors.map((doctor) => ({ id: doctor, label: doctor })),
+    medicos: [],
   });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [formReady, setFormReady] = useState(false);
   const [apiNotice, setApiNotice] = useState('');
   const [patientQuery, setPatientQuery] = useState('');
   const [patientMatches, setPatientMatches] = useState([]);
@@ -60,7 +61,7 @@ const NuevoPacienteScreen = ({ navigation, route }) => {
 
   const doctorOptions = useMemo(() => (
     (options.medicos || []).map((doctor) => ({
-      id: doctor.id ?? doctor.id_medico ?? doctor.username ?? doctor.label ?? doctor,
+      id: doctor.id_medico ?? doctor.id ?? doctor.username ?? doctor.label ?? doctor,
       label: doctor.label || doctor.nombre || doctor.username || doctor.name || String(doctor),
     }))
   ), [options.medicos]);
@@ -93,7 +94,7 @@ const NuevoPacienteScreen = ({ navigation, route }) => {
             curp: raw.curp,
             birthDate: raw.fecnac?.slice?.(0, 10) || active.birthDate,
             phone: raw.tel || active.phone,
-            cama: active.bed,
+            cama: active.id_cama ?? '',
             allergies: active.allergies,
           }));
           setForm((current) => ({
@@ -103,16 +104,13 @@ const NuevoPacienteScreen = ({ navigation, route }) => {
             famTel: family.telefono || '',
           }));
           setAssignedDoctors(active.doctors || []);
-        } else if (!assignedDoctors.length && medicosList[0]) {
-          setAssignedDoctors([medicosList[0].id]);
         }
 
+        setFormReady(true);
         setApiNotice('');
       } catch (error) {
-        setApiNotice('No se pudieron cargar opciones desde la API. Puedes seguir viendo la pantalla con datos locales.');
-        if (!assignedDoctors.length) {
-          setAssignedDoctors([doctors[0]]);
-        }
+        setFormReady(false);
+        setApiNotice(adminErrorMessage(error));
       } finally {
         setLoading(false);
       }
@@ -140,7 +138,7 @@ const NuevoPacienteScreen = ({ navigation, route }) => {
       } catch (error) {
         if (!cancelled) {
           setPatientMatches([]);
-          setPatientSearchError(error.response?.data?.error || 'No se pudo buscar el expediente.');
+          setPatientSearchError(adminErrorMessage(error));
         }
       } finally {
         if (!cancelled) setSearchingPatients(false);
@@ -165,6 +163,16 @@ const NuevoPacienteScreen = ({ navigation, route }) => {
   };
 
   const handleSave = () => {
+    if (saving || loading) return;
+    if (!formReady) {
+      Alert.alert(t('administrative.error'), 'No se cargaron los datos del servidor. Vuelve a abrir el formulario para reintentar.');
+      return;
+    }
+    const validation = patientValidationMessage(form);
+    if (validation) {
+      Alert.alert(t('administrative.error'), validation);
+      return;
+    }
     const payload = {
       curp: form.curp,
       papell: form.papell,
@@ -195,7 +203,7 @@ const NuevoPacienteScreen = ({ navigation, route }) => {
         }
         navigation.goBack();
       } catch (error) {
-        const message = error.response?.data?.error || t('administrative.saveError');
+        const message = adminErrorMessage(error);
         Alert.alert(t('administrative.error'), message);
       } finally {
         setSaving(false);
@@ -239,7 +247,7 @@ const NuevoPacienteScreen = ({ navigation, route }) => {
               const recordId = match.Id_exp || match.id_exp || match.record;
               return (
                 <TouchableOpacity key={recordId || index} disabled={active || !recordId} onPress={() => navigation.replace('NuevoPaciente', { mode: 'edit', patient: match, reactivation: true })} style={[styles.chip, active && { opacity: 0.55 }]} accessibilityRole="button">
-                  <Text style={styles.chipText}>{name} · {match.record || ('INEO-' + recordId)} · {active ? 'Ya tiene una atención activa' : 'Reactivar en una nueva atención'}</Text>
+                  <Text style={styles.chipText}>{name} · {match.record || ('OFTALCORE-' + recordId)} · {active ? 'Ya tiene una atención activa' : 'Reactivar en una nueva atención'}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -279,10 +287,10 @@ const NuevoPacienteScreen = ({ navigation, route }) => {
             {options.camas.map((bed) => (
               <TouchableOpacity
                 key={bed.id_cama || bed.numero}
-                onPress={() => update('cama', bed.numero || String(bed.id_cama))}
-                style={[styles.chip, form.cama === bed.numero && styles.chipActive]}
+                onPress={() => update('cama', String(bed.id_cama))}
+                style={[styles.chip, form.cama === String(bed.id_cama) && styles.chipActive]}
               >
-                <Text style={[styles.chipText, form.cama === bed.numero && styles.chipTextActive]}>
+                <Text style={[styles.chipText, form.cama === String(bed.id_cama) && styles.chipTextActive]}>
                   {bed.numero}
                 </Text>
               </TouchableOpacity>

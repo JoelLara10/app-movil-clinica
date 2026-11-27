@@ -60,9 +60,12 @@ export async function downloadAuthenticatedFile(
   if (!token) {
     throw new Error('Sesión expirada');
   }
-  // Los endpoints PDF heredados reciben el token y la atención como parámetros
-  // de consulta; se conserva el encabezado Bearer para las descargas normales.
-  const downloadEndpoint = addPdfToken(normalizedEndpoint, token);
+  // Los cinco documentos administrativos aceptan Authorization: Bearer.
+  // Se mantiene la compatibilidad con los otros PDFs heredados de la API.
+  const administrativePdf = /^\/pdf\/(initial-sheet|front-sheet|contract|consent|identification-sheet)\//.test(normalizedEndpoint);
+  const downloadEndpoint = administrativePdf
+    ? normalizedEndpoint
+    : addPdfToken(normalizedEndpoint, token);
 
   if (Platform.OS === 'web') {
     const response = await api.get(downloadEndpoint, { responseType: 'blob' });

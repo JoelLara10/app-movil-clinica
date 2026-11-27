@@ -182,6 +182,7 @@ const en = {
   },
 
   administrative: {
+    patientManagementDesc: 'Registration, records and accounts',
     title: 'Administrative',
     modules: 'Administrative Modules',
     openModule: 'Open module',
