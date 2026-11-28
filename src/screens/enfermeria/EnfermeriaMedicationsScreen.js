@@ -1,3 +1,4 @@
+import NursingConnectionStatus from '../../components/NursingConnectionStatus';
 import { adminErrorMessage } from '../../services/adminFeedback';
 import { nursingContextError, validateNursingInput } from '../../utils/nursingValidation';
 // src/screens/enfermeria/EnfermeriaMedicationsScreen.js
@@ -37,6 +38,7 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
   const currentAttention = useRef(id_atencion);
   currentAttention.current = id_atencion;
   const [historyError, setHistoryError] = useState('');
+  const [historySource, setHistorySource] = useState('loading');
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState([]);
@@ -54,10 +56,11 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
 
   const loadMedicationsHistory = async (forceRefresh = false) => {
     const contextError = nursingContextError(id_atencion, Id_exp);
-    if (contextError) { setHistoryError(contextError); setLoadingHistory(false); return; }
+    if (contextError) { setHistorySource('error'); setHistoryError(contextError); setLoadingHistory(false); return; }
     try {
       setLoadingHistory(true);
       setHistoryError('');
+      setHistorySource('loading');
       const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}`;
 
       // Intentar obtener de caché primero (si no es forceRefresh)
@@ -65,6 +68,7 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
         const cachedData = await CacheService.get(cacheKey);
         if (cachedData) {
           setHistory(cachedData);
+          setHistorySource('cache');
           setLoadingHistory(false);
           return;
         }
@@ -79,10 +83,12 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
       await CacheService.set(cacheKey, response.data, CACHE_TTL);
       
       setHistory(response.data || []);
+      setHistorySource('remote');
       if (forceRefresh) setCurrentHistoryPage(1);
     } catch (error) {
       if (currentAttention.current !== id_atencion) return;
       setHistoryError(adminErrorMessage(error));
+      setHistorySource('error');
       if ([401, 403].includes(error?.response?.status)) setHistory([]);
       
       // Si falla la API, intentar cargar desde caché
@@ -90,6 +96,7 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
       const cachedData = await CacheService.get(cacheKey);
       if (cachedData && ![401, 403].includes(error?.response?.status)) {
         setHistory(cachedData);
+        setHistorySource('cache');
       }
     } finally {
       setLoadingHistory(false);
@@ -254,7 +261,7 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
         </TouchableOpacity>
       </LinearGradient>
 
-      {historyError ? <Text accessibilityRole="alert" style={{ margin: 16, color: '#9b1c1c' }}>{historyError}</Text> : null}
+
 
       {/* Información del paciente */}
       <View style={styles.patientInfoCard}>
@@ -279,6 +286,8 @@ const EnfermeriaMedicationsScreen = ({ navigation, route }) => {
       </View>
 
       {/* Tarjeta principal - Nueva administración */}
+      <NursingConnectionStatus status={historySource} message={historyError} />
+
       <View style={styles.mainCard}>
         <LinearGradient 
           colors={['#48bb78', '#38a169']} 
