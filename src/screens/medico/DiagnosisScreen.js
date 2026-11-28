@@ -1,5 +1,8 @@
+import useMedicalRequests from '../../hooks/useMedicalRequests';
+import NursingConnectionStatus from '../../components/NursingConnectionStatus';
+import { adminErrorMessage } from '../../services/adminFeedback';
 // src/screens/medico/DiagnosisScreen.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -14,20 +17,18 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../../services/api";
-import CacheService from "../../services/cacheService";
 import Pagination from "../../components/Pagination";
 import { useLanguage } from "../../context/LanguageContext";
 import moment from "moment";
 import "moment/locale/es";
 
-const CACHE_KEY_CURRENT = "diagnosis_current_";
-const CACHE_KEY_HISTORY = "diagnosis_history_";
-const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
 const HISTORY_ITEMS_PER_PAGE = 5;
 
 const DiagnosisScreen = ({ navigation, route }) => {
-  const { id_atencion, Id_exp } = route.params;
+  const { id_atencion, Id_exp } = route.params || {};
   const { t, lang } = useLanguage();
+  const { connection, load, current, sending } = useMedicalRequests(`${id_atencion}_${Id_exp}`);
+  const dirty = useRef(false);
 
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
@@ -53,121 +54,64 @@ const DiagnosisScreen = ({ navigation, route }) => {
     loadDiagnosisHistory();
   }, [id_atencion]);
 
-  const loadCurrentDiagnosis = async (forceRefresh = false) => {
-    try {
-      setLoadingData(true);
-      const cacheKey = `${CACHE_KEY_CURRENT}${id_atencion}`;
-
-      if (!forceRefresh) {
-        const cachedData = await CacheService.get(cacheKey);
-        if (cachedData) {
-          setCurrentDiagnosis(cachedData);
-          setFormData({
-            diagnostico_principal: cachedData.diagnostico_principal || "",
-            diagnosticos_secundarios: cachedData.diagnosticos_secundarios || "",
-            observaciones: cachedData.observaciones || "",
-          });
-          return;
-        }
-      }
-
-      const response = await api.get(`/appointments/${id_atencion}/diagnosis`);
-      if (response.data) {
-        await CacheService.set(cacheKey, response.data, CACHE_TTL);
-        setCurrentDiagnosis(response.data);
-        setFormData({
-          diagnostico_principal: response.data.diagnostico_principal || "",
-          diagnosticos_secundarios:
-            response.data.diagnosticos_secundarios || "",
-          observaciones: response.data.observaciones || "",
-        });
-      }
-    } catch (error) {
-      console.error("Error loading current diagnosis:", error);
-      const cachedData = await CacheService.get(
-        `${CACHE_KEY_CURRENT}${id_atencion}`,
-      );
-      if (cachedData) {
-        setCurrentDiagnosis(cachedData);
-        setFormData({
-          diagnostico_principal: cachedData.diagnostico_principal || "",
-          diagnosticos_secundarios: cachedData.diagnosticos_secundarios || "",
-          observaciones: cachedData.observaciones || "",
-        });
-      }
-    } finally {
+  const loadCurrentDiagnosis = async () => {
+    setLoadingData(true);
+    if (!/^[1-9]\d*$/.test(String(id_atencion)) || !/^[1-9]\d*$/.test(String(Id_exp))) {
       setLoadingData(false);
+      return;
     }
+    await load(`/appointments/${id_atencion}/diagnosis`, data => { setCurrentDiagnosis(data); if (!dirty.current) setFormData({diagnostico_principal: data.diagnostico_principal || '', diagnosticos_secundarios: data.diagnosticos_secundarios || '', observaciones: data.observaciones || ''}); }, 'object');
+    if (current()) setLoadingData(false);
   };
 
-  const loadDiagnosisHistory = async (forceRefresh = false) => {
-    const cacheKey = `${CACHE_KEY_HISTORY}${id_atencion}`;
-    try {
-      setLoadingHistory(true);
-
-      if (!forceRefresh) {
-        const cachedData = await CacheService.get(cacheKey);
-        if (cachedData) {
-          setHistory(cachedData);
-          if (forceRefresh) setCurrentHistoryPage(1);
-          return;
-        }
-      }
-
-      const response = await api.get(
-        `/appointments/${id_atencion}/diagnosis/history`,
-      );
-      const historyData = Array.isArray(response.data) ? response.data : [];
-
-      await CacheService.set(cacheKey, historyData, CACHE_TTL);
-      setHistory(historyData);
-      if (forceRefresh) setCurrentHistoryPage(1);
-    } catch (error) {
-      console.error(
-        "Error loading diagnosis history:",
-        error.response?.data || error.message,
-      );
-      const cachedData = await CacheService.get(cacheKey);
-      if (cachedData) setHistory(cachedData);
-      else setHistory([]);
-    } finally {
+  const loadDiagnosisHistory = async () => {
+    setLoadingHistory(true);
+    if (!/^[1-9]\d*$/.test(String(id_atencion)) || !/^[1-9]\d*$/.test(String(Id_exp))) {
       setLoadingHistory(false);
+      return;
     }
+    await load(`/appointments/${id_atencion}/diagnosis/history`, data => { setHistory(data); }, 'array');
+    if (current()) setLoadingHistory(false);
   };
 
   // ==================== FUNCIÓN IMPORTANTE ====================
   const handleChange = (field, value) => {
+    dirty.current = true;
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
   // ===========================================================
 
   const handleSubmit = async () => {
+    if (sending.current || !current()) return;
+    if (!/^[1-9]\d*$/.test(String(id_atencion)) || !/^[1-9]\d*$/.test(String(Id_exp))) { Alert.alert(t('common.warning'), 'Selecciona un paciente válido.'); return; }
     if (!formData.diagnostico_principal.trim()) {
       Alert.alert(t('common.warning'), t('common.requiredDiagnosis'));
       return;
     }
 
+    sending.current = true;
     setLoading(true);
     try {
       await api.post(`/appointments/${id_atencion}/diagnosis`, formData);
+      if (!current()) return;
       Alert.alert(t('common.success'), "Diagnóstico guardado correctamente");
 
       await Promise.all([
         loadCurrentDiagnosis(true),
         loadDiagnosisHistory(true),
       ]);
-      
+
       // Mantener abierto el historial si ya estaba abierto
       if (showHistory) {
         setShowHistory(true);
       }
     } catch (error) {
-      console.error("Error saving diagnosis:", error);
       Alert.alert(
         t('common.error'),
-        error.response?.data?.error || t('common.couldNotSaveData'),
+        adminErrorMessage(error),
       );
     } finally {
+      sending.current = false;
       setLoading(false);
     }
   };
@@ -293,6 +237,8 @@ const DiagnosisScreen = ({ navigation, route }) => {
         </View>
       </View>
 
+
+      <NursingConnectionStatus status={connection.status} message={connection.message} />
       {/* Formulario */}
       <View style={styles.mainCard}>
         <LinearGradient
@@ -719,4 +665,6 @@ const styles = StyleSheet.create({
   },
 });
 
-export default DiagnosisScreen;
+export default function MedicalPatientScreen(props) {
+  return <DiagnosisScreen key={`${props.route?.params?.id_atencion}_${props.route?.params?.Id_exp}`} {...props} />;
+}

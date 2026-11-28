@@ -1,5 +1,8 @@
+import useMedicalRequests from '../../hooks/useMedicalRequests';
+import NursingConnectionStatus from '../../components/NursingConnectionStatus';
+import { adminErrorMessage } from '../../services/adminFeedback';
 // src/screens/medico/MedicalNoteScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,18 +17,17 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
-import CacheService from '../../services/cacheService';
 import Pagination from '../../components/Pagination';
 import { useLanguage } from '../../context/LanguageContext';
 import moment from 'moment';
 
-const CACHE_KEY_PREFIX = 'medical_notes_';
-const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
 const HISTORY_ITEMS_PER_PAGE = 5;
 
 const MedicalNoteScreen = ({ navigation, route }) => {
-  const { id_atencion, Id_exp } = route.params;
+  const { id_atencion, Id_exp } = route.params || {};
   const { t, lang } = useLanguage();
+  const { connection, load, current, sending } = useMedicalRequests(`${id_atencion}_${Id_exp}`);
+  const dirty = useRef(false);
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [history, setHistory] = useState([]);
@@ -43,60 +45,36 @@ const MedicalNoteScreen = ({ navigation, route }) => {
     loadMedicalNotesHistory();
   }, []);
 
-  const loadMedicalNotesHistory = async (forceRefresh = false) => {
-    try {
-      setLoadingHistory(true);
-      const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}`;
-
-      // Intentar obtener de caché primero (si no es forceRefresh)
-      if (!forceRefresh) {
-        const cachedData = await CacheService.get(cacheKey);
-        if (cachedData) {
-          console.log('📦 Notas médicas cargadas desde caché');
-          setHistory(cachedData);
-          setLoadingHistory(false);
-          return;
-        }
-      }
-
-      // Si no hay caché o es forceRefresh, cargar desde API
-      console.log('🌐 Cargando notas médicas desde API...');
-      const response = await api.get(`/appointments/${id_atencion}/medical-notes`);
-      
-      // Guardar en caché
-      await CacheService.set(cacheKey, response.data, CACHE_TTL);
-      
-      setHistory(response.data);
-      if (forceRefresh) setCurrentHistoryPage(1);
-    } catch (error) {
-      console.error('Error loading medical notes history:', error);
-      
-      // Si falla la API, intentar cargar desde caché aunque esté expirada
-      const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}`;
-      const cachedData = await CacheService.get(cacheKey);
-      if (cachedData) {
-        console.log('📦 Notas médicas cargadas desde caché (fallback)');
-        setHistory(cachedData);
-      }
-    } finally {
+  const loadMedicalNotesHistory = async () => {
+    setLoadingHistory(true);
+    if (!/^[1-9]\d*$/.test(String(id_atencion)) || !/^[1-9]\d*$/.test(String(Id_exp))) {
       setLoadingHistory(false);
+      return;
     }
+    await load(`/appointments/${id_atencion}/medical-notes`, data => { setHistory(data); }, 'array');
+    if (current()) setLoadingHistory(false);
   };
 
   const handleChange = (field, value) => {
+    dirty.current = true;
     setFormData({ ...formData, [field]: value });
   };
 
   const handleSubmit = async () => {
+    if (sending.current || !current()) return;
+    if (!/^[1-9]\d*$/.test(String(id_atencion)) || !/^[1-9]\d*$/.test(String(Id_exp))) { Alert.alert(t('common.warning'), 'Selecciona un paciente válido.'); return; }
     // Validar campos requeridos
     if (!formData.subjetivo.trim()) {
       Alert.alert(t('common.warning'), t('common.requiredField'));
       return;
     }
 
+    if (Object.values(formData).some(value => typeof value !== 'string' || value.length > 2000)) { Alert.alert(t('common.warning'), 'Los campos no pueden exceder 2000 caracteres.'); return; }
+    sending.current = true;
     setLoading(true);
     try {
       const response = await api.post(`/appointments/${id_atencion}/medical-notes`, formData);
+      if (!current()) return;
       if (response.data) {
         Alert.alert(t('common.success'), 'Nota médica guardada correctamente');
         // Limpiar formulario
@@ -114,9 +92,9 @@ const MedicalNoteScreen = ({ navigation, route }) => {
         }
       }
     } catch (error) {
-      console.error('Error saving medical note:', error);
-      Alert.alert(t('common.error'), error.response?.data?.error || t('common.couldNotSaveData'));
+      Alert.alert(t('common.error'), adminErrorMessage(error));
     } finally {
+      sending.current = false;
       setLoading(false);
     }
   };
@@ -153,7 +131,7 @@ const MedicalNoteScreen = ({ navigation, route }) => {
           </Text>
         </View>
       </View>
-      
+
       <View style={styles.historyContent}>
         <View style={styles.historyField}>
           <View style={[styles.historyFieldBadge, { backgroundColor: '#4299e1' }]}>
@@ -162,7 +140,7 @@ const MedicalNoteScreen = ({ navigation, route }) => {
           <Text style={styles.historyFieldLabel}>{t('medico.subjective')}</Text>
         </View>
         <Text style={styles.historyFieldValue}>{item.subjetivo || t('medico.notSpecified')}</Text>
-        
+
         {item.objetivo && (
           <>
             <View style={styles.historyField}>
@@ -174,7 +152,7 @@ const MedicalNoteScreen = ({ navigation, route }) => {
             <Text style={styles.historyFieldValue}>{item.objetivo}</Text>
           </>
         )}
-        
+
         {item.analisis && (
           <>
             <View style={styles.historyField}>
@@ -186,7 +164,7 @@ const MedicalNoteScreen = ({ navigation, route }) => {
             <Text style={styles.historyFieldValue}>{item.analisis}</Text>
           </>
         )}
-        
+
         {item.plan && (
           <>
             <View style={styles.historyField}>
@@ -239,9 +217,11 @@ const MedicalNoteScreen = ({ navigation, route }) => {
       </View>
 
       {/* Tarjeta principal - Nuevo registro */}
+
+      <NursingConnectionStatus status={connection.status} message={connection.message} />
       <View style={styles.mainCard}>
-        <LinearGradient 
-          colors={['#4299e1', '#3182ce']} 
+        <LinearGradient
+          colors={['#4299e1', '#3182ce']}
           style={styles.cardHeader}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
@@ -354,13 +334,13 @@ const MedicalNoteScreen = ({ navigation, route }) => {
 
       {/* Historial de Notas Médicas */}
       <View style={styles.historyCard}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.historyHeaderGradient}
           onPress={() => setShowHistory(!showHistory)}
           activeOpacity={0.8}
         >
-          <LinearGradient 
-            colors={['#4299e1', '#3182ce']} 
+          <LinearGradient
+            colors={['#4299e1', '#3182ce']}
             style={styles.historyHeaderInner}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
@@ -373,10 +353,10 @@ const MedicalNoteScreen = ({ navigation, route }) => {
                   <Text style={styles.historyCountText}>{history.length} {t('common.records')}</Text>
                 </View>
               )}
-              <Ionicons 
-                name={showHistory ? "chevron-up-outline" : "chevron-down-outline"} 
-                size={20} 
-                color="#fff" 
+              <Ionicons
+                name={showHistory ? "chevron-up-outline" : "chevron-down-outline"}
+                size={20}
+                color="#fff"
               />
             </View>
           </LinearGradient>
@@ -725,4 +705,6 @@ const styles = StyleSheet.create({
   },
 });
 
-export default MedicalNoteScreen;
+export default function MedicalPatientScreen(props) {
+  return <MedicalNoteScreen key={`${props.route?.params?.id_atencion}_${props.route?.params?.Id_exp}`} {...props} />;
+}

@@ -1,3 +1,5 @@
+import useMedicalRequests from '../../hooks/useMedicalRequests';
+import NursingConnectionStatus from '../../components/NursingConnectionStatus';
 // src/screens/medico/VitalSignsListScreen.js
 import React, { useState, useEffect } from 'react';
 import {
@@ -19,8 +21,9 @@ import moment from 'moment';
 import 'moment/locale/es';
 
 const VitalSignsListScreen = ({ navigation, route }) => {
-  const { id_atencion, Id_exp } = route.params;
+  const { id_atencion, Id_exp } = route.params || {};
   const { t, lang } = useLanguage();
+  const { connection, load, current } = useMedicalRequests(`${id_atencion}_${Id_exp}`);
   moment.locale(lang === 'es' ? 'es' : 'en-gb');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -32,23 +35,9 @@ const VitalSignsListScreen = ({ navigation, route }) => {
   }, []);
 
   const loadData = async () => {
-    try {
-      setLoading(true);
-      
-      // Cargar información del paciente
-      const pacienteRes = await api.get(`/paciente/${id_atencion}/${Id_exp}`);
-      setPaciente(pacienteRes.data.paciente);
-      
-      // Cargar signos vitales
-      const signosRes = await api.get(`/appointments/${id_atencion}/vital-signs`);
-      setSignos(signosRes.data);
-      
-    } catch (error) {
-      console.error('Error loading data:', error);
-      Alert.alert(t('common.error'), t('common.couldNotLoadResults'));
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true);
+    await Promise.all([load(`/paciente/${id_atencion}/${Id_exp}`, data => setPaciente(data.paciente), 'object'), load(`/appointments/${id_atencion}/vital-signs`, setSignos)]);
+    if (current()) setLoading(false);
   };
 
   const onRefresh = async () => {
@@ -106,7 +95,7 @@ const VitalSignsListScreen = ({ navigation, route }) => {
           <Text style={[styles.headerCell, styles.valueCell]}>Talla</Text>
           <Text style={[styles.headerCell, styles.actionCell]}>PDF</Text>
         </View>
-        
+
         <ScrollView>
           {signos.map((item, index) => (
             <View key={item.id_signos || index} style={styles.tableRow}>
@@ -176,6 +165,7 @@ const VitalSignsListScreen = ({ navigation, route }) => {
         </Text>
         <View style={{ width: 40 }} />
       </LinearGradient>
+      <NursingConnectionStatus status={connection.status} message={connection.message} />
 
       {/* Información del paciente */}
       <View style={styles.patientInfoCard}>
@@ -483,4 +473,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default VitalSignsListScreen;
+export default function MedicalPatientScreen(props) {return <VitalSignsListScreen key={`${props.route?.params?.id_atencion}_${props.route?.params?.Id_exp}`} {...props} />;}

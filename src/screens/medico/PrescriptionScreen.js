@@ -1,5 +1,7 @@
+import useMedicalRequests from '../../hooks/useMedicalRequests';
+import NursingConnectionStatus from '../../components/NursingConnectionStatus';
 // src/screens/medico/PrescriptionScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,7 +16,6 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
-import CacheService from '../../services/cacheService';
 import Pagination from '../../components/Pagination';
 import { useLanguage } from '../../context/LanguageContext';
 import moment from 'moment';
@@ -24,13 +25,12 @@ const {
   validatePrescription,
 } = require('../../utils/clinicalSecurity');
 
-const CACHE_KEY_PREFIX = 'prescriptions_';
-const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
 const HISTORY_ITEMS_PER_PAGE = 5;
 
 const PrescriptionScreen = ({ navigation, route }) => {
-  const { id_atencion, Id_exp } = route.params;
+  const { id_atencion, Id_exp } = route.params || {};
   const { t, lang } = useLanguage();
+  const { connection, load, current, sending } = useMedicalRequests(`${id_atencion}_${Id_exp}`);
   moment.locale(lang === 'es' ? 'es' : 'en-gb');
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
@@ -46,48 +46,18 @@ const PrescriptionScreen = ({ navigation, route }) => {
     loadPrescriptionsHistory();
   }, []);
 
-  const loadPrescriptionsHistory = async (forceRefresh = false) => {
-    try {
-      setLoadingHistory(true);
-      const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}`;
-
-      // Intentar obtener de caché primero (si no es forceRefresh)
-      if (!forceRefresh) {
-        const cachedData = await CacheService.get(cacheKey);
-        if (cachedData) {
-          console.log('📦 Recetas cargadas desde caché');
-          setPrescriptions(cachedData);
-          setLoadingHistory(false);
-          return;
-        }
-      }
-
-      // Si no hay caché o es forceRefresh, cargar desde API
-      console.log('🌐 Cargando recetas desde API...');
-      const response = await api.get(`/appointments/${id_atencion}/prescriptions`);
-      
-      // Guardar en caché
-      await CacheService.set(cacheKey, response.data, CACHE_TTL);
-      
-      setPrescriptions(response.data);
-      if (forceRefresh) setCurrentHistoryPage(1);
-    } catch (error) {
-      console.error('Error loading prescriptions history:', error);
-      
-      // Si falla la API, intentar cargar desde caché
-      const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}`;
-      const cachedData = await CacheService.get(cacheKey);
-      if (cachedData) {
-        console.log('📦 Recetas cargadas desde caché (fallback)');
-        setPrescriptions(cachedData);
-      }
-    } finally {
+  const loadPrescriptionsHistory = async () => {
+    setLoadingHistory(true);
+    if (!/^[1-9]\d*$/.test(String(id_atencion)) || !/^[1-9]\d*$/.test(String(Id_exp))) {
       setLoadingHistory(false);
+      return;
     }
+    await load(`/appointments/${id_atencion}/prescriptions`, data => { setPrescriptions(data); }, 'array');
+    if (current()) setLoadingHistory(false);
   };
 
   const addMedication = () => {
-    const newId = medications.length;
+    const newId = Math.max(-1, ...medications.map(item => item.id)) + 1;
     setMedications([
       ...medications,
       { id: newId, medicamento: '', dosis: '', frecuencia: '', duracion: '', indicaciones: '' }
@@ -109,6 +79,8 @@ const PrescriptionScreen = ({ navigation, route }) => {
   };
 
   const handleSubmit = async () => {
+    if (sending.current || !current()) return;
+    if (!/^[1-9]\d*$/.test(String(id_atencion)) || !/^[1-9]\d*$/.test(String(Id_exp))) { Alert.alert(t('common.warning'), 'Selecciona un paciente válido.'); return; }
     // SEGURIDAD (Zahid): verifica el paciente, limita la receta y exige datos
     // mínimos por medicamento para evitar prescripciones ambiguas o manipuladas.
     const validation = validatePrescription({ id_atencion, Id_exp, medications });
@@ -117,11 +89,13 @@ const PrescriptionScreen = ({ navigation, route }) => {
       return;
     }
 
+    sending.current = true;
     setLoading(true);
     try {
       const response = await api.post(`/appointments/${id_atencion}/prescriptions`, {
         medicamentos: validation.data,
       });
+      if (!current()) return;
       if (response.data) {
         Alert.alert(t('common.success'), t('medico.savePrescription'));
         // Limpiar formulario
@@ -137,12 +111,12 @@ const PrescriptionScreen = ({ navigation, route }) => {
       }
     } catch (error) {
       // SEGURIDAD (Zahid): traduce el estado HTTP sin revelar mensajes internos.
-      console.error('Error saving prescription request');
       Alert.alert(
         t('common.error'),
         getSafeClinicalError(error, t('common.couldNotSaveExams')),
       );
     } finally {
+      sending.current = false;
       setLoading(false);
     }
   };
@@ -179,7 +153,7 @@ const PrescriptionScreen = ({ navigation, route }) => {
           </Text>
         </View>
       </View>
-      
+
       <View style={styles.historyContent}>
         {item.medicamentos && item.medicamentos.map((med, idx) => (
           <View key={idx} style={styles.historyMedication}>
@@ -248,7 +222,7 @@ const PrescriptionScreen = ({ navigation, route }) => {
             <Text style={styles.patientName}>{t('medico.patient')}</Text>
             <View style={styles.patientMeta}>
               <Text style={styles.patientMetaItem}>
-                <Ionicons name="card-outline" size={12} color="#48bb78" /> 
+                <Ionicons name="card-outline" size={12} color="#48bb78" />
                 <Text style={styles.patientMetaText}>Exp: {Id_exp || 'N/A'}</Text>
               </Text>
               <Text style={styles.patientMetaItem}>
@@ -261,9 +235,11 @@ const PrescriptionScreen = ({ navigation, route }) => {
       </View>
 
       {/* Tarjeta principal - Nueva receta */}
+
+      <NursingConnectionStatus status={connection.status} message={connection.message} />
       <View style={styles.mainCard}>
-        <LinearGradient 
-          colors={['#48bb78', '#38a169']} 
+        <LinearGradient
+          colors={['#48bb78', '#38a169']}
           style={styles.cardHeader}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
@@ -282,7 +258,7 @@ const PrescriptionScreen = ({ navigation, route }) => {
                   <Ionicons name="medkit-outline" size={16} /> {t('medico.medication')} #{index + 1}
                 </Text>
                 {medications.length > 1 && (
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     onPress={() => removeMedication(med.id)}
                     style={styles.deleteButton}
                   >
@@ -397,13 +373,13 @@ const PrescriptionScreen = ({ navigation, route }) => {
 
       {/* Historial de Recetas */}
       <View style={styles.historyCard}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.historyHeaderGradient}
           onPress={() => setShowHistory(!showHistory)}
           activeOpacity={0.8}
         >
-          <LinearGradient 
-            colors={['#48bb78', '#38a169']} 
+          <LinearGradient
+            colors={['#48bb78', '#38a169']}
             style={styles.historyHeaderInner}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
@@ -416,10 +392,10 @@ const PrescriptionScreen = ({ navigation, route }) => {
                   <Text style={styles.historyCountText}>{prescriptions.length} {t('common.prescriptions')}</Text>
                 </View>
               )}
-              <Ionicons 
-                name={showHistory ? "chevron-up-outline" : "chevron-down-outline"} 
-                size={20} 
-                color="#fff" 
+              <Ionicons
+                name={showHistory ? "chevron-up-outline" : "chevron-down-outline"}
+                size={20}
+                color="#fff"
               />
             </View>
           </LinearGradient>
@@ -812,4 +788,6 @@ const styles = StyleSheet.create({
   },
 });
 
-export default PrescriptionScreen;
+export default function MedicalPatientScreen(props) {
+  return <PrescriptionScreen key={`${props.route?.params?.id_atencion}_${props.route?.params?.Id_exp}`} {...props} />;
+}
