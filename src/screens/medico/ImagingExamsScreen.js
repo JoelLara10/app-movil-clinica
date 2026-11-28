@@ -1,5 +1,8 @@
+import useMedicalRequests from '../../hooks/useMedicalRequests';
+import NursingConnectionStatus from '../../components/NursingConnectionStatus';
+import { adminErrorMessage } from '../../services/adminFeedback';
 // src/screens/medico/ImagingExamsScreen.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -14,21 +17,17 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../../services/api";
-import CacheService from "../../services/cacheService";
 import Pagination from "../../components/Pagination";
 import { useLanguage } from "../../context/LanguageContext";
 import moment from "moment";
 import "moment/locale/es";
 
-const CACHE_KEY_CATALOG = "imaging_exams_catalog";
-const CACHE_KEY_HISTORY = "imaging_exams_history_";
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutos para catálogo
-const CACHE_TTL_HISTORY = 2 * 60 * 1000; // 2 minutos para historial
 const HISTORY_ITEMS_PER_PAGE = 5;
 
 const ImagingExamsScreen = ({ navigation, route }) => {
-  const { id_atencion, Id_exp } = route.params;
+  const { id_atencion, Id_exp } = route.params || {};
   const { t, lang } = useLanguage();
+  const { connection, load, current, sending } = useMedicalRequests(`${id_atencion}_${Id_exp}`);
   moment.locale(lang === 'es' ? 'es' : 'en-gb');
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
@@ -51,90 +50,25 @@ const ImagingExamsScreen = ({ navigation, route }) => {
     };
   }, [id_atencion]);
 
-  const loadExams = async (forceRefresh = false) => {
-    try {
-      // Intentar obtener de caché primero (si no es forceRefresh)
-      if (!forceRefresh) {
-        const cachedData = await CacheService.get(CACHE_KEY_CATALOG);
-        if (cachedData) {
-          console.log("📦 Catálogo de exámenes de gabinete cargado desde caché");
-          setExams(cachedData);
-          return;
-        }
-      }
-
-      console.log("🌐 Cargando exámenes de gabinete desde API...");
-      const response = await api.get("/exams/catalog?type=GABINETE");
-
-      if (response.data && Array.isArray(response.data)) {
-        // Guardar en caché
-        await CacheService.set(CACHE_KEY_CATALOG, response.data, CACHE_TTL);
-        setExams(response.data);
-      } else {
-        console.error("Formato de respuesta de exámenes inválido");
-        setExams([]);
-      }
-    } catch (error) {
-      console.error("Error loading exams:", error);
-      
-      // Si falla la API, intentar cargar desde caché
-      const cachedData = await CacheService.get(CACHE_KEY_CATALOG);
-      if (cachedData) {
-        setExams(cachedData);
-        Alert.alert(t('common.noConnection'), t('common.showingCachedData'));
-      } else {
-        Alert.alert(
-          t('common.error'),
-          t('common.couldNotLoadExams') +
-            (error.response?.data?.error || error.message),
-        );
-        setExams([]);
-      }
+  const loadExams = async () => {
+    if (!/^[1-9]\d*$/.test(String(id_atencion)) || !/^[1-9]\d*$/.test(String(Id_exp))) {
+      return;
     }
+    await load('/exams/catalog?type=GABINETE', data => { setExams(data); }, 'array');
+
   };
 
-  const loadRequestedExams = async (forceRefresh = false) => {
-    try {
-      setLoadingHistory(true);
-      const cacheKey = `${CACHE_KEY_HISTORY}${id_atencion}`;
-
-      // Intentar obtener de caché primero (si no es forceRefresh)
-      if (!forceRefresh) {
-        const cachedData = await CacheService.get(cacheKey);
-        if (cachedData) {
-          console.log("📦 Historial de exámenes de gabinete cargado desde caché");
-          setRequestedExams(cachedData);
-          setLoadingHistory(false);
-          return;
-        }
-      }
-
-      console.log("🌐 Cargando solicitudes previas desde API...");
-      const response = await api.get(
-        `/exams/requested/${id_atencion}?type=GABINETE`,
-      );
-      
-      const historyData = response.data || [];
-      // Guardar en caché
-      await CacheService.set(cacheKey, historyData, CACHE_TTL_HISTORY);
-      setRequestedExams(historyData);
-      if (forceRefresh) setCurrentHistoryPage(1);
-    } catch (error) {
-      console.error("Error loading requested exams:", error);
-      // Intentar cargar desde caché en caso de error
-      const cacheKey = `${CACHE_KEY_HISTORY}${id_atencion}`;
-      const cachedData = await CacheService.get(cacheKey);
-      if (cachedData) {
-        console.log("📦 Historial cargado desde caché (fallback)");
-        setRequestedExams(cachedData);
-      }
-    } finally {
+  const loadRequestedExams = async () => {
+    setLoadingHistory(true);
+    if (!/^[1-9]\d*$/.test(String(id_atencion)) || !/^[1-9]\d*$/.test(String(Id_exp))) {
       setLoadingHistory(false);
+      return;
     }
+    await load(`/exams/requested/${id_atencion}?type=GABINETE`, data => { setRequestedExams(data); }, 'array');
+    if (current()) setLoadingHistory(false);
   };
 
   const toggleExam = (examId) => {
-    console.log("Toggle exam:", examId, "Actual selección:", selectedExams);
     if (selectedExams.includes(examId)) {
       setSelectedExams(selectedExams.filter((id) => id !== examId));
     } else {
@@ -143,11 +77,14 @@ const ImagingExamsScreen = ({ navigation, route }) => {
   };
 
   const handleSubmit = async () => {
+    if (sending.current || !current()) return;
+    if (!/^[1-9]\d*$/.test(String(id_atencion)) || !/^[1-9]\d*$/.test(String(Id_exp))) { Alert.alert(t('common.warning'), 'Selecciona un paciente válido.'); return; }
     if (selectedExams.length === 0) {
       Alert.alert(t('common.warning'), t('common.selectAtLeastOne'));
       return;
     }
 
+    sending.current = true;
     setLoading(true);
     try {
       const response = await api.post("/exams/request", {
@@ -156,6 +93,7 @@ const ImagingExamsScreen = ({ navigation, route }) => {
         observations: observations || "",
         type: "GABINETE",
       });
+      if (!current()) return;
 
       if (response.data) {
         Alert.alert(t('common.success'), t('medico.imagingExams'));
@@ -168,12 +106,12 @@ const ImagingExamsScreen = ({ navigation, route }) => {
         }
       }
     } catch (error) {
-      console.error("Error saving exams:", error);
       Alert.alert(
         t('common.error'),
-        error.response?.data?.error || t('common.couldNotSaveExams'),
+        adminErrorMessage(error),
       );
     } finally {
+      sending.current = false;
       setLoading(false);
     }
   };
@@ -304,6 +242,8 @@ const ImagingExamsScreen = ({ navigation, route }) => {
       </View>
 
       {/* Tarjeta principal - Nueva solicitud */}
+
+      <NursingConnectionStatus status={connection.status} message={connection.message} />
       <View style={styles.mainCard}>
         <LinearGradient
           colors={["#ed8936", "#dd6b20"]}
@@ -941,4 +881,6 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ImagingExamsScreen;
+export default function MedicalPatientScreen(props) {
+  return <ImagingExamsScreen key={`${props.route?.params?.id_atencion}_${props.route?.params?.Id_exp}`} {...props} />;
+}

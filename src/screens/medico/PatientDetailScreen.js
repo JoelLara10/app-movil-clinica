@@ -1,3 +1,5 @@
+import useMedicalRequests from '../../hooks/useMedicalRequests';
+import NursingConnectionStatus from '../../components/NursingConnectionStatus';
 // src/screens/medico/PatientDetailScreen.js
 import React, { useState, useEffect } from "react";
 import {
@@ -12,14 +14,11 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../../services/api";
-import CacheService from "../../services/cacheService";
 import moment from "moment";
 import "moment/locale/es";
 import { usePatient } from "../../context/PatientContext";
 import { useLanguage } from "../../context/LanguageContext";
 
-const CACHE_KEY_PREFIX = 'patient_detail_';
-const CACHE_TTL = 2 * 60 * 1000;
 
 const PatientDetailScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params || {};
@@ -27,6 +26,7 @@ const PatientDetailScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(true);
   const { setSelectedPatient, selectPatient } = usePatient();
   const { t, lang } = useLanguage();
+  const { connection, load, current } = useMedicalRequests(`${id_atencion}_${Id_exp}`);
 
   useEffect(() => {
     moment.locale(lang === 'es' ? 'es' : 'en-gb');
@@ -35,11 +35,11 @@ const PatientDetailScreen = ({ navigation, route }) => {
   useEffect(() => {
     if (id_atencion && Id_exp) {
       // Guardar correctamente en el contexto
-      setSelectedPatient({ 
-        id_atencion, 
-        Id_exp 
+      setSelectedPatient({
+        id_atencion,
+        Id_exp
       });
-      
+
       // También puedes usar selectPatient si lo tienes
       // selectPatient({ id_atencion, Id_exp });
     }
@@ -47,26 +47,9 @@ const PatientDetailScreen = ({ navigation, route }) => {
   }, [id_atencion, Id_exp]);
 
   const loadPatientData = async () => {
-    try {
-      const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}_${Id_exp}`;
-      
-      const cachedData = await CacheService.get(cacheKey);
-      if (cachedData) {
-        setPatient(cachedData);
-        setLoading(false);
-        return;
-      }
-
-      const response = await api.get(`/paciente/${id_atencion}/${Id_exp}`);
-      
-      await CacheService.set(cacheKey, response.data, CACHE_TTL);
-      setPatient(response.data);
-    } catch (error) {
-      console.error("Error loading patient:", error);
-      Alert.alert(t('common.error'), t('common.couldNotLoad'));
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true);
+    await load(`/paciente/${id_atencion}/${Id_exp}`, setPatient, 'object');
+    if (current()) setLoading(false);
   };
 
   const calculateAge = (fecnac) => {
@@ -146,8 +129,9 @@ const PatientDetailScreen = ({ navigation, route }) => {
         <Text style={styles.headerTitle}>
           <Ionicons name="person-outline" size={20} color="#fff" /> {t('medico.patientDetail')}
         </Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity accessibilityLabel="Recargar" onPress={loadPatientData}><Ionicons name="refresh" size={24} color="#fff" /></TouchableOpacity>
       </LinearGradient>
+      <NursingConnectionStatus status={connection.status} message={connection.message} />
 
       {/* Tarjeta principal */}
       <View style={styles.mainCard}>
@@ -249,6 +233,7 @@ const PatientDetailScreen = ({ navigation, route }) => {
         <View style={styles.modulesGrid}>
           {modules.map((mod, index) => (
             <TouchableOpacity
+              disabled={!patient?.paciente || connection.status === 'error'}
               key={index}
               style={[styles.moduleCard, { backgroundColor: mod.bgColor }]}
               onPress={() =>
@@ -464,4 +449,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default PatientDetailScreen;
+export default function MedicalPatientScreen(props) {return <PatientDetailScreen key={`${props.route?.params?.id_atencion}_${props.route?.params?.Id_exp}`} {...props} />;}

@@ -1,3 +1,5 @@
+import useMedicalRequests from '../../hooks/useMedicalRequests';
+import NursingConnectionStatus from '../../components/NursingConnectionStatus';
 // src/screens/medico/PrintDocsScreen.js
 import React, { useState, useEffect } from "react";
 import {
@@ -20,9 +22,10 @@ import { downloadAuthenticatedFile } from "../../services/fileService";
 const DOCS_CACHE_TTL = 2 * 60 * 1000;
 
 const PrintDocsScreen = ({ navigation, route }) => {
-  const { id_atencion, Id_exp } = route.params;
+  const { id_atencion, Id_exp } = route.params || {};
   const { selectedPatient } = usePatient();
   const { t, lang } = useLanguage();
+  const { connection, load, current } = useMedicalRequests(`${id_atencion}_${Id_exp}`);
   const [loading, setLoading] = useState(false);
   const [patientInfo, setPatientInfo] = useState(null);
 
@@ -45,21 +48,9 @@ const PrintDocsScreen = ({ navigation, route }) => {
   };
 
   const loadPatientInfo = async () => {
-    try {
-      setLoading(true);
-      const cacheKey = `patient_info_${id_atencion}_${pacienteId}`;
-      const data = await getWithCache(
-        cacheKey,
-        `/paciente/${id_atencion}/${pacienteId}`
-      );
-      if (data) {
-        setPatientInfo(data.paciente);
-      }
-    } catch (error) {
-      console.error("Error loading patient info:", error);
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true);
+    await load(`/paciente/${id_atencion}/${Id_exp}`, data => setPatientInfo(data.paciente), 'object');
+    if (current()) setLoading(false);
   };
 
   const handlePrint = async (documentType) => {
@@ -237,6 +228,7 @@ const PrintDocsScreen = ({ navigation, route }) => {
         </Text>
         <View style={{ width: 40 }} />
       </LinearGradient>
+      <NursingConnectionStatus status={connection.status} message={connection.message} />
 
       <View style={styles.patientInfoCard}>
         <View style={styles.patientInfoContent}>
@@ -419,4 +411,4 @@ const styles = StyleSheet.create({
   infoNoteText: { fontSize: 12, color: "#1e40af", marginLeft: 8, flex: 1 },
 });
 
-export default PrintDocsScreen;
+export default function MedicalPatientScreen(props) {return <PrintDocsScreen key={`${props.route?.params?.id_atencion}_${props.route?.params?.Id_exp}`} {...props} />;}
