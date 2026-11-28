@@ -234,7 +234,6 @@ const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
 
   return (
     <ScrollView style={styles.container}>
-      {historyError ? <Text accessibilityRole="alert" style={{ margin: 16, color: '#9b1c1c' }}>{historyError}</Text> : null}
       {/* Header */}
       <LinearGradient colors={['#4299e1', '#3182ce']} style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -251,6 +250,8 @@ const EnfermeriaFluidBalanceScreen = ({ navigation, route }) => {
           <Ionicons name="refresh-outline" size={22} color="#fff" />
         </TouchableOpacity>
       </LinearGradient>
+
+      {historyError ? <Text accessibilityRole="alert" style={{ margin: 16, color: '#9b1c1c' }}>{historyError}</Text> : null}
 
       {/* Información del paciente */}
       <View style={styles.patientInfoCard}>
