@@ -55,6 +55,7 @@ function render(file, draft, api) {
     '../../services/api': { __esModule: true, default: api },
     '../../services/cacheService': { __esModule: true, default: { get: async () => null, set: async () => {} } },
     '../../components/Pagination': { __esModule: true, default: 'Pagination' },
+    '../../components/NursingConnectionStatus': { __esModule: true, default: 'NursingConnectionStatus' },
     '../../utils/nursingValidation': validation, '../../services/adminFeedback': feedback,
     '../../utils/clinicalSecurity': clinical, '../../utils/nursingNoteSync': noteSync,
     moment: { __esModule: true, default: moment },
