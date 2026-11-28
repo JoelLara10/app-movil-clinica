@@ -1,5 +1,7 @@
+import useMedicalRequests from '../../hooks/useMedicalRequests';
+import NursingConnectionStatus from '../../components/NursingConnectionStatus';
 // src/screens/medico/HistoriaClinicaScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -24,8 +26,10 @@ const CACHE_KEY_PREFIX = 'historia_clinica_';
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 
 const HistoriaClinicaScreen = ({ navigation, route }) => {
-  const { id_atencion, Id_exp } = route.params;
+  const { id_atencion, Id_exp } = route.params || {};
   const { t, lang } = useLanguage();
+  const { connection, load, current, sending } = useMedicalRequests(`${id_atencion}_${Id_exp}`);
+  const dirty = useRef(false);
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [formData, setFormData] = useState({
@@ -54,87 +58,17 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
   }, []);
 
   const loadExistingData = async () => {
-    try {
-      setLoadingData(true);
-      const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}_${Id_exp}`;
-
-      // 1. Intentar obtener de caché primero
-      const cachedData = await CacheService.get(cacheKey);
-      if (cachedData) {
-        console.log('📦 Historia clínica cargada desde caché');
-        setFormData({
-          motivo_consulta: cachedData.motivo_consulta || '',
-          sintomatologia: cachedData.sintomatologia || [],
-          sintomatologia_otros: cachedData.sintomatologia_otros || '',
-          heredo: cachedData.heredo || [],
-          heredo_otros: cachedData.heredo_otros || '',
-          nopat: cachedData.nopat || [],
-          nopat_otros: cachedData.nopat_otros || '',
-          pat_enfermedades: cachedData.pat_enfermedades || '',
-          pat_medicamentos: cachedData.pat_medicamentos || '',
-          pat_alergias: cachedData.pat_alergias || '',
-          pat_oculares: cachedData.pat_oculares || '',
-          pat_cirugias: cachedData.pat_cirugias || '',
-        });
-        setLoadingData(false);
-        return;
-      }
-
-      // 2. Si no hay caché, cargar desde API
-      console.log('🌐 Cargando historia clínica desde API...');
-      const response = await api.get(`/historia-clinica/${id_atencion}/${Id_exp}`);
-      
-      if (response.data && Object.keys(response.data).length > 0) {
-        const data = response.data;
-        const parsedData = {
-          motivo_consulta: data.motivo_consulta || '',
-          sintomatologia: data.sintomatologia ? data.sintomatologia.split(',') : [],
-          sintomatologia_otros: data.sintomatologia_otros || '',
-          heredo: data.heredo ? data.heredo.split(',') : [],
-          heredo_otros: data.heredo_otros || '',
-          nopat: data.nopat ? data.nopat.split(',') : [],
-          nopat_otros: data.nopat_otros || '',
-          pat_enfermedades: data.pat_enfermedades || '',
-          pat_medicamentos: data.pat_medicamentos || '',
-          pat_alergias: data.pat_alergias || '',
-          pat_oculares: data.pat_oculares || '',
-          pat_cirugias: data.pat_cirugias || '',
-        };
-
-        // Guardar en caché
-        await CacheService.set(cacheKey, parsedData, CACHE_TTL);
-        setFormData(parsedData);
-      }
-    } catch (error) {
-      console.error('Error loading historia clinica:', error);
-      
-      // 3. Si falla la API, intentar cargar desde caché aunque esté expirada
-      const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}_${Id_exp}`;
-      const cachedData = await CacheService.get(cacheKey);
-      if (cachedData) {
-        console.log('📦 Historia clínica cargada desde caché (fallback)');
-        setFormData({
-          motivo_consulta: cachedData.motivo_consulta || '',
-          sintomatologia: cachedData.sintomatologia || [],
-          sintomatologia_otros: cachedData.sintomatologia_otros || '',
-          heredo: cachedData.heredo || [],
-          heredo_otros: cachedData.heredo_otros || '',
-          nopat: cachedData.nopat || [],
-          nopat_otros: cachedData.nopat_otros || '',
-          pat_enfermedades: cachedData.pat_enfermedades || '',
-          pat_medicamentos: cachedData.pat_medicamentos || '',
-          pat_alergias: cachedData.pat_alergias || '',
-          pat_oculares: cachedData.pat_oculares || '',
-          pat_cirugias: cachedData.pat_cirugias || '',
-        });
-        Alert.alert(t('common.noConnection'), t('common.showingCachedData'));
-      }
-    } finally {
+    setLoadingData(true);
+    if (!/^[1-9]\d*$/.test(String(id_atencion)) || !/^[1-9]\d*$/.test(String(Id_exp))) {
       setLoadingData(false);
+      return;
     }
+    await load(`/historia-clinica/${id_atencion}/${Id_exp}`, data => { if (!dirty.current) setFormData(current => ({...current, ...data, ...Object.fromEntries(['sintomatologia','heredo','nopat'].map(key => [key, Array.isArray(data[key]) ? data[key] : (data[key] || '').split(',').filter(Boolean)]))})); }, 'object');
+    if (current()) setLoadingData(false);
   };
 
   const toggleCheckbox = (field, value) => {
+    dirty.current = true;
     const current = [...formData[field]];
     if (current.includes(value)) {
       setFormData({ ...formData, [field]: current.filter(item => item !== value) });
@@ -144,10 +78,13 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
   };
 
   const handleChange = (field, value) => {
+    dirty.current = true;
     setFormData({ ...formData, [field]: value });
   };
 
   const handleSubmit = async () => {
+    if (sending.current || !current()) return;
+    if (!/^[1-9]\d*$/.test(String(id_atencion)) || !/^[1-9]\d*$/.test(String(Id_exp))) { Alert.alert(t('common.warning'), 'Selecciona un paciente válido.'); return; }
     // SEGURIDAD (Joel): valida el contexto y limita los textos clínicos antes de enviarlos.
     // Evita asociar información a otro expediente y reduce cargas manipuladas o excesivas.
     const validation = validateClinicalHistory({ id_atencion, Id_exp, formData });
@@ -156,28 +93,30 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
       return;
     }
 
+    sending.current = true;
     setLoading(true);
     try {
       // Convertir arrays a strings separados por comas para enviar
       const dataToSend = validation.data;
-      
+
       const response = await api.post(`/historia-clinica/${id_atencion}/${Id_exp}`, dataToSend);
+      if (!current()) return;
       if (response.data) {
         // Actualizar caché después de guardar
         const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}_${Id_exp}`;
         await CacheService.set(cacheKey, formData, CACHE_TTL);
-        
+
         Alert.alert(t('common.success'), 'Historia clínica guardada correctamente');
         navigation.goBack();
       }
     } catch (error) {
       // SEGURIDAD (Joel): no mostramos detalles internos enviados por la API.
-      console.error('Error saving historia clinica request');
       Alert.alert(
         t('common.error'),
         getSafeClinicalError(error, t('common.couldNotSaveData')),
       );
     } finally {
+      sending.current = false;
       setLoading(false);
     }
   };
@@ -198,10 +137,10 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
             ]}
             onPress={() => toggleCheckbox(field, opt)}
           >
-            <Ionicons 
-              name={formData[field].includes(opt) ? "checkmark-circle" : "ellipse-outline"} 
-              size={18} 
-              color={formData[field].includes(opt) ? "#667eea" : "#a0aec0"} 
+            <Ionicons
+              name={formData[field].includes(opt) ? "checkmark-circle" : "ellipse-outline"}
+              size={18}
+              color={formData[field].includes(opt) ? "#667eea" : "#a0aec0"}
             />
             <Text style={[styles.checkboxLabel, formData[field].includes(opt) && styles.checkboxLabelSelected]}>
               {opt}
@@ -246,9 +185,11 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
         </TouchableOpacity>
       </LinearGradient>
 
+
+      <NursingConnectionStatus status={connection.status} message={connection.message} />
       <View style={styles.mainCard}>
-        <LinearGradient 
-          colors={['#667eea', '#764ba2']} 
+        <LinearGradient
+          colors={['#667eea', '#764ba2']}
           style={styles.cardHeader}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
@@ -295,7 +236,7 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
               <Ionicons name="medkit-outline" size={20} color="#667eea" />
               <Text style={styles.sectionTitleText}>{t('medico.pathologicalHistory')}</Text>
             </View>
-            
+
             <TextInput
               style={styles.input}
               placeholder={t('medico.diseases')}
@@ -303,7 +244,7 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
               value={formData.pat_enfermedades}
               onChangeText={(text) => handleChange('pat_enfermedades', text)}
             />
-            
+
             <TextInput
               style={styles.input}
               placeholder={t('medico.medications')}
@@ -311,7 +252,7 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
               value={formData.pat_medicamentos}
               onChangeText={(text) => handleChange('pat_medicamentos', text)}
             />
-            
+
             <TextInput
               style={styles.input}
               placeholder={t('medico.allergiesLabel')}
@@ -319,7 +260,7 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
               value={formData.pat_alergias}
               onChangeText={(text) => handleChange('pat_alergias', text)}
             />
-            
+
             <TextInput
               style={styles.input}
               placeholder={t('medico.ocularHistory')}
@@ -327,7 +268,7 @@ const HistoriaClinicaScreen = ({ navigation, route }) => {
               value={formData.pat_oculares}
               onChangeText={(text) => handleChange('pat_oculares', text)}
             />
-            
+
             <TextInput
               style={styles.input}
               placeholder={t('medico.previousSurgeries')}
@@ -534,4 +475,6 @@ const styles = StyleSheet.create({
   },
 });
 
-export default HistoriaClinicaScreen;
+export default function MedicalPatientScreen(props) {
+  return <HistoriaClinicaScreen key={`${props.route?.params?.id_atencion}_${props.route?.params?.Id_exp}`} {...props} />;
+}

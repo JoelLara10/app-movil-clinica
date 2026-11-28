@@ -1,3 +1,5 @@
+import useMedicalRequests from '../../hooks/useMedicalRequests';
+import NursingConnectionStatus from '../../components/NursingConnectionStatus';
 // src/screens/medico/StudyResultsScreen.js
 import React, { useState, useEffect } from 'react';
 import {
@@ -15,22 +17,18 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
-import CacheService from '../../services/cacheService';
 import Pagination from '../../components/Pagination';
 import { useLanguage } from '../../context/LanguageContext';
 import { downloadAuthenticatedFile } from '../../services/fileService';
 import moment from 'moment';
 import 'moment/locale/es';
 
-const CACHE_KEY_PATIENT = 'study_results_patient_';
-const CACHE_KEY_LAB = 'study_results_lab_';
-const CACHE_KEY_GAB = 'study_results_gab_';
-const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
 const RESULTS_PER_PAGE = 5;
 
 const StudyResultsScreen = ({ navigation, route }) => {
-  const { id_atencion, Id_exp } = route.params;
+  const { id_atencion, Id_exp } = route.params || {};
   const { t, lang } = useLanguage();
+  const { connection, load, current } = useMedicalRequests(`${id_atencion}_${Id_exp}`);
   moment.locale(lang === 'es' ? 'es' : 'en-gb');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -40,7 +38,7 @@ const StudyResultsScreen = ({ navigation, route }) => {
   const [selectedExam, setSelectedExam] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [downloadingAttachment, setDownloadingAttachment] = useState(null);
-  
+
   // Estados de paginación
   const [labCurrentPage, setLabCurrentPage] = useState(1);
   const [gabCurrentPage, setGabCurrentPage] = useState(1);
@@ -49,86 +47,10 @@ const StudyResultsScreen = ({ navigation, route }) => {
     loadData();
   }, []);
 
-  const loadData = async (forceRefresh = false) => {
-    try {
-      setLoading(true);
-      
-      const cacheKeyPatient = `${CACHE_KEY_PATIENT}${id_atencion}`;
-      const cacheKeyLab = `${CACHE_KEY_LAB}${id_atencion}`;
-      const cacheKeyGab = `${CACHE_KEY_GAB}${id_atencion}`;
-
-      // Cargar información del paciente
-      if (!forceRefresh) {
-        const cachedPatient = await CacheService.get(cacheKeyPatient);
-        if (cachedPatient) {
-          setPaciente(cachedPatient);
-        } else {
-          const pacienteRes = await api.get(`/paciente/${id_atencion}/${Id_exp}`);
-          setPaciente(pacienteRes.data.paciente);
-          await CacheService.set(cacheKeyPatient, pacienteRes.data.paciente, CACHE_TTL);
-        }
-      } else {
-        const pacienteRes = await api.get(`/paciente/${id_atencion}/${Id_exp}`);
-        setPaciente(pacienteRes.data.paciente);
-        await CacheService.set(cacheKeyPatient, pacienteRes.data.paciente, CACHE_TTL);
-      }
-
-      // Cargar resultados de laboratorio
-      if (!forceRefresh) {
-        const cachedLab = await CacheService.get(cacheKeyLab);
-        if (cachedLab) {
-          setLaboratorio(cachedLab);
-        } else {
-          const labRes = await api.get(`/exams/patient/${id_atencion}?type=LABORATORIO`);
-          setLaboratorio(labRes.data);
-          await CacheService.set(cacheKeyLab, labRes.data, CACHE_TTL);
-        }
-      } else {
-        const labRes = await api.get(`/exams/patient/${id_atencion}?type=LABORATORIO`);
-        setLaboratorio(labRes.data);
-        await CacheService.set(cacheKeyLab, labRes.data, CACHE_TTL);
-      }
-
-      // Cargar resultados de gabinete
-      if (!forceRefresh) {
-        const cachedGab = await CacheService.get(cacheKeyGab);
-        if (cachedGab) {
-          setGabinete(cachedGab);
-        } else {
-          const gabRes = await api.get(`/exams/patient/${id_atencion}?type=GABINETE`);
-          setGabinete(gabRes.data);
-          await CacheService.set(cacheKeyGab, gabRes.data, CACHE_TTL);
-        }
-      } else {
-        const gabRes = await api.get(`/exams/patient/${id_atencion}?type=GABINETE`);
-        setGabinete(gabRes.data);
-        await CacheService.set(cacheKeyGab, gabRes.data, CACHE_TTL);
-      }
-      
-    } catch (error) {
-      console.error('Error loading data:', error);
-      
-      // Intentar cargar desde caché en caso de error
-      const cacheKeyPatient = `${CACHE_KEY_PATIENT}${id_atencion}`;
-      const cacheKeyLab = `${CACHE_KEY_LAB}${id_atencion}`;
-      const cacheKeyGab = `${CACHE_KEY_GAB}${id_atencion}`;
-      
-      const [cachedPatient, cachedLab, cachedGab] = await Promise.all([
-        CacheService.get(cacheKeyPatient),
-        CacheService.get(cacheKeyLab),
-        CacheService.get(cacheKeyGab)
-      ]);
-      
-      if (cachedPatient) setPaciente(cachedPatient);
-      if (cachedLab) setLaboratorio(cachedLab);
-      if (cachedGab) setGabinete(cachedGab);
-      
-      if (!cachedPatient && !cachedLab && !cachedGab) {
-        Alert.alert(t('common.error'), t('common.couldNotLoadResults'));
-      }
-    } finally {
-      setLoading(false);
-    }
+  const loadData = async () => {
+    setLoading(true);
+    await Promise.all([load(`/paciente/${id_atencion}/${Id_exp}`, data => setPaciente(data.paciente), 'object'), load(`/exams/patient/${id_atencion}?type=LABORATORIO`, setLaboratorio), load(`/exams/patient/${id_atencion}?type=GABINETE`, setGabinete)]);
+    if (current()) setLoading(false);
   };
 
   const onRefresh = async () => {
@@ -223,7 +145,7 @@ const StudyResultsScreen = ({ navigation, route }) => {
     const isLab = type === 'LABORATORIO';
     const headerColor = isLab ? '#48bb78' : '#ed8936';
     const iconName = isLab ? 'flask-outline' : 'scan-outline';
-    
+
     if (results.length === 0) {
       return (
         <View style={styles.emptyState}>
@@ -249,7 +171,7 @@ const StudyResultsScreen = ({ navigation, route }) => {
           <Text style={[styles.headerCell, styles.observationsHeader]}>{t('common.observations')}</Text>
           <Text style={[styles.headerCell, styles.actionHeader]}>Ver</Text>
         </View>
-        
+
         <ScrollView>
           {results.map((item, index) => (
             <View key={item.id_examen || index} style={styles.tableRow}>
@@ -264,7 +186,7 @@ const StudyResultsScreen = ({ navigation, route }) => {
                   </Text>
                 </View>
               </View>
-              
+
               {/* Estudios */}
               <View style={[styles.rowCell, styles.examsCell]}>
                 <View style={styles.estudiosContainer}>
@@ -278,7 +200,7 @@ const StudyResultsScreen = ({ navigation, route }) => {
                   ))}
                 </View>
               </View>
-              
+
               {/* Médico */}
               <View style={[styles.rowCell, styles.doctorCell]}>
                 <View style={styles.medicoInfo}>
@@ -286,14 +208,14 @@ const StudyResultsScreen = ({ navigation, route }) => {
                   <Text style={styles.medicoName}>{item.medico || t('common.notSpecified')}</Text>
                 </View>
               </View>
-              
+
               {/* Observaciones */}
               <View style={[styles.rowCell, styles.observationsCell]}>
                 <Text style={styles.observationsText} numberOfLines={2}>
                   {item.observaciones || '—'}
                 </Text>
               </View>
-              
+
               {/* Botón Ver */}
               <TouchableOpacity
                 style={[styles.viewButton, { backgroundColor: headerColor }]}
@@ -304,7 +226,7 @@ const StudyResultsScreen = ({ navigation, route }) => {
             </View>
           ))}
         </ScrollView>
-        
+
         {/* Paginación */}
         {totalPages > 1 && (
           <View style={styles.paginationContainer}>
@@ -323,10 +245,10 @@ const StudyResultsScreen = ({ navigation, route }) => {
 
   const renderModal = () => {
     if (!selectedExam) return null;
-    
+
     const isLab = selectedExam.tipo === 'LABORATORIO';
     const headerColor = isLab ? '#48bb78' : '#ed8936';
-    
+
     return (
       <Modal
         animationType="slide"
@@ -349,7 +271,8 @@ const StudyResultsScreen = ({ navigation, route }) => {
                 <Ionicons name="close-outline" size={28} color="#fff" />
               </TouchableOpacity>
             </LinearGradient>
-            
+      <NursingConnectionStatus status={connection.status} message={connection.message} />
+
             <ScrollView style={styles.modalBody}>
               <View style={styles.modalInfoRow}>
                 <Text style={styles.modalLabel}>{t('medico.dateLabel')}:</Text>
@@ -357,12 +280,12 @@ const StudyResultsScreen = ({ navigation, route }) => {
                   {moment(selectedExam.fecha).format('DD/MM/YYYY HH:mm')}
                 </Text>
               </View>
-              
+
               <View style={styles.modalInfoRow}>
                 <Text style={styles.modalLabel}>{t('medico.medicalRequester')}:</Text>
                 <Text style={styles.modalValue}>{selectedExam.medico || t('common.notSpecified')}</Text>
               </View>
-              
+
               <View style={styles.modalSection}>
                 <Text style={styles.modalSectionTitle}>{t('medico.studiesPerformed')}:</Text>
                 {selectedExam.detalles && selectedExam.detalles.map((estudio, idx) => (
@@ -380,14 +303,14 @@ const StudyResultsScreen = ({ navigation, route }) => {
                   </View>
                 ))}
               </View>
-              
+
               {selectedExam.observaciones && (
                 <View style={styles.modalSection}>
                   <Text style={styles.modalSectionTitle}>{t('common.observations')}:</Text>
                   <Text style={styles.modalObservaciones}>{selectedExam.observaciones}</Text>
                 </View>
               )}
-              
+
               {selectedExam.detalles && selectedExam.detalles.some(d => d.resultado) && (
                 <View style={styles.modalSection}>
                   <Text style={styles.modalSectionTitle}>{t('common.resultsLabel')}:</Text>
@@ -401,7 +324,7 @@ const StudyResultsScreen = ({ navigation, route }) => {
                   ))}
                 </View>
               )}
-              
+
               {getAttachmentPaths(selectedExam).map((path, index) => {
                 const filename = path.split('/').pop()?.split(String.fromCharCode(92)).pop() || `${t('common.downloadAttachment')} ${index + 1}`;
                 const isDownloading = downloadingAttachment === path;
@@ -497,10 +420,10 @@ const StudyResultsScreen = ({ navigation, route }) => {
 
         <View style={styles.cardBody}>
           {renderResultsTable(
-            paginatedLaboratorio, 
-            'LABORATORIO', 
-            labCurrentPage, 
-            setLabCurrentPage, 
+            paginatedLaboratorio,
+            'LABORATORIO',
+            labCurrentPage,
+            setLabCurrentPage,
             labTotalPages
           )}
         </View>
@@ -525,10 +448,10 @@ const StudyResultsScreen = ({ navigation, route }) => {
 
         <View style={styles.cardBody}>
           {renderResultsTable(
-            paginatedGabinete, 
-            'GABINETE', 
-            gabCurrentPage, 
-            setGabCurrentPage, 
+            paginatedGabinete,
+            'GABINETE',
+            gabCurrentPage,
+            setGabCurrentPage,
             gabTotalPages
           )}
         </View>
@@ -887,4 +810,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default StudyResultsScreen;
+export default function MedicalPatientScreen(props) {return <StudyResultsScreen key={`${props.route?.params?.id_atencion}_${props.route?.params?.Id_exp}`} {...props} />;}

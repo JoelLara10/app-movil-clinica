@@ -1,5 +1,9 @@
+import useMedicalRequests from '../../hooks/useMedicalRequests';
+import NursingConnectionStatus from '../../components/NursingConnectionStatus';
+import { adminErrorMessage } from '../../services/adminFeedback';
+import { validateNursingInput } from '../../utils/nursingValidation';
 // src/screens/medico/VitalSignsScreen.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -14,28 +18,17 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../../services/api";
-import CacheService from "../../services/cacheService";
 import Pagination from "../../components/Pagination";
 import { useLanguage } from "../../context/LanguageContext";
 import moment from "moment";
 
-const CACHE_KEY_PREFIX = "vital_signs_";
-const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
 const HISTORY_ITEMS_PER_PAGE = 5;
 
 const VitalSignsScreen = ({ navigation, route }) => {
   const { id_atencion, Id_exp } = route.params || {};
   const { t, lang } = useLanguage();
-
-  // ==================== DEBUG ====================
-  useEffect(() => {
-    console.log("🔍 VitalSignsScreen - Params recibidos:", {
-      id_atencion,
-      Id_exp,
-      fullParams: route.params,
-    });
-  }, [id_atencion, Id_exp]);
-  // ===============================================
+  const { connection, load, current, sending } = useMedicalRequests(`${id_atencion}_${Id_exp}`);
+  const dirty = useRef(false);
 
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
@@ -56,34 +49,18 @@ const VitalSignsScreen = ({ navigation, route }) => {
     loadVitalSignsHistory();
   }, []);
 
-  const loadVitalSignsHistory = async (forceRefresh = false) => {
-    try {
-      setLoadingHistory(true);
-      const cacheKey = `${CACHE_KEY_PREFIX}${id_atencion}`;
-
-      if (!forceRefresh) {
-        const cachedData = await CacheService.get(cacheKey);
-        if (cachedData) {
-          setHistory(cachedData);
-          if (forceRefresh) setCurrentHistoryPage(1);
-          return;
-        }
-      }
-
-      const response = await api.get(`/appointments/${id_atencion}/vital-signs`);
-      await CacheService.set(cacheKey, response.data, CACHE_TTL);
-      setHistory(response.data || []);
-      if (forceRefresh) setCurrentHistoryPage(1);
-    } catch (error) {
-      console.error("Error loading vital signs history:", error);
-      const cachedData = await CacheService.get(`${CACHE_KEY_PREFIX}${id_atencion}`);
-      if (cachedData) setHistory(cachedData);
-    } finally {
+  const loadVitalSignsHistory = async () => {
+    setLoadingHistory(true);
+    if (!/^[1-9]\d*$/.test(String(id_atencion)) || !/^[1-9]\d*$/.test(String(Id_exp))) {
       setLoadingHistory(false);
+      return;
     }
+    await load(`/appointments/${id_atencion}/vital-signs`, data => { setHistory(data); }, 'array');
+    if (current()) setLoadingHistory(false);
   };
 
   const handleChange = (field, value) => {
+    dirty.current = true;
     setFormData({ ...formData, [field]: value });
   };
 
@@ -94,38 +71,26 @@ const VitalSignsScreen = ({ navigation, route }) => {
   };
 
   const handleSubmit = async () => {
-    const hasData = Object.values(formData).some((value) => value !== "");
-    if (!hasData) {
-      Alert.alert(t('common.warning'), t('common.enterAtLeastOneVital'));
-      return;
-    }
+    if (sending.current || !current()) return;
+    if (!/^[1-9]\d*$/.test(String(id_atencion)) || !/^[1-9]\d*$/.test(String(Id_exp))) { Alert.alert(t('common.warning'), 'Selecciona un paciente válido.'); return; }
+    const validation = validateNursingInput('vitals', formData);
+    if (validation.error) { Alert.alert(t('common.warning'), validation.error); return; }
+    const dataToSend = validation.data;
 
-    const dataToSend = {
-      ta: formData.ta || "",
-      fc: parseNumericValue(formData.fc),
-      fr: parseNumericValue(formData.fr),
-      temp: parseNumericValue(formData.temp),
-      spo2: parseNumericValue(formData.spo2),
-      peso: parseNumericValue(formData.peso),
-      talla: parseNumericValue(formData.talla),
-    };
-
-    Object.keys(dataToSend).forEach((key) => {
-      if (dataToSend[key] === null) delete dataToSend[key];
-    });
-
+    sending.current = true;
     setLoading(true);
     try {
       const response = await api.post(`/appointments/${id_atencion}/vital-signs`, dataToSend);
+      if (!current()) return;
       if (response.data) {
         Alert.alert(t('common.success'), "Signos vitales guardados correctamente");
         setFormData({ ta: "", fc: "", fr: "", temp: "", spo2: "", peso: "", talla: "" });
         await loadVitalSignsHistory(true);
       }
     } catch (error) {
-      console.error("Error saving vital signs:", error);
-      Alert.alert(t('common.error'), error.response?.data?.error || t('common.couldNotSaveData'));
+      Alert.alert(t('common.error'), adminErrorMessage(error));
     } finally {
+      sending.current = false;
       setLoading(false);
     }
   };
@@ -243,6 +208,8 @@ const VitalSignsScreen = ({ navigation, route }) => {
         </View>
       </View>
 
+
+      <NursingConnectionStatus status={connection.status} message={connection.message} />
       {/* Formulario principal */}
       <View style={styles.mainCard}>
         <LinearGradient
@@ -739,4 +706,6 @@ const styles = StyleSheet.create({
   },
 });
 
-export default VitalSignsScreen;
+export default function MedicalPatientScreen(props) {
+  return <VitalSignsScreen key={`${props.route?.params?.id_atencion}_${props.route?.params?.Id_exp}`} {...props} />;
+}
