@@ -1,3 +1,4 @@
+import NursingConnectionStatus from '../../components/NursingConnectionStatus';
 import { nursingContextError } from '../../utils/nursingValidation';
 // src/screens/enfermeria/EnfermeriaNoteScreen.js
 import React, { useState, useEffect, useRef } from 'react';
@@ -186,10 +187,11 @@ const EnfermeriaNoteScreen = ({ navigation, route }) => {
         </View>
       </View>
 
+      <NursingConnectionStatus status={historyError ? (history.length ? 'cache' : 'error') : lastSync ? 'remote' : 'loading'} message={historyError} />
+
       <View style={{ paddingHorizontal: 20, paddingVertical: 10 }}>
         <Text>{lastSync ? `${t('noteSync.lastSync')} ${lastSync.toLocaleTimeString()}` : t('noteSync.notSynced')}</Text>
         {loadingHistory && <Text accessibilityLiveRegion="polite">{t('noteSync.loading')}</Text>}
-        {historyError && <Text accessibilityRole="alert" style={{ color: '#9b2c2c' }}>{historyError} {t('noteSync.stale')}</Text>}
         {syncMessage && <Text accessibilityRole="alert" style={{ marginTop: 8 }}>{syncMessage}</Text>}
       </View>
       {/* Tarjeta principal - Nueva nota */}
