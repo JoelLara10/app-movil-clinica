@@ -200,7 +200,6 @@ const EnfermeriaVitalSignsScreen = ({ navigation, route }) => {
 
   return (
     <ScrollView style={styles.container}>
-      {historyError ? <Text accessibilityRole="alert" style={{ margin: 16, color: '#9b1c1c' }}>{historyError}</Text> : null}
       {/* Header */}
       <LinearGradient colors={["#667eea", "#764ba2"]} style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -217,6 +216,8 @@ const EnfermeriaVitalSignsScreen = ({ navigation, route }) => {
           <Ionicons name="refresh-outline" size={22} color="#fff" />
         </TouchableOpacity>
       </LinearGradient>
+
+      {historyError ? <Text accessibilityRole="alert" style={{ margin: 16, color: '#9b1c1c' }}>{historyError}</Text> : null}
 
       {/* Información del paciente - SOLO EXP */}
       <View style={styles.patientInfoCard}>

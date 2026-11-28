@@ -235,7 +235,6 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
 
   return (
     <ScrollView style={styles.container}>
-      {historyError ? <Text accessibilityRole="alert" style={{ margin: 16, color: '#9b1c1c' }}>{historyError}</Text> : null}
       {/* Header */}
       <LinearGradient colors={['#48bb78', '#38a169']} style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -292,7 +291,7 @@ const EnfermeriaCareScreen = ({ navigation, route }) => {
               ? t('enfermeria.remoteDataLoaded')
               : historyStatus === 'cache'
                 ? t('enfermeria.cachedDataWarning')
-                : t('enfermeria.remoteConnectionError')}
+                : (historyError || t('enfermeria.remoteConnectionError'))}
           </Text>
         </View>
       )}
